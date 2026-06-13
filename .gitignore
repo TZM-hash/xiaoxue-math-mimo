@@ -1,0 +1,6 @@
+.apk-build/
+android/build/
+android/.gradle/
+android/app/build/
+*.apk
+Python/_cache/

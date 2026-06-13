@@ -1,0 +1,811 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>喵喵数学</title>
+  <meta name="application-name" content="喵喵数学" />
+  <meta name="apple-mobile-web-app-title" content="喵喵数学" />
+  <meta name="theme-color" content="#3aa47c" />
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/miaomiao-math-192.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/miaomiao-math-180.png" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <script>
+    try {
+      const savedTheme = localStorage.getItem("mathcamp-theme-v1") || "classic";
+      document.documentElement.dataset.theme = savedTheme === "dark" ? "classic" : savedTheme;
+    } catch (_) {
+      document.documentElement.dataset.theme = "classic";
+    }
+    if (
+      (navigator.userAgent || "").includes("MiaoMiaoMathAndroid") ||
+      ((navigator.userAgent || "").includes("Android") && location.href.includes("android_asset"))
+    ) {
+      document.documentElement.classList.add("android-webview");
+    }
+  </script>
+  <link rel="stylesheet" href="css/themes.css" />
+  <style id="printPageStyle"></style>
+</head>
+<body>
+  <main class="app">
+    <header class="app-header">
+      <div class="brand" aria-label="喵喵数学">
+        <span class="brand-mark" aria-hidden="true">
+          <img src="assets/cat-states-app/cat_idle.png" alt="" />
+        </span>
+        喵喵数学 <span class="brand-spark" aria-hidden="true">✨</span>
+      </div>
+      <nav class="tabs" aria-label="主要功能">
+        <button class="tab-btn" type="button" data-view="practice" aria-selected="true">📝 在线练习</button>
+        <button class="tab-btn" type="button" data-start-challenge aria-selected="false">🏆 闯关模式</button>
+        <button class="tab-btn desktop-pet-tab" type="button" data-view="petspace" aria-selected="false">🐾 招财空间</button>
+        <button class="tab-btn" type="button" data-open-learning aria-selected="false">📚 学习精进</button>
+        <button class="tab-btn" type="button" data-open-system aria-selected="false">⚙️ 系统设置</button>
+        <button class="tab-btn" type="button" data-view="data" aria-selected="false">👧 学生信息</button>
+      </nav>
+      <div class="quick-stats" aria-live="polite">
+        <span class="pill" id="wrongCountPill">错题本 0 题</span>
+        <span class="pill" id="todayPill">今日 0 题</span>
+        <span class="pill pet-coin-pill" id="petCoinPill">金币 0</span>
+      </div>
+    </header>
+
+    <section class="hero home-dashboard" aria-labelledby="heroTitle">
+      <article class="today-plan-card">
+        <div class="eyebrow">今日计划</div>
+        <h1 id="heroTitle">今日学习台</h1>
+        <p class="lead" id="homePlanCopy">先补最需要的一小块：系统会根据错题、正确率和用时，推荐今天最该练的知识点。</p>
+        <div class="weak-point-list" id="homeWeakList" aria-label="今日推荐知识点"></div>
+        <div class="hero-actions">
+          <button class="primary" type="button" id="homeStartWeakBtn">开始薄弱点练习</button>
+          <button class="secondary" type="button" id="homeStartTimedBtn">5 分钟限时小测</button>
+          <button class="secondary" type="button" id="homeStartChallengeBtn">继续闯关</button>
+          <button class="secondary" type="button" data-open-learning>学习精进</button>
+        </div>
+      </article>
+      <aside class="home-side-panel" aria-label="今日状态">
+        <div class="home-pet-card">
+          <div class="cat"><img src="assets/cat-states-app/cat_idle.png" alt="" data-pet-image /><div class="cat-face"></div></div>
+          <div>
+            <strong id="homePetTitle">招财在等你练习</strong>
+            <p id="homePetCopy">完成一轮练习后，招财会获得经验和亲密值。</p>
+          </div>
+        </div>
+        <div class="home-mini-grid">
+          <button type="button" data-start-challenge aria-label="继续闯关">
+            <span>闯关</span><strong id="homeChallengeCopy">第 1 关</strong>
+          </button>
+          <button type="button" data-start-timed aria-label="开始限时小测">
+            <span>限时</span><strong id="homeTimedCopy">10 题 / 5 分钟</strong>
+          </button>
+        </div>
+        <div class="challenge-panel home-challenge-panel" id="homeChallengePanel">
+          <div>
+            <strong>闯关模式</strong>
+            <span>完成当前年级的小关卡，稳定后自动提高挑战等级。</span>
+          </div>
+          <div class="challenge-actions">
+            <button class="soft-btn" type="button" data-start-challenge>开始闯关</button>
+            <button class="secondary" type="button" data-start-timed>限时小测</button>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="view active" id="practiceView">
+      <div class="workspace practice-workspace" id="practiceWorkspace">
+        <aside class="panel" aria-label="练习设置">
+          <h2>练习设置</h2>
+          <div class="setup-step setup-step-primary">
+            <div class="field">
+              <div class="field-label">年级</div>
+              <div class="grade-grid" id="gradeGrid"></div>
+            </div>
+            <div class="field setup-point-field">
+              <label for="pointSelect">知识点</label>
+              <select id="pointSelect"></select>
+            </div>
+            <div class="field setup-answer-mode-field">
+              <label for="answerModeSelect">答题方式</label>
+              <select id="answerModeSelect">
+                <option value="auto">智能混合</option>
+                <option value="input">直接输入</option>
+                <option value="choice">选择题</option>
+                <option value="judge">判断对错</option>
+                <option value="step">分步作答</option>
+              </select>
+              <div class="mobile-step-note">手机做题时不提供分步作答，默认改为直接输入、选择题或判断题。</div>
+            </div>
+            <label class="inline-check">
+              <input id="adaptiveToggle" type="checkbox" checked />
+              <span>开启难度自适应：根据正确率和错题自动调整题目范围。</span>
+            </label>
+            <div class="hint-box" id="adaptiveHint">系统会从当前年级的全部知识点里，优先抽取需要巩固的内容。</div>
+          </div>
+          <div class="setup-step setup-step-secondary">
+            <div class="field setup-set-size-field">
+              <label for="setSizeInput">每轮题目数量</label>
+              <input id="setSizeInput" type="number" min="3" max="40" step="1" value="10" />
+            </div>
+            <div class="field setup-daily-goal-field">
+              <label for="dailyGoalInput">每日目标题数</label>
+              <input id="dailyGoalInput" type="number" min="5" max="200" step="5" value="20" />
+            </div>
+            <div class="goal-card" id="dailyGoalCard">
+              <strong>0 / 20</strong>
+              <span>今日目标进度</span>
+            </div>
+            <div class="challenge-panel" id="challengePanel">
+              <div>
+                <strong>闯关模式</strong>
+                <span>完成当前年级的小关卡，稳定后自动提高挑战等级。</span>
+              </div>
+              <div class="challenge-actions">
+                <button class="soft-btn" type="button" id="startChallengeBtn">开始闯关</button>
+                <button class="secondary" type="button" id="startTimedQuizBtn">限时小测</button>
+              </div>
+            </div>
+            <details class="knowledge-card" id="knowledgeDetail">
+              <summary>知识点详情说明</summary>
+              <div class="knowledge-card-body">
+                <strong>按年级混合 / 自适应</strong>
+                <p>选择具体知识点后，会显示规则、易错点和推荐练法。</p>
+              </div>
+            </details>
+            <div class="panel-actions" style="margin-top:16px">
+              <button class="primary" type="button" id="startSetBtn">🎲 生成新一轮练习</button>
+              <button class="secondary" type="button" data-jump="wrongbook">📒 查看错题本</button>
+              <button class="secondary" type="button" data-jump="print">🖨️ 去打印题单</button>
+            </div>
+          </div>
+        </aside>
+
+        <section class="main-stack" aria-live="polite">
+          <div class="status-strip">
+            <div class="stat"><strong id="gradeStat">1</strong><span>当前年级</span></div>
+            <div class="stat"><strong id="progressStat">1/10</strong><span>本轮进度</span></div>
+            <div class="stat"><strong id="timerStat">00:00</strong><span>本轮用时</span></div>
+            <div class="stat"><strong id="correctStat">0</strong><span>答对题数</span></div>
+            <div class="stat"><strong id="streakStat">0</strong><span>连续答对</span></div>
+          </div>
+          <div class="mission-strip" id="missionStrip" aria-live="polite">
+            <div class="mission-card">
+              <span>今日目标</span>
+              <strong id="missionGoal">0 / 20 题</strong>
+            </div>
+            <div class="mission-card">
+              <span>连对奖励</span>
+              <strong id="missionStreak">再答对 3 题点亮奖励</strong>
+            </div>
+            <div class="mission-card mission-card-wide">
+              <span>下一步</span>
+              <strong id="missionNext">先完成一轮小练习</strong>
+            </div>
+          </div>
+          <article class="practice-card card" id="practiceCard">
+            <div class="celebration-layer" id="celebrationLayer" aria-hidden="true"></div>
+            <div class="answer-panel">
+              <div class="tag-row">
+                <button class="secondary back-btn tag-back-btn" type="button" id="backToSetupBtn">返回</button>
+                <span class="tag" id="gradeTag">一年级</span>
+                <span class="tag topic" id="pointTag">20 以内加减</span>
+                <span class="tag" id="modeTag">普通练习</span>
+              </div>
+              <h2 class="question" id="questionText">8 + 5 = ?</h2>
+              <div class="answer-row">
+                <input class="answer-input" id="answerInput" inputmode="decimal" autocomplete="off" placeholder="在这里输入答案" aria-label="输入答案" />
+                <button class="primary" type="button" id="checkBtn">🔍 检查答案</button>
+              </div>
+              <div class="answer-mode-panel" id="answerModePanel" hidden></div>
+              <div class="answer-control-slot" id="answerControlSlot">
+                <div class="number-pad" id="numberPad" aria-label="数字输入键盘"></div>
+                <div class="cause-panel" id="causePanel">
+                  <div class="cause-panel-body">
+                    <p class="cause-panel-title">这题错在哪里？点一个原因保存</p>
+                    <input type="hidden" id="causeSelect" value="不会做" />
+                    <div class="cause-quick-tags" id="causeQuickTags" aria-label="选择错因并保存"></div>
+                  </div>
+                  <button class="secondary cause-save-fallback" type="button" id="saveCauseBtn">直接下一题</button>
+                </div>
+              </div>
+              <div class="feedback" id="feedback">输入答案后点“检查答案”，按回车也可以提交。</div>
+              <div class="practice-actions row-actions">
+                <button class="secondary" type="button" id="showAnswerBtn" disabled>👁️ 查看答案</button>
+                <button class="secondary" type="button" id="nextBtn">➡️ 下一题</button>
+                <button class="soft-btn" type="button" id="similarBtn" disabled>🧩 同类题 3 道</button>
+                <button class="danger" type="button" id="resetSetBtn">♻️ 重置本轮</button>
+              </div>
+              <div class="answer-tip-card">
+                支持整数、小数和分数输入；应用题先写关键关系，答错后可以标记错因，系统会自动加入错题本。
+              </div>
+
+            </div>
+            <aside class="companion" aria-label="学习提示">
+              <div class="companion-art" id="companionArt">
+                <div class="pet-orbit" aria-hidden="true"><span></span><span></span><span></span></div>
+                <button class="mini-cat pet-character" type="button" id="petCharacterBtn" aria-label="摸摸招财，获得一句鼓励">
+                  <img src="assets/cat-states-app/cat_idle.png" alt="招财" data-pet-image />
+                  <span id="bubbleText">加油</span>
+                  <i class="pet-tail" aria-hidden="true"></i>
+                  <i class="pet-paw pet-paw-left" aria-hidden="true"></i>
+                  <i class="pet-paw pet-paw-right" aria-hidden="true"></i>
+                  <i class="pet-face-glow" aria-hidden="true"></i>
+                </button>
+                <div class="pet-stage-floor" aria-hidden="true"></div>
+              </div>
+              <div class="mobile-pet-hint-popover" id="mobilePetHintPopover" role="dialog" aria-labelledby="mobilePetHintTitle" hidden>
+                <span class="mobile-pet-hint-spark spark-one" aria-hidden="true">★</span>
+                <span class="mobile-pet-hint-spark spark-two" aria-hidden="true">●</span>
+                <div class="mobile-pet-hint-head">
+                  <strong id="mobilePetHintTitle"><span aria-hidden="true">🐾</span> 招财小提示</strong>
+                  <button type="button" id="mobilePetHintClose" aria-label="关闭招财提示">×</button>
+                </div>
+                <p id="mobilePetHintText">先看题目问什么，再找关键数字。</p>
+              </div>
+              <div class="companion-body">
+                <div class="cat-name-row">
+                  <span id="petCompanionTitle">招财陪练</span>
+                  <span class="pet-level" id="petLevel">亲密度 Lv.1</span>
+                </div>
+                <div class="speech" id="companionTalk">先看清题目，再动手算。应用题可以先圈出关键数字。</div>
+                <div class="pet-bars" aria-label="招财状态">
+                  <div class="pet-bar"><span>心情</span><div class="bar-track"><div class="bar-fill" id="petEnergy"></div></div><b id="petEnergyText">70</b></div>
+                  <div class="pet-bar"><span>饥饿</span><div class="bar-track"><div class="bar-fill" id="petConfidence"></div></div><b id="petConfidenceText">70</b></div>
+                  <div class="pet-bar"><span>清洁</span><div class="bar-track"><div class="bar-fill" id="petClean"></div></div><b id="petCleanText">70</b></div>
+                  <div class="pet-bar"><span>亲密</span><div class="bar-track"><div class="bar-fill" id="petBond"></div></div><b id="petBondText">40</b></div>
+                </div>
+                <div class="pet-inventory" id="petInventory" aria-label="招财用品">金币 0 · 背包 0 件</div>
+                <div class="pet-actions" aria-label="和招财互动">
+                  <button class="soft-btn" type="button" id="petEncourageBtn">🐾 摸摸招财</button>
+                  <button class="secondary" type="button" id="petHintBtn">💡 让招财提示</button>
+                </div>
+                <div class="dots" id="progressDots" aria-label="本轮答题记录"></div>
+              </div>
+              <div class="companion-card method-card">
+                <strong>本题方法</strong>
+                <p id="methodHint">先判断题型，再列式。遇到应用题，先把“已知”和“要求”分开看。</p>
+              </div>
+              <div class="companion-card appendix-card">
+                <strong>附加题挑战</strong>
+                <p id="appendixPreview">当前年级会加入一组更难的思维题，适合学有余力时挑战。</p>
+                <div class="challenge-actions">
+                  <button class="soft-btn" type="button" id="appendixBtn">本年级附加题</button>
+                  <button class="secondary" type="button" id="hardWordBtn">应用题强化</button>
+                </div>
+              </div>
+              <div class="paw-row" aria-hidden="true"><span>🐾</span><span>🐾</span><span>🐾</span></div>
+            </aside>
+            <div class="mobile-challenge-result" id="mobileChallengeResult" hidden></div>
+          </article>
+
+          <article class="summary-panel" id="summaryPanel" hidden></article>
+          <div class="challenge-result-overlay" id="challengeResultOverlay" hidden>
+            <div class="crs-backdrop"></div>
+            <div class="crs-card">
+              <span class="crs-spark spark-one" aria-hidden="true">★</span>
+              <span class="crs-spark spark-two" aria-hidden="true">●</span>
+              <div class="crs-head">
+                <strong id="challengeResultTitle">🏁 闯关结果</strong>
+                <button type="button" id="challengeResultClose" aria-label="关闭闯关结果">×</button>
+              </div>
+              <div class="crs-body" id="challengeResultBody"></div>
+              <div class="crs-actions" id="challengeResultActions"></div>
+            </div>
+          </div>
+          <article class="review-panel" id="reviewPanel" hidden></article>
+        </section>
+      </div>
+    </section>
+
+    <section class="view" id="petspaceView">
+      <div class="pet-space-layout">
+        <article class="pet-room-card">
+          <div class="pet-room-top">
+            <div>
+              <h2 id="petSpaceTitle">招财小窝</h2>
+              <p class="muted" id="petSpaceLead">每天完成练习获得金币，用猫粮、清洁用品和玩具照顾招财。</p>
+            </div>
+            <div class="pet-wallet">
+              <span>金币</span>
+              <strong id="petSpaceCoins">0</strong>
+            </div>
+          </div>
+          <div class="pet-runaway-notice" id="petRunawayNotice" hidden></div>
+          <div class="pet-room-stage" id="petRoomStage">
+            <div class="pet-room-scene">
+              <div class="pet-room-window"></div>
+              <div class="pet-room-shelf"></div>
+              <div class="pet-room-bowl"></div>
+              <div class="pet-room-rug"></div>
+              <div class="pet-room-scratcher" aria-hidden="true"></div>
+              <div class="pet-room-toy" aria-hidden="true"></div>
+              <div class="pet-room-cushion" aria-hidden="true"></div>
+              <div class="pet-room-walker" id="petRoomWalker">
+                <button class="cat pet-room-cat" type="button" id="petRoomCatBtn" aria-label="摸摸招财">
+                  <img src="assets/cat-states-app/cat_idle.png" alt="" data-pet-image />
+                  <div class="cat-face" aria-hidden="true"></div>
+                </button>
+              </div>
+            </div>
+            <div class="pet-room-info">
+              <h3 id="petRoomName">招财今天在等你练习</h3>
+              <p id="petRoomStatus">完成一轮练习后，会获得金币和亲密值。</p>
+              <div class="pet-stage-card" id="petStageCard">
+                <strong>幼年招财</strong>
+                <span>完成练习会慢慢成长，后续会解锁更活跃的陪伴状态。</span>
+              </div>
+              <div class="pet-space-progress">
+                <div><span>等级</span><strong id="petSpaceLevel">Lv.1</strong></div>
+                <div><span>经验</span><strong id="petSpaceXp">0 / 80</strong></div>
+              </div>
+            </div>
+          </div>
+          <div class="pet-space-bars" id="petSpaceBars"></div>
+          <div class="pet-space-actions" aria-label="宠物空间操作">
+            <button class="primary" type="button" id="openPetShopBtn">🛒 打开宠物商店</button>
+            <button class="secondary" type="button" id="openPetBagBtn">🎒 查看背包</button>
+            <button class="secondary" type="button" id="openPetTaskBtn">✅ 每日 / 每周任务</button>
+            <button class="secondary" type="button" id="petWeakPracticeBtn">🎯 薄弱点练习</button>
+          </div>
+        </article>
+      </div>
+
+      <div class="pet-modal" id="petShopModal" role="dialog" aria-modal="true" aria-labelledby="petShopTitle" hidden>
+        <article class="pet-modal-panel pet-shop-card">
+          <div class="item-top">
+            <div>
+              <h2 id="petShopTitle">宠物商店</h2>
+              <p class="muted">每天 20 题的金币，约能覆盖两天基础照料；多练可以攒钱买玩具和改名卡。</p>
+            </div>
+            <button class="secondary icon-btn pet-modal-close" type="button" data-close-pet-modal aria-label="关闭宠物商店">×</button>
+          </div>
+          <div class="pet-shop-grid" id="petShopGrid"></div>
+          <div class="pet-item-detail" id="petShopDetail" hidden></div>
+        </article>
+      </div>
+
+      <div class="pet-modal" id="petBagModal" role="dialog" aria-modal="true" aria-labelledby="petBagTitle" hidden>
+        <article class="pet-modal-panel pet-bag-card">
+          <div class="item-top">
+            <div>
+              <h2 id="petBagTitle">背包</h2>
+              <p class="muted">购买后在这里使用。改名卡只能使用一次。</p>
+            </div>
+            <button class="secondary icon-btn pet-modal-close" type="button" data-close-pet-modal aria-label="关闭背包">×</button>
+          </div>
+          <div class="pet-bag-list" id="petBagList"></div>
+          <div class="pet-item-detail" id="petBagDetail" hidden></div>
+          <article class="pet-rename-card" id="petRenameCard" hidden>
+            <h2>使用改名卡</h2>
+            <p class="muted">名字支持 1-6 个中文字符，或 1-12 个英文/数字字符。</p>
+            <div class="field">
+              <label for="petNameInput">新的宠物名字</label>
+              <input id="petNameInput" type="text" maxlength="12" placeholder="例如：小橘" />
+            </div>
+            <div class="row-actions">
+              <button class="primary" type="button" id="confirmRenamePetBtn">确认改名</button>
+              <button class="secondary" type="button" id="cancelRenamePetBtn">取消</button>
+            </div>
+          </article>
+        </article>
+      </div>
+
+      <div class="pet-modal" id="petTaskModal" role="dialog" aria-modal="true" aria-labelledby="taskHomeTitle" hidden>
+        <article class="pet-modal-panel pet-task-modal-panel task-home">
+          <div class="item-top">
+            <div>
+              <h2 id="taskHomeTitle">每日 / 每周任务</h2>
+              <p class="muted">完成练习、复习错题和清理薄弱点后，可以在这里领取额外金币、亲密值和经验。</p>
+            </div>
+            <span class="tag" id="petTaskSummary">0 项可领取</span>
+            <button class="secondary icon-btn pet-modal-close" type="button" data-close-pet-modal aria-label="关闭每日每周任务">×</button>
+          </div>
+          <div class="task-overview">
+            <div>
+              <span>今日练习</span>
+              <strong id="taskTodayCount">0 题</strong>
+            </div>
+            <div>
+              <span>错题复习</span>
+              <strong id="taskWrongReviewCount">0 题</strong>
+            </div>
+            <div>
+              <span>可用金币</span>
+              <strong id="taskCoinCount">0</strong>
+            </div>
+          </div>
+          <div class="pet-task-columns">
+            <section>
+              <h3>每日任务</h3>
+              <div class="pet-task-list" id="petDailyTaskList"></div>
+            </section>
+            <section>
+              <h3>每周任务</h3>
+              <div class="pet-task-list" id="petWeeklyTaskList"></div>
+            </section>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="view" id="tasksView" hidden></section>
+    </section>
+
+    <section class="view" id="wrongbookView">
+      <article class="wrongbook-card">
+        <div class="wrong-top">
+          <div>
+            <h2>错题本</h2>
+            <p class="muted">做错的题会自动进入错题本。每道错题会保存知识点、错因和讲解；连续做对 3 次后自动删除，也可以手动删除。</p>
+          </div>
+          <div class="wrong-actions">
+            <button class="primary" type="button" id="practiceWrongAllBtn">练习全部错题</button>
+            <button class="secondary" type="button" id="practiceWeakBtn">练薄弱知识点</button>
+            <button class="danger" type="button" id="deleteSelectedBtn">删除选中</button>
+          </div>
+        </div>
+        <div class="filters">
+          <select id="wrongPointFilter" aria-label="按知识点筛选错题"></select>
+          <select id="wrongCauseFilter" aria-label="按错因筛选错题"></select>
+        </div>
+        <div class="wrongbook-list" id="wrongbookList"></div>
+      </article>
+    </section>
+
+    <section class="view" id="reportView">
+      <div class="main-stack">
+        <div class="report-grid">
+          <div class="metric"><strong id="reportToday">0</strong><span>今日练习</span></div>
+          <div class="metric"><strong id="reportAccuracy">--</strong><span>总体正确率</span></div>
+          <div class="metric"><strong id="reportStreak">0</strong><span>连续学习天数</span></div>
+          <div class="metric"><strong id="reportWeakCount">0</strong><span>需要巩固知识点</span></div>
+          <div class="metric"><strong id="reportGoal">0%</strong><span>今日目标</span></div>
+          <div class="metric"><strong id="reportChallenge">1</strong><span>当前关卡</span></div>
+        </div>
+        <article class="report-card">
+          <div class="item-top">
+            <div>
+              <h2>学习报告</h2>
+              <p class="muted">这里给家长看学习情况：今日题量、正确率、薄弱知识点、常见错因和最近练习记录。</p>
+            </div>
+            <div class="row-actions">
+              <button class="primary" type="button" id="startWeakReportBtn">按薄弱点出题</button>
+              <button class="secondary" type="button" id="clearTodayBtn">清空今日记录</button>
+            </div>
+          </div>
+          <div class="mastery-grid" id="masteryGrid"></div>
+        </article>
+        <article class="report-card">
+          <h2>家长下一步建议</h2>
+          <div class="report-list" id="parentAdviceList"></div>
+        </article>
+        <article class="report-card">
+          <h2>趋势摘要与本周计划</h2>
+          <div class="report-list" id="trendReportList"></div>
+        </article>
+        <article class="report-card">
+          <div class="item-top">
+            <div>
+              <h2>奖励与徽章</h2>
+              <p class="muted">奖励只作为温和反馈：鼓励坚持、认真检查和补齐薄弱点，不让奖励喧宾夺主。</p>
+            </div>
+            <span class="tag" id="levelTag">Lv. 1</span>
+          </div>
+          <div class="reward-grid" id="rewardGrid"></div>
+        </article>
+        <article class="report-card">
+          <h2>近 7 天练习</h2>
+          <div class="week-panel">
+            <div class="week-grid" id="weekGrid"></div>
+          </div>
+        </article>
+        <article class="report-card">
+          <h2>错因分析</h2>
+          <div class="report-list" id="causeReportList"></div>
+        </article>
+        <article class="report-card">
+          <h2>最近练习记录</h2>
+          <div class="report-list" id="historyList"></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="view" id="printView">
+      <div class="print-layout">
+        <aside class="panel print-controls" aria-label="打印设置">
+          <h2>打印题单</h2>
+          <p>A4 默认竖版。可以设置每页 20 题、40 题、60 题或 100 题，系统会自动调整网格、字号和书写空间。</p>
+          <div class="field">
+            <label for="printGrade">年级</label>
+            <select id="printGrade"></select>
+          </div>
+          <div class="field">
+            <label for="printPoint">知识点</label>
+            <select id="printPoint"></select>
+          </div>
+          <div class="field">
+            <label for="printCount">总题数</label>
+            <input id="printCount" type="number" min="1" max="400" step="1" value="40" />
+          </div>
+          <div class="field">
+            <label for="perPageInput">每页题目数量</label>
+            <input id="perPageInput" type="number" min="1" max="100" step="1" value="20" />
+            <div class="print-presets" id="printPresets" aria-label="每页题数预设">
+              <button type="button" data-per-page="20">20 题</button>
+              <button type="button" data-per-page="40">40 题</button>
+              <button type="button" data-per-page="60">60 题</button>
+              <button type="button" data-per-page="100">100 题</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="paperDirection">纸张方向</label>
+            <select id="paperDirection">
+              <option value="portrait">A4 竖版</option>
+              <option value="landscape">A4 横版</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="printTemplateSelect">题单模板</label>
+            <select id="printTemplateSelect">
+              <option value="practice">普通练习卷</option>
+              <option value="daily-plan">今日推荐卷</option>
+              <option value="exam">考试卷样式</option>
+              <option value="wrong-review">错题复习卷</option>
+              <option value="explain">带解析讲解版</option>
+              <option value="parent-sign">家长签字版</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="printExportMode">导出内容</label>
+            <select id="printExportMode">
+              <option value="questions">只导出题目</option>
+              <option value="answers">题目 + 答案页</option>
+              <option value="explanations">题目 + 答案页 + 解析页</option>
+            </select>
+          </div>
+          <label class="checkline"><input id="printNameLine" type="checkbox" checked /><span>打印姓名、班级、日期栏</span></label>
+          <div class="field">
+            <label for="answerSpaceSelect">答题留白</label>
+            <select id="answerSpaceSelect">
+              <option value="auto">自动</option>
+              <option value="large">大留白</option>
+              <option value="normal">普通</option>
+              <option value="none">只出题，不留答题线</option>
+            </select>
+          </div>
+          <div class="panel-actions" style="margin-top:16px">
+            <button class="primary" type="button" id="generatePrintBtn">重新生成题单</button>
+            <button class="secondary" type="button" id="printWeakBtn">按薄弱点生成</button>
+            <button class="secondary" type="button" id="printBtn">打印 / 保存 PDF</button>
+          </div>
+        </aside>
+        <section class="paper-stage" id="paperStage" aria-label="A4 题单预览"></section>
+      </div>
+      <p class="print-note">排版规则：20 题以内使用较大的书写空间；40-60 题使用紧凑网格；100 题切换为高密度排版。现在支持普通练习卷、考试卷、错题复习卷、带解析讲解版和家长签字版；应用题会自动减少每页密度，避免题干挤在一起。</p>
+    </section>
+
+    <section class="view" id="dataView">
+      <div class="data-layout">
+        <article class="data-card">
+          <h2>学生档案</h2>
+          <p class="muted">可以给多个孩子分别保存年级、错题本、掌握度和练习记录。</p>
+          <div class="profile-card">
+            <div class="field">
+              <label for="profileNameInput">学生姓名</label>
+              <input id="profileNameInput" type="text" maxlength="18" />
+            </div>
+            <div class="field">
+              <label for="profileGradeInput">默认年级</label>
+              <select id="profileGradeInput"></select>
+            </div>
+            <div class="row-actions">
+              <button class="primary" type="button" id="saveProfileBtn">保存档案</button>
+              <button class="secondary" type="button" id="addProfileBtn">新增学生</button>
+              <button class="danger" type="button" id="deleteProfileBtn">删除当前学生</button>
+            </div>
+          </div>
+          <div class="report-list" id="profileList"></div>
+        </article>
+        <article class="data-card">
+          <h2>完整存档</h2>
+          <p class="muted">导出后可完整恢复学生信息、学习进度、错题本、学习报告、打印设置和宠物养成数据。</p>
+          <div class="row-actions">
+            <button class="primary" type="button" data-open-archive>打开存档管理</button>
+          </div>
+          <div class="save-status" id="saveStatus">数据保存状态：已保存。</div>
+        </article>
+        <article class="data-card">
+          <h2>题库规则体检</h2>
+          <p class="muted">家长或维护者可以在改题库后抽查 1-6 年级、专项练习、随机练习和选择/判断控件，避免题目混入错误年级或知识点。</p>
+          <div class="row-actions">
+            <button class="primary" type="button" id="ruleCheckBtn">运行题库体检</button>
+          </div>
+          <div class="rule-check-panel" id="ruleCheckResult">还没有运行体检。</div>
+        </article>
+      </div>
+    </section>
+
+    <div class="hub-modal" id="learningModal" role="dialog" aria-modal="true" aria-labelledby="learningModalTitle" hidden>
+      <article class="hub-modal-panel">
+        <div class="item-top">
+          <div>
+            <h2 id="learningModalTitle">学习精进</h2>
+            <p class="muted">练完以后在这里复盘、看报告，也可以生成纸面题单。</p>
+          </div>
+          <button class="secondary icon-btn hub-modal-close" type="button" data-close-learning aria-label="关闭学习精进">×</button>
+        </div>
+        <div class="hub-action-grid">
+          <button class="hub-action-card" type="button" data-jump="wrongbook" data-close-learning>
+            <span>📒</span>
+            <strong>错题本</strong>
+            <small>复习错题，连续做对 3 次自动移出。</small>
+          </button>
+          <button class="hub-action-card" type="button" data-jump="report" data-close-learning>
+            <span>📊</span>
+            <strong>学习报告</strong>
+            <small>查看正确率、薄弱点和家长下一步建议。</small>
+          </button>
+          <button class="hub-action-card" type="button" data-jump="print" data-close-learning>
+            <span>🖨️</span>
+            <strong>打印题单</strong>
+            <small>按年级、知识点和错题生成 PDF 题单。</small>
+          </button>
+        </div>
+      </article>
+    </div>
+
+    <div class="hub-modal" id="systemModal" role="dialog" aria-modal="true" aria-labelledby="systemModalTitle" hidden>
+      <article class="hub-modal-panel system-modal-panel">
+        <div class="item-top">
+          <div>
+            <h2 id="systemModalTitle">系统设置</h2>
+            <p class="muted">外观、声音、学生资料和完整存档都收在这里。</p>
+          </div>
+          <button class="secondary icon-btn hub-modal-close" type="button" data-close-system aria-label="关闭系统设置">×</button>
+        </div>
+        <div class="system-settings-grid">
+          <section class="settings-block">
+            <h3>外观与声音</h3>
+            <div class="settings-inline">
+              <div class="theme-switch field" id="themeSwitch" aria-label="主题切换">
+                <label class="theme-switch-label" for="themeSelect">主题</label>
+                <select id="themeSelect" aria-label="选择主题">
+                  <option value="classic">🌿 经典</option>
+                  <option value="eye-care">🍃 护眼</option>
+                  <option value="anime">🌸 二次元</option>
+                  <option value="purple">💜 紫色</option>
+                  <option value="star">🌙 星空</option>
+                  <option value="forest">🌳 森林</option>
+                  <option value="candy">🍬 糖果</option>
+                </select>
+              </div>
+              <div class="sound-controls" aria-label="声音设置">
+                <button class="sound-toggle" type="button" id="musicToggle" aria-pressed="false">背景音乐 关</button>
+                <button class="sound-toggle" type="button" id="soundToggle" aria-pressed="false">音效 关</button>
+              </div>
+            </div>
+          </section>
+          <section class="settings-block">
+            <h3>学生与年级</h3>
+            <div class="settings-profile-row">
+              <select class="profile-select" id="profileSelect" aria-label="选择学生档案"></select>
+              <button class="secondary icon-btn" type="button" id="quickAddProfileBtn" title="添加学生">＋</button>
+            </div>
+            <div class="settings-profile-form">
+              <div class="field">
+                <label for="systemProfileNameInput">学生姓名</label>
+                <input id="systemProfileNameInput" type="text" maxlength="18" />
+              </div>
+              <div class="field">
+                <label for="systemProfileGradeInput">常用年级</label>
+                <select id="systemProfileGradeInput"></select>
+              </div>
+            </div>
+            <div class="row-actions">
+              <button class="primary" type="button" id="saveSystemProfileBtn">保存学生设置</button>
+              <button class="secondary" type="button" data-jump="data" data-close-system>查看完整学生信息</button>
+            </div>
+          </section>
+          <section class="settings-block settings-block-wide">
+            <h3>数据存档</h3>
+            <p class="muted">换手机或重装前，先导出完整存档；需要恢复时再导入。</p>
+            <div class="row-actions">
+              <button class="primary" type="button" data-open-archive data-close-system>打开存档管理</button>
+            </div>
+          </section>
+          <section class="settings-block settings-block-wide">
+            <h3>☁️ 云端同步</h3>
+            <p class="muted">开启后，学习数据自动备份到云端，换设备登录即可恢复。使用 Supabase（国内可访问）。</p>
+            <div id="cloudSyncSection">
+              <div class="field">
+                <label for="supabaseUrl">Supabase Project URL</label>
+                <input id="supabaseUrl" type="text" placeholder="例如: https://xxxxx.supabase.co" />
+              </div>
+              <div class="field">
+                <label for="supabaseAnonKey">Supabase Anon Key</label>
+                <input id="supabaseAnonKey" type="text" placeholder="粘贴你的 anon/public key" />
+              </div>
+              <div class="field">
+                <label for="syncCodeInput">同步码（可选，多设备共享）</label>
+                <input id="syncCodeInput" type="text" placeholder="留空则仅本设备同步，填写相同码可多设备共享" />
+              </div>
+              <div class="row-actions">
+                <button class="primary" type="button" id="saveSupabaseConfigBtn">保存并启用</button>
+                <button class="secondary" type="button" id="syncNowBtn">立即同步</button>
+              </div>
+              <div class="cloud-sync-status" id="cloudSyncStatus">未配置</div>
+              <details class="knowledge-card" style="margin-top:12px">
+                <summary>建表 SQL（首次配置需执行）</summary>
+                <div class="knowledge-card-body">
+                  <p>在 Supabase 控制台 → SQL Editor 中执行：</p>
+                  <pre style="font-size:12px;overflow-x:auto;background:var(--soft);padding:10px;border-radius:8px">CREATE TABLE user_data (
+  owner_id text NOT NULL,
+  device_id text NOT NULL,
+  profiles jsonb NOT NULL DEFAULT '[]',
+  active_id text DEFAULT '',
+  updated_at timestamptz DEFAULT now(),
+  PRIMARY KEY (owner_id, device_id)
+);
+
+CREATE TABLE user_settings (
+  owner_id text NOT NULL,
+  device_id text NOT NULL,
+  settings jsonb NOT NULL DEFAULT '{}',
+  updated_at timestamptz DEFAULT now(),
+  PRIMARY KEY (owner_id, device_id)
+);
+
+ALTER TABLE user_data ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "allow_all_user_data" ON user_data FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "allow_all_user_settings" ON user_settings FOR ALL USING (true) WITH CHECK (true);</pre>
+                </div>
+              </details>
+            </div>
+          </section>
+        </div>
+      </article>
+    </div>
+
+    <div class="archive-modal" id="archiveModal" role="dialog" aria-modal="true" aria-labelledby="archiveTitle" hidden>
+      <article class="archive-modal-panel data-card">
+        <div class="item-top">
+          <div>
+            <h2 id="archiveTitle">完整存档管理</h2>
+            <p class="muted">备份包含所有学生档案、练习记录、错题本、学习报告、打印设置、金币、背包和宠物状态。换手机或重装 APP 后导入即可恢复。</p>
+          </div>
+          <button class="secondary icon-btn archive-modal-close" type="button" data-close-archive aria-label="关闭存档管理">×</button>
+        </div>
+        <div class="row-actions archive-actions">
+          <button class="primary" type="button" id="exportBtn">导出完整存档</button>
+          <button class="secondary" type="button" id="copyExportBtn">复制存档文本</button>
+          <button class="secondary" type="button" id="chooseArchiveFileBtn">选择备份文件</button>
+          <input id="importFileInput" type="file" accept="application/json,.json" hidden />
+          <button class="danger" type="button" id="clearAllBtn">清空全部数据</button>
+        </div>
+        <div class="field">
+          <label for="importText">存档文本</label>
+          <textarea class="import-box" id="importText" placeholder="导出的完整 JSON 存档会出现在这里；也可以粘贴旧手机/旧 APP 导出的存档文本再导入。"></textarea>
+        </div>
+        <div class="row-actions">
+          <button class="secondary" type="button" id="importBtn">从文本导入完整存档</button>
+        </div>
+        <div class="import-preview" id="importPreview" hidden></div>
+      </article>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/cloud-sync.js"></script>
+  <script src="js/print-layout.js"></script>
+  <script src="js/ui-feedback.js"></script>
+  <script src="js/question-bank.js"></script>
+  <script src="js/pet-economy.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
+
+

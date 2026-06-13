@@ -1,0 +1,24 @@
+{
+  "name": "喵喵数学",
+  "short_name": "喵喵数学",
+  "description": "给小学生练习数学的互动程序",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5fbff",
+  "theme_color": "#3aa47c",
+  "icons": [
+    {
+      "src": "assets/icons/miaomiao-math-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/icons/miaomiao-math-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
