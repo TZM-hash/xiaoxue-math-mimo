@@ -146,6 +146,7 @@ vm.createContext(context);
   "js/ui-feedback.js",
   "js/question-bank.js",
   "js/pet-economy.js",
+  "js/cloud-sync.js",
   "js/app.js"
 ].forEach((file) => {
   const source = fs.readFileSync(path.join(root, file), "utf8");
@@ -246,6 +247,9 @@ function runUpgradeFeatureTests() {
   assert.strictEqual(pet.clean, 70, "宠物清洁初始值应为 70");
   assert.strictEqual(pet.bond, 40, "宠物亲密初始值应为 40");
   assert(pet.tasks && pet.tasks.daily && pet.tasks.weekly, "新宠物应包含任务领取桶");
+  assert(pet.wish && pet.wish.date === debug.todayKey(), "新宠物应生成今日心愿");
+  assert(pet.event && pet.event.date === debug.todayKey(), "新宠物应生成今日随机事件");
+  assert(pet.memories && Array.isArray(pet.memories.log), "新宠物应包含成长日记");
   assert.strictEqual(debug.petDailyTasks.length, 4, "每日宠物任务应包含限时小测任务");
   assert(!debug.petDailyTasks.some((task) => task.id === "daily-special-5"), "每日任务不应包含专项练习");
   assert(debug.petDailyTasks.some((task) => task.id === "daily-quiz-1"), "每日任务应包含限时小测");
@@ -275,6 +279,69 @@ function runUpgradeFeatureTests() {
   assert.strictEqual(timedTask.complete, true, "限时小测应计入每日限时任务");
 }
 
+function runPetRewardClaimTests() {
+  const debug = context.mathCampDebug;
+  const taskProfile = debug.normalizeProfile({ id: "claim-task", name: "Claim", grade: 2 });
+  const today = debug.todayKey();
+  taskProfile.history = Array.from({ length: 20 }, (_, index) => ({
+    date: today,
+    time: index + 1,
+    grade: 2,
+    pointId: "g2-100-add",
+    correct: true,
+    cause: "",
+    text: `${index} + 1 = ?`
+  }));
+  debug.state.profiles = [taskProfile];
+  debug.state.activeId = taskProfile.id;
+  const daily20 = debug.petDailyTasks.find((task) => task.id === "daily-20");
+  assert.strictEqual(debug.petTaskState(taskProfile, daily20, "daily").complete, true, "20 题任务应可领取");
+  debug.claimPetTask("daily", "daily-20");
+  const coinsAfterTask = debug.petState(taskProfile).coins;
+  assert.strictEqual(debug.petTaskState(taskProfile, daily20, "daily").claimed, true, "领取后任务应立即变成已完成");
+  const reopenedTaskProfile = debug.normalizeProfile(JSON.parse(JSON.stringify(taskProfile)));
+  debug.state.profiles = [reopenedTaskProfile];
+  debug.state.activeId = reopenedTaskProfile.id;
+  assert.strictEqual(debug.petTaskState(reopenedTaskProfile, daily20, "daily").claimed, true, "刷新后每日任务不应恢复领取按钮");
+  debug.claimPetTask("daily", "daily-20");
+  assert.strictEqual(debug.petState(reopenedTaskProfile).coins, coinsAfterTask, "重复打开任务页不应再次发放每日任务金币");
+
+  const giftProfile = debug.normalizeProfile({ id: "claim-gift", name: "Gift", grade: 2 });
+  debug.state.profiles = [giftProfile];
+  debug.state.activeId = giftProfile.id;
+  const giftPet = debug.petState(giftProfile);
+  giftPet.xp = 160;
+  debug.petState(giftProfile);
+  debug.claimPetLevelReward(2);
+  const coinsAfterGift = debug.petState(giftProfile).coins;
+  assert(debug.petState(giftProfile).rewardsClaimed[2], "成长礼物领取状态应写入存档");
+  debug.claimPetLevelReward(2);
+  assert.strictEqual(debug.petState(giftProfile).coins, coinsAfterGift, "成长礼物不应重复领取");
+  const reopenedGiftProfile = debug.normalizeProfile(JSON.parse(JSON.stringify(giftProfile)));
+  assert(reopenedGiftProfile.rewards.pet.rewardsClaimed[2], "刷新后成长礼物领取状态应保留");
+
+  const storyProfile = debug.normalizeProfile({ id: "claim-story", name: "Story", grade: 2 });
+  debug.state.profiles = [storyProfile];
+  debug.state.activeId = storyProfile.id;
+  debug.petState(storyProfile).xp = 640;
+  const storyPet = debug.petState(storyProfile);
+  storyPet.story["chapter-1"] = { progress: 12, complete: true, claimed: false };
+  debug.claimPetStoryReward("chapter-1");
+  const coinsAfterStory = debug.petState(storyProfile).coins;
+  assert.strictEqual(debug.petState(storyProfile).story["chapter-1"].claimed, true, "剧情奖励领取状态应写入存档");
+  debug.claimPetStoryReward("chapter-1");
+  assert.strictEqual(debug.petState(storyProfile).coins, coinsAfterStory, "剧情奖励不应重复领取");
+
+  const eventProfile = debug.normalizeProfile({ id: "claim-event", name: "Event", grade: 2 });
+  const eventPet = debug.petState(eventProfile);
+  const event = debug.currentPetEvent(eventPet);
+  assert(event, "随机事件应存在");
+  assert.strictEqual(debug.resolvePetEvent(eventPet, event), true, "首次解决随机事件应成功");
+  const coinsAfterEvent = eventPet.coins;
+  assert.strictEqual(debug.resolvePetEvent(eventPet, event), false, "已完成随机事件不应再次解决");
+  assert.strictEqual(eventPet.coins, coinsAfterEvent, "随机事件不应重复发放金币");
+}
+
 function runPetEconomyTests() {
   const debug = context.mathCampDebug;
   const shopById = Object.fromEntries(debug.petShopCatalog.map((item) => [item.id, item]));
@@ -285,9 +352,9 @@ function runPetEconomyTests() {
   const wrongReviewBoost = dailyById["daily-wrong-3"].reward;
 
   assert(tiers.has("basic") && tiers.has("advanced") && tiers.has("rare"), "宠物商店应按基础、进阶、长期目标分层");
-  assert.strictEqual(twoDaysBasicCare, 64, "两天基础照料成本应为 64 金币");
+  assert.strictEqual(twoDaysBasicCare, 62, "两天基础照料成本应为 62 金币");
   assert.strictEqual(expectedDaily20Income, 62, "20 题全对加基础每日任务约为 62 金币");
-  assert(expectedDaily20Income >= twoDaysBasicCare - 4 && expectedDaily20Income <= twoDaysBasicCare + 6, "20 题基础收益应约覆盖两天基础照料");
+  assert.strictEqual(expectedDaily20Income, twoDaysBasicCare, "20 题基础收益应刚好覆盖两天基础照料");
   assert.strictEqual(expectedDaily20Income + wrongReviewBoost, 74, "复习错题后应有明确结余");
   assert.strictEqual(shopById.renameCard.price, 100, "改名卡价格应稳定为 100 金币");
   assert(shopById.fishToy.price > expectedDaily20Income, "高级玩具不应一天基础练习就轻易买到");
@@ -307,6 +374,33 @@ function runPetEconomyTests() {
   assert.strictEqual(debug.consumePetCare(pet, "encourage"), false, "超过上限后摸摸不应继续刷收益");
   assert.strictEqual(debug.petGrowthStage({ level: 1 }).name, "幼年招财", "1 级应是幼年阶段");
   assert.strictEqual(debug.petGrowthStage({ level: 6 }).name, "学霸招财", "6 级应解锁学霸阶段");
+  assert(debug.petWishes.length >= 4, "宠物应有多种每日心愿");
+  assert(debug.petRandomEvents.length >= 5, "宠物应有随机事件池");
+  assert(debug.petStoryChapters.length >= 2, "宠物应有剧情章节");
+  assert(debug.petLevelRewards.some((reward) => reward.level === 10), "等级奖励应覆盖守护招财阶段");
+  assert.strictEqual(debug.petCopy("招财陪练", { rewards: { pet: { name: "小橘" } } }), "小橘陪练", "改名卡后默认宠物名文案应全局替换");
+
+  const growthProfile = debug.normalizeProfile({ id: "pet-growth", name: "Growth", grade: 2 });
+  debug.state.profiles = [growthProfile];
+  debug.state.activeId = growthProfile.id;
+  const growthPet = debug.petState(growthProfile);
+  const wish = debug.currentPetWish(growthPet);
+  const event = debug.currentPetEvent(growthPet);
+  debug.advancePetProgressFromQuestion(growthProfile, true);
+  const advancedPet = debug.petState(growthProfile);
+  assert.strictEqual(advancedPet.wish.progress, wish ? 1 : 0, "答对题目应推进今日心愿");
+  assert.strictEqual(advancedPet.event.progress, event ? 1 : 0, "答对题目应推进随机事件");
+  advancedPet.xp = 160;
+  const leveledPet = debug.petState(growthProfile);
+  assert(debug.pendingPetLevelRewards(leveledPet).some((reward) => reward.level === 2), "升级后应出现待领取成长礼物");
+  const archive = debug.buildArchiveData();
+  const archivedPet = archive.profiles.find((profile) => profile.id === growthProfile.id).rewards.pet;
+  assert(archivedPet.wish && archivedPet.event && archivedPet.story && archivedPet.memories && archivedPet.decorations, "完整存档应包含宠物新增养成字段");
+  const merged = context.MathCampCloudSync.mergeProfiles(
+    [{ ...growthProfile, updatedAt: 1000, rewards: { ...growthProfile.rewards, pet: { ...archivedPet, coins: 1 } } }],
+    [{ device_id: "cloud", profiles: [{ ...growthProfile, updatedAt: 2000, rewards: { ...growthProfile.rewards, pet: { ...archivedPet, coins: 9 } } }] }]
+  );
+  assert.strictEqual(debug.petState(merged[0]).coins, 9, "云同步应按档案更新时间合并纯宠物数据变更");
   assert.strictEqual(debug.safeThemeId("star"), "star", "星空主题应注册");
   assert.strictEqual(debug.safeThemeId("forest"), "forest", "森林主题应注册");
   assert.strictEqual(debug.safeThemeId("candy"), "candy", "糖果主题应注册");
@@ -474,6 +568,7 @@ if (result.failed) {
 }
 runDataBoundaryTests();
 runUpgradeFeatureTests();
+runPetRewardClaimTests();
 runPetEconomyTests();
 runInteractionBoundaryTests();
 runTwoStepMulDivTests();
@@ -485,6 +580,7 @@ runGradeAndDecimalDisplayTests();
 console.log(`Question rule self-test passed: ${result.total} samples, 0 failures.`);
 console.log("Data boundary tests passed.");
 console.log("Upgrade feature tests passed.");
+console.log("Pet reward claim tests passed.");
 console.log("Pet economy tests passed.");
 console.log("Interaction boundary tests passed.");
 console.log("Two-step multiplication/division tests passed.");

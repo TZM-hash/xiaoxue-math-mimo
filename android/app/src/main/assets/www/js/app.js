@@ -75,6 +75,14 @@ const STORE = {
     const PET_STAGES = Array.isArray(PetEconomy.STAGES) ? PetEconomy.STAGES : [
       { id: "kitten", name: "幼年招财", minLevel: 1, copy: "刚开始陪练，喜欢短一点的小练习。" }
     ];
+    const PET_WISHES = Array.isArray(PetEconomy.WISHES) ? PetEconomy.WISHES : [];
+    const PET_SKILLS = Array.isArray(PetEconomy.SKILLS) ? PetEconomy.SKILLS : [];
+    const PET_LEVEL_REWARDS = Array.isArray(PetEconomy.LEVEL_REWARDS) ? PetEconomy.LEVEL_REWARDS : [];
+    const PET_DECORATIONS = Array.isArray(PetEconomy.DECORATIONS) ? PetEconomy.DECORATIONS : [];
+    const PET_RANDOM_EVENTS = Array.isArray(PetEconomy.RANDOM_EVENTS) ? PetEconomy.RANDOM_EVENTS : [];
+    const PET_STORY_CHAPTERS = Array.isArray(PetEconomy.STORY_CHAPTERS) ? PetEconomy.STORY_CHAPTERS : [];
+    const PET_DECORATION_MAP = Object.fromEntries(PET_DECORATIONS.map((item) => [item.id, item]));
+    const PET_LEVEL_REWARD_MAP = Object.fromEntries(PET_LEVEL_REWARDS.map((item) => [String(item.level), item]));
     const PET_IMAGE_BASE = "assets/cat-states-app";
     const PET_IMAGES = {
       idle: "cat_idle.png",
@@ -247,7 +255,21 @@ const STORE = {
       petStageCard: document.getElementById("petStageCard"),
       petSpaceLevel: document.getElementById("petSpaceLevel"),
       petSpaceXp: document.getElementById("petSpaceXp"),
+      petSkillStrip: document.getElementById("petSkillStrip"),
       petSpaceBars: document.getElementById("petSpaceBars"),
+      petWishCard: document.getElementById("petWishCard"),
+      petLevelGiftCard: document.getElementById("petLevelGiftCard"),
+      petWishPanelSlot: document.getElementById("petWishPanelSlot"),
+      petCarePlanPanelSlot: document.getElementById("petCarePlanPanelSlot"),
+      petEventPanelSlot: document.getElementById("petEventPanelSlot"),
+      petMemoryPanelSlot: document.getElementById("petMemoryPanelSlot"),
+      petLevelGiftPanelSlot: document.getElementById("petLevelGiftPanelSlot"),
+      petStoryPanelSlot: document.getElementById("petStoryPanelSlot"),
+      petCareScore: document.getElementById("petCareScore"),
+      petCareChecklist: document.getElementById("petCareChecklist"),
+      petEventCard: document.getElementById("petEventCard"),
+      petStoryCard: document.getElementById("petStoryCard"),
+      petMemoryCard: document.getElementById("petMemoryCard"),
       petTaskSummary: document.getElementById("petTaskSummary"),
       taskTodayCount: document.getElementById("taskTodayCount"),
       taskWrongReviewCount: document.getElementById("taskWrongReviewCount"),
@@ -257,10 +279,14 @@ const STORE = {
       openPetShopBtn: document.getElementById("openPetShopBtn"),
       openPetBagBtn: document.getElementById("openPetBagBtn"),
       openPetTaskBtn: document.getElementById("openPetTaskBtn"),
-      petWeakPracticeBtn: document.getElementById("petWeakPracticeBtn"),
+      openPetCarePanelBtn: document.getElementById("openPetCarePanelBtn"),
+      openPetGrowthPanelBtn: document.getElementById("openPetGrowthPanelBtn"),
+      petWishPracticeBtn: document.getElementById("petWishPracticeBtn"),
       petShopModal: document.getElementById("petShopModal"),
       petBagModal: document.getElementById("petBagModal"),
       petTaskModal: document.getElementById("petTaskModal"),
+      petCarePanelModal: document.getElementById("petCarePanelModal"),
+      petGrowthPanelModal: document.getElementById("petGrowthPanelModal"),
       petShopGrid: document.getElementById("petShopGrid"),
       petBagList: document.getElementById("petBagList"),
       petShopDetail: document.getElementById("petShopDetail"),
@@ -521,6 +547,10 @@ const STORE = {
       if (!Number.isFinite(a) || !Number.isFinite(b)) return 0;
       return Math.max(0, b - a);
     }
+    function latestProfileActivityTime(profile) {
+      if (!profile || !Array.isArray(profile.history)) return 0;
+      return profile.history.reduce((latest, item) => Math.max(latest, Number(item?.time) || 0), 0);
+    }
     function isMobilePracticeViewport() {
       return window.matchMedia("(max-width: 620px)").matches;
     }
@@ -664,6 +694,7 @@ const STORE = {
         masteredWrong: [],
         history: [],
         mastery: {},
+        updatedAt: Date.now(),
         settings: { pointId: "auto", setSize: 10, adaptive: true, dailyGoal: 20, answerSpace: "auto", answerMode: "auto", printTemplate: "practice", printOutputMode: "answers" },
         rewards: {
           clearedWrong: 0,
@@ -689,6 +720,12 @@ const STORE = {
         inventory: defaultPetInventory(),
         careLog: { date: today, encourage: 0, feed: 0, clean: 0, play: 0 },
         tasks: { daily: {}, weekly: {} },
+        wish: { date: today, id: "", itemId: "", progress: 0, fulfilled: false },
+        rewardsClaimed: {},
+        decorations: {},
+        event: { date: today, id: "", progress: 0, resolved: false },
+        story: {},
+        memories: { wishes: 0, careDays: 0, events: 0, stories: 0, levelGifts: 0, log: [], lastCareCompleteDate: "" },
         lastRewardDate: "",
         lastDecayDate: today,
         lastPracticeDate: "",
@@ -709,6 +746,13 @@ const STORE = {
     }
     function petCopy(text, profile = activeProfile()) {
       return String(text || "").replace(/招财/g, petDisplayName(profile));
+    }
+    function petStageCopy(stage, profile = activeProfile()) {
+      return {
+        ...(stage || {}),
+        name: petCopy(stage?.name || "", profile),
+        copy: petCopy(stage?.copy || "", profile)
+      };
     }
     function applyPetLevel(pet) {
       pet.xp = Math.max(0, Number(pet.xp) || 0);
@@ -749,6 +793,18 @@ const STORE = {
         daily: isPlainObject(pet.tasks?.daily) ? pet.tasks.daily : {},
         weekly: isPlainObject(pet.tasks?.weekly) ? pet.tasks.weekly : {}
       };
+      pet.wish = normalizePetWish(pet.wish, pet);
+      pet.rewardsClaimed = isPlainObject(pet.rewardsClaimed) ? pet.rewardsClaimed : {};
+      Object.keys(pet.rewardsClaimed).forEach((key) => {
+        if (!pet.rewardsClaimed[key]) delete pet.rewardsClaimed[key];
+      });
+      pet.decorations = isPlainObject(pet.decorations) ? pet.decorations : {};
+      Object.keys(pet.decorations).forEach((key) => {
+        pet.decorations[key] = Boolean(pet.decorations[key]);
+      });
+      pet.event = normalizePetEvent(pet.event, pet);
+      pet.story = normalizePetStory(pet.story);
+      pet.memories = normalizePetMemories(pet.memories);
       pet.lastRewardDate = /^\d{4}-\d{2}-\d{2}$/.test(String(pet.lastRewardDate || "")) ? pet.lastRewardDate : "";
       pet.lastDecayDate = /^\d{4}-\d{2}-\d{2}$/.test(String(pet.lastDecayDate || "")) ? pet.lastDecayDate : todayKey();
       pet.lastPracticeDate = /^\d{4}-\d{2}-\d{2}$/.test(String(pet.lastPracticeDate || "")) ? pet.lastPracticeDate : "";
@@ -786,6 +842,7 @@ const STORE = {
       normalized.id = safeRecordId(normalized.id, "student");
       normalized.name = String(normalized.name || "小学生").trim().slice(0, 24) || "小学生";
       normalized.grade = clamp(Number(normalized.grade) || 1, 1, 6);
+      normalized.updatedAt = Math.max(0, Number(normalized.updatedAt) || latestProfileActivityTime(normalized) || Date.now());
       normalized.wrongbook = Array.isArray(normalized.wrongbook)
         ? uniquifyRecordIds(normalized.wrongbook.map(normalizeWrongItem).filter(Boolean).slice(0, 300), "wrong")
         : [];
@@ -999,8 +1056,8 @@ const STORE = {
       petTaskClaimLocks: new Set(),
       petItemActionLocks: new Set(),
       theme: safeThemeId(storageGet(STORE.theme, document.documentElement.dataset.theme || "classic")),
-      musicOn: isAndroidWebView() ? false : storageGet(STORE.music, "false") === "true",
-      soundOn: isAndroidWebView() ? false : storageGet(STORE.sound, "false") === "true",
+      musicOn: storageGet(STORE.music, "false") === "true",
+      soundOn: storageGet(STORE.sound, "false") === "true",
       audio: {
         ctx: null,
         bgm: null,
@@ -1188,7 +1245,7 @@ const STORE = {
       if (!els.homeWeakList) return;
       const weak = weakestPoints(3);
       const pet = petState(profile);
-      const stage = petGrowthStage(pet);
+      const stage = petStageCopy(petGrowthStage(pet), profile);
       const done = todayItems(profile).length;
       const goal = dailyGoal(profile);
       if (els.homePlanCopy) {
@@ -1301,6 +1358,8 @@ const STORE = {
       }));
     }
     function saveProfiles() {
+      const profile = activeProfile();
+      if (profile) profile.updatedAt = Date.now();
       const savedProfiles = storageSet(STORE.profiles, JSON.stringify(state.profiles));
       const savedActive = storageSet(STORE.active, state.activeId);
       const ok = Boolean(savedProfiles && savedActive);
@@ -4532,10 +4591,8 @@ const STORE = {
       if (result?.catch) {
         result.catch(() => {
           state.audio.bgmStartFailed = true;
-          state.musicOn = false;
-          storageSet(STORE.music, "false");
           updateSoundButtons();
-          UI.notify("当前环境暂时不能播放背景音乐，已自动关闭。", { tone: "warn", duration: 3600 });
+          UI.notify("当前环境暂时不能自动播放背景音乐，设置已保留，点一次音乐开关后会重试。", { tone: "warn", duration: 3600 });
         });
       }
     }
@@ -5146,6 +5203,204 @@ const STORE = {
         .sort((a, b) => Number(b.minLevel || 1) - Number(a.minLevel || 1))
         .find((stage) => level >= Number(stage.minLevel || 1)) || PET_STAGES[0];
     }
+    function petSkillUnlocked(pet, skill) {
+      return (Number(pet?.level) || 1) >= Number(skill?.minLevel || 1) && (Number(pet?.bond) || 0) >= Number(skill?.minBond || 0);
+    }
+    function petUnlockedSkillIds(pet) {
+      return PET_SKILLS.filter((skill) => petSkillUnlocked(pet, skill)).map((skill) => skill.id);
+    }
+    function normalizePetWish(raw = {}, pet = null) {
+      const today = todayKey();
+      const wish = isPlainObject(raw) ? { ...raw } : {};
+      const wishDef = PET_WISHES.find((item) => item.id === wish.id);
+      if (wish.date !== today || !wishDef) {
+        const nextWish = choosePetWish(pet || {});
+        return {
+          date: today,
+          id: nextWish?.id || "",
+          itemId: nextWish?.itemId || "",
+          progress: 0,
+          fulfilled: false
+        };
+      }
+      return {
+        date: today,
+        id: wish.id,
+        itemId: wish.itemId || wishDef.itemId || "",
+        progress: clamp(Number(wish.progress) || 0, 0, Number(wishDef.practiceTarget) || 10),
+        fulfilled: Boolean(wish.fulfilled)
+      };
+    }
+    function choosePetWish(pet = {}) {
+      if (!PET_WISHES.length) return null;
+      const level = Number(pet.level) || 1;
+      const candidates = PET_WISHES
+        .filter((wish) => level >= Number(wish.minLevel || 1))
+        .map((wish) => {
+          const value = Number(pet[wish.need]) || 0;
+          const gap = Math.max(0, Number(wish.threshold || 60) - value);
+          const item = PET_ITEM_MAP[wish.itemId];
+          const inventory = Number(pet.inventory?.[wish.itemId]) || 0;
+          const coinGap = Math.max(0, Number(item?.price || 0) - (Number(pet.coins) || 0));
+          return { wish, score: gap * 4 + (inventory ? 18 : 0) + (coinGap ? 8 : 0) };
+        })
+        .sort((a, b) => b.score - a.score);
+      return (candidates[0] || {}).wish || PET_WISHES[0];
+    }
+    function currentPetWish(pet) {
+      pet.wish = normalizePetWish(pet.wish, pet);
+      return PET_WISHES.find((wish) => wish.id === pet.wish.id) || choosePetWish(pet);
+    }
+    function normalizePetEvent(raw = {}, pet = null) {
+      const today = todayKey();
+      const event = isPlainObject(raw) ? { ...raw } : {};
+      const eventDef = PET_RANDOM_EVENTS.find((item) => item.id === event.id);
+      if (event.date !== today || !eventDef) {
+        const nextEvent = choosePetEvent(pet || {});
+        return {
+          date: today,
+          id: nextEvent?.id || "",
+          progress: 0,
+          resolved: false
+        };
+      }
+      return {
+        date: today,
+        id: event.id,
+        progress: clamp(Number(event.progress) || 0, 0, Number(eventDef.target) || 10),
+        resolved: Boolean(event.resolved)
+      };
+    }
+    function choosePetEvent(pet = {}) {
+      if (!PET_RANDOM_EVENTS.length) return null;
+      const level = Number(pet.level) || 1;
+      const pool = PET_RANDOM_EVENTS.filter((event) => level >= Number(event.minLevel || 1));
+      if (!pool.length) return null;
+      const seed = `${todayKey()}-${level}-${Number(pet.bond) || 0}`;
+      const sum = [...seed].reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      return pool[sum % pool.length];
+    }
+    function currentPetEvent(pet) {
+      pet.event = normalizePetEvent(pet.event, pet);
+      return PET_RANDOM_EVENTS.find((event) => event.id === pet.event.id) || choosePetEvent(pet);
+    }
+    function normalizePetStory(raw = {}) {
+      const source = isPlainObject(raw) ? raw : {};
+      const story = {};
+      PET_STORY_CHAPTERS.forEach((chapter) => {
+        const saved = isPlainObject(source[chapter.id]) ? source[chapter.id] : {};
+        story[chapter.id] = {
+          progress: clamp(Number(saved.progress) || 0, 0, Number(chapter.target) || 1),
+          complete: Boolean(saved.complete),
+          claimed: Boolean(saved.claimed)
+        };
+      });
+      return story;
+    }
+    function normalizePetMemories(raw = {}) {
+      const source = isPlainObject(raw) ? raw : {};
+      return {
+        wishes: Math.max(0, Number(source.wishes) || 0),
+        careDays: Math.max(0, Number(source.careDays) || 0),
+        events: Math.max(0, Number(source.events) || 0),
+        stories: Math.max(0, Number(source.stories) || 0),
+        levelGifts: Math.max(0, Number(source.levelGifts) || 0),
+        lastCareCompleteDate: /^\d{4}-\d{2}-\d{2}$/.test(String(source.lastCareCompleteDate || "")) ? source.lastCareCompleteDate : "",
+        log: Array.isArray(source.log) ? source.log.filter(isPlainObject).slice(0, 12).map((item) => ({
+          date: /^\d{4}-\d{2}-\d{2}$/.test(String(item.date || "")) ? item.date : todayKey(),
+          title: String(item.title || "成长记录").slice(0, 24),
+          desc: String(item.desc || "").slice(0, 80)
+        })) : []
+      };
+    }
+    function addPetMemory(pet, title, desc = "") {
+      pet.memories = normalizePetMemories(pet.memories);
+      const entry = { date: todayKey(), title: String(title || "成长记录").slice(0, 24), desc: String(desc || "").slice(0, 80) };
+      pet.memories.log = [entry, ...pet.memories.log.filter((item) => item.title !== entry.title || item.date !== entry.date)].slice(0, 12);
+    }
+    function pendingPetLevelRewards(pet) {
+      return PET_LEVEL_REWARDS.filter((reward) => Number(pet.level) >= Number(reward.level) && !pet.rewardsClaimed?.[reward.level]);
+    }
+    function applyPetDecoration(pet, id) {
+      if (!id) return false;
+      pet.decorations = isPlainObject(pet.decorations) ? pet.decorations : {};
+      const had = Boolean(pet.decorations[id]);
+      pet.decorations[id] = true;
+      return !had;
+    }
+    function advancePetProgressFromQuestion(profile, correct) {
+      const pet = petState(profile);
+      if (pet.runaway?.status !== "home") return;
+      const wish = currentPetWish(pet);
+      if (correct && wish && !pet.wish.fulfilled) {
+        pet.wish.progress = clamp(Number(pet.wish.progress) + 1, 0, Number(wish.practiceTarget) || 10);
+      }
+      const event = currentPetEvent(pet);
+      if (correct && event && !pet.event.resolved) {
+        pet.event.progress = clamp(Number(pet.event.progress) + 1, 0, Number(event.target) || 10);
+        if (pet.event.progress >= Number(event.target || 1)) resolvePetEvent(pet, event);
+      }
+      PET_STORY_CHAPTERS.forEach((chapter) => {
+        if (Number(pet.level) < Number(chapter.minLevel || 1)) return;
+        const stateForChapter = pet.story?.[chapter.id];
+        if (!stateForChapter || stateForChapter.claimed || stateForChapter.complete || !correct) return;
+        stateForChapter.progress = clamp(Number(stateForChapter.progress) + 1, 0, Number(chapter.target) || 1);
+        if (stateForChapter.progress >= Number(chapter.target || 1)) stateForChapter.complete = true;
+      });
+      updatePetCareMemory(profile, pet);
+    }
+    function resolvePetEvent(pet, event) {
+      if (!event || pet.event?.resolved) return false;
+      pet.event.resolved = true;
+      pet.coins += Math.max(0, Number(event.rewardCoins) || 0);
+      pet.mood = clamp(pet.mood + Number(event.mood || 0), 0, 100);
+      pet.clean = clamp(pet.clean + Number(event.clean || 0), 0, 100);
+      pet.bond = clamp(pet.bond + Number(event.bond || 0), 0, 100);
+      pet.xp += 6 + Number(event.bond || 0);
+      pet.memories = normalizePetMemories(pet.memories);
+      pet.memories.events += 1;
+      addPetMemory(pet, event.title, `随机事件完成，金币 +${Number(event.rewardCoins) || 0}`);
+      applyPetLevel(pet);
+      return true;
+    }
+    function petCareChecklist(profile = activeProfile(), pet = petState(profile)) {
+      const today = todayItems(profile);
+      return [
+        { id: "feed", label: "喂食", detail: pet.hunger >= 65 ? "饱饱的" : "用猫粮补到 65", done: pet.hunger >= 65 },
+        { id: "clean", label: "清洁", detail: pet.clean >= 65 ? "干干净净" : "用毛巾或泡泡澡补到 65", done: pet.clean >= 65 },
+        { id: "play", label: "玩耍", detail: pet.mood >= 65 ? "心情很好" : "玩具或摸摸能提升心情", done: pet.mood >= 65 },
+        { id: "practice", label: "练习", detail: `${today.length}/${Math.min(10, dailyGoal(profile))} 题`, done: today.length >= Math.min(10, dailyGoal(profile)) }
+      ];
+    }
+    function updatePetCareMemory(profile = activeProfile(), pet = petState(profile)) {
+      const checklist = petCareChecklist(profile, pet);
+      if (!checklist.every((item) => item.done)) return false;
+      pet.memories = {
+        wishes: Math.max(0, Number(pet.memories?.wishes) || 0),
+        careDays: Math.max(0, Number(pet.memories?.careDays) || 0),
+        lastCareCompleteDate: pet.memories?.lastCareCompleteDate || ""
+      };
+      if (pet.memories.lastCareCompleteDate === todayKey()) return false;
+      pet.memories.lastCareCompleteDate = todayKey();
+      pet.memories.careDays += 1;
+      pet.bond = clamp(pet.bond + 2, 0, 100);
+      pet.xp += 8;
+      applyPetLevel(pet);
+      return true;
+    }
+    function finishPetWishWithItem(itemId, pet = petState(activeProfile())) {
+      const wish = currentPetWish(pet);
+      if (!wish || pet.wish?.fulfilled || wish.itemId !== itemId) return false;
+      pet.wish.fulfilled = true;
+      pet.wish.progress = Number(wish.practiceTarget) || pet.wish.progress || 0;
+      pet.memories = isPlainObject(pet.memories) ? pet.memories : { wishes: 0, careDays: 0, lastCareCompleteDate: "" };
+      pet.memories.wishes = Math.max(0, Number(pet.memories.wishes) || 0) + 1;
+      pet.mood = clamp(pet.mood + Number(wish.bonusMood || 0), 0, 100);
+      pet.bond = clamp(pet.bond + Number(wish.bonusBond || 0), 0, 100);
+      pet.xp += 8 + Number(wish.bonusBond || 0);
+      applyPetLevel(pet);
+      return true;
+    }
     function petCareKindForItem(item) {
       if (item?.rename) return "";
       if (item?.effects?.hunger) return "feed";
@@ -5230,9 +5485,9 @@ const STORE = {
       const lockKey = `${period}:${id}`;
       if (state.petTaskClaimLocks.has(lockKey)) return;
       const profile = activeProfile();
-      const pet = petState(profile);
       const task = petTaskState(profile, taskDef, period);
       if (!task.complete || task.claimed) return;
+      const pet = petState(profile);
       state.petTaskClaimLocks.add(lockKey);
       document.querySelectorAll(`[data-pet-task-period="${period}"][data-pet-task-id="${id}"]`).forEach((btn) => {
         btn.disabled = true;
@@ -5396,6 +5651,139 @@ const STORE = {
         <b>${value}</b>
       </div>`;
     }
+    function renderPetSkillStrip(pet) {
+      if (!els.petSkillStrip) return;
+      const unlocked = new Set(petUnlockedSkillIds(pet));
+      els.petSkillStrip.innerHTML = PET_SKILLS.length ? PET_SKILLS.map((skill) => {
+        const active = unlocked.has(skill.id);
+        return `<span class="${active ? "unlocked" : "locked"}" title="${escapeAttr(skill.desc)}">${active ? "✓" : "Lv." + skill.minLevel} ${escapeHTML(skill.title)}</span>`;
+      }).join("") : "";
+    }
+    function renderPetWishCard(profile, pet) {
+      if (!els.petWishCard) return;
+      const wish = currentPetWish(pet);
+      if (!wish) {
+        els.petWishCard.innerHTML = `<h3>今日心愿</h3><p>${escapeHTML(petCopy("今天先完成一组练习，招财会慢慢说出想要什么。", profile))}</p>`;
+        return;
+      }
+      const item = PET_ITEM_MAP[wish.itemId] || {};
+      const progress = clamp(Number(pet.wish?.progress) || 0, 0, Number(wish.practiceTarget) || 1);
+      const target = Math.max(1, Number(wish.practiceTarget) || 1);
+      const have = Number(pet.inventory?.[wish.itemId]) || 0;
+      const coinGap = Math.max(0, Number(item.price || 0) - Number(pet.coins || 0));
+      const done = Boolean(pet.wish?.fulfilled);
+      const action = done
+        ? `<button class="secondary" type="button" disabled>已满足</button>`
+        : have > 0
+          ? `<button class="primary" type="button" data-pet-use="${escapeAttr(wish.itemId)}">使用${escapeHTML(item.name || "用品")}</button>`
+          : coinGap <= 0
+            ? `<button class="primary" type="button" data-pet-buy="${escapeAttr(wish.itemId)}">购买${escapeHTML(item.name || "用品")}</button>`
+            : `<button class="primary" type="button" data-pet-wish-practice>做 ${target} 题赚金币</button>`;
+      els.petWishCard.innerHTML = `
+        <div class="pet-card-title"><span aria-hidden="true">${item.icon || "⭐"}</span><div><h3>今日心愿</h3><p>${escapeHTML(petCopy(wish.title, profile))}</p></div></div>
+        <div class="pet-mini-progress"><i style="--value:${Math.round(progress / target * 100)}%"></i></div>
+        <p>${done ? `${petDisplayName(profile)}很开心，今天的心愿完成啦。` : coinGap > 0 ? `还差 ${coinGap} 金币。先完成小练习，答对题目就能攒够。` : `已经可以买 ${item.name || "用品"} 了。`}</p>
+        <div class="pet-card-actions">${action}</div>`;
+    }
+    function renderPetCarePlan(profile, pet) {
+      const checklist = petCareChecklist(profile, pet);
+      const done = checklist.filter((item) => item.done).length;
+      if (els.petCareScore) els.petCareScore.textContent = `${done}/${checklist.length}`;
+      if (els.petCareChecklist) {
+        els.petCareChecklist.innerHTML = checklist.map((item) => `<div class="${item.done ? "done" : ""}">
+          <span>${item.done ? "✓" : "·"}</span>
+          <strong>${escapeHTML(item.label)}</strong>
+          <em>${escapeHTML(item.detail)}</em>
+        </div>`).join("");
+      }
+    }
+    function renderPetLevelGiftCard(pet, profile = activeProfile()) {
+      if (!els.petLevelGiftCard) return;
+      const pending = pendingPetLevelRewards(pet)[0];
+      if (!pending) {
+        const next = PET_LEVEL_REWARDS.find((reward) => Number(reward.level) > Number(pet.level));
+        els.petLevelGiftCard.innerHTML = `
+          <h3>成长礼物</h3>
+          <p>${next ? `Lv.${next.level} 可领取：${petCopy(next.title, profile)}。` : "所有阶段礼物都已经领取。"}</p>`;
+        return;
+      }
+      const item = PET_ITEM_MAP[pending.itemId] || {};
+      els.petLevelGiftCard.innerHTML = `
+        <div class="pet-card-title"><span aria-hidden="true">🎁</span><div><h3>成长礼物</h3><p>Lv.${pending.level} · ${escapeHTML(petCopy(pending.title, profile))}</p></div></div>
+        <p>奖励：金币 +${Number(pending.coins) || 0}${pending.itemId ? `，${item.name || "用品"} x${Number(pending.itemCount) || 1}` : ""}${pending.unlock ? `，解锁${petCopy(pending.unlock, profile)}` : ""}</p>
+        <div class="pet-card-actions"><button class="primary" type="button" data-pet-claim-level="${pending.level}">领取礼物</button></div>`;
+    }
+    function renderPetEventCard(pet, profile = activeProfile()) {
+      if (!els.petEventCard) return;
+      const event = currentPetEvent(pet);
+      if (!event) {
+        els.petEventCard.innerHTML = `<h3>随机事件</h3><p>Lv.3 后会出现更多小窝事件。</p>`;
+        return;
+      }
+      const progress = clamp(Number(pet.event?.progress) || 0, 0, Number(event.target) || 1);
+      const target = Math.max(1, Number(event.target) || 1);
+      const item = PET_ITEM_MAP[event.itemId] || {};
+      const itemAction = event.itemId && !pet.event?.resolved && (Number(pet.inventory?.[event.itemId]) || 0) > 0
+        ? `<button class="secondary" type="button" data-pet-event-use="${escapeAttr(event.itemId)}">使用${escapeHTML(item.name || "用品")}</button>`
+        : "";
+      els.petEventCard.innerHTML = `
+        <div class="pet-card-title"><span aria-hidden="true">${event.rare ? "🗺️" : "🎲"}</span><div><h3>随机事件</h3><p>${escapeHTML(petCopy(event.title, profile))}</p></div></div>
+        <p>${pet.event?.resolved ? escapeHTML(petCopy(`事件完成，招财收获了金币 +${Number(event.rewardCoins) || 0}。`, profile)) : escapeHTML(petCopy(event.desc, profile))}</p>
+        <div class="pet-mini-progress"><i style="--value:${Math.round(progress / target * 100)}%"></i></div>
+        <div class="pet-card-actions">
+          ${pet.event?.resolved ? `<button class="secondary" type="button" disabled>已完成</button>` : `<button class="primary" type="button" data-pet-event-practice>做 ${target - progress} 题推进</button>`}
+          ${itemAction}
+        </div>`;
+    }
+    function renderPetStoryCard(pet, profile = activeProfile()) {
+      if (!els.petStoryCard) return;
+      const available = PET_STORY_CHAPTERS.filter((chapter) => Number(pet.level) >= Number(chapter.minLevel || 1));
+      const chapter = available.find((item) => !pet.story?.[item.id]?.claimed) || available[available.length - 1] || PET_STORY_CHAPTERS[0];
+      if (!chapter) {
+        els.petStoryCard.innerHTML = `<h3>${escapeHTML(petCopy("招财故事", profile))}</h3><p>升级后会解锁剧情章节。</p>`;
+        return;
+      }
+      const locked = Number(pet.level) < Number(chapter.minLevel || 1);
+      const stateForChapter = pet.story?.[chapter.id] || { progress: 0, complete: false, claimed: false };
+      const progress = clamp(Number(stateForChapter.progress) || 0, 0, Number(chapter.target) || 1);
+      const target = Math.max(1, Number(chapter.target) || 1);
+      els.petStoryCard.innerHTML = `
+        <div class="pet-card-title"><span aria-hidden="true">📖</span><div><h3>${escapeHTML(petCopy("招财故事", profile))}</h3><p>${escapeHTML(petCopy(chapter.title, profile))}</p></div></div>
+        <p>${locked ? `Lv.${chapter.minLevel} 解锁这一章。` : escapeHTML(petCopy(chapter.desc, profile))}</p>
+        <div class="pet-mini-progress"><i style="--value:${Math.round(progress / target * 100)}%"></i></div>
+        <div class="pet-card-actions">
+          ${locked ? `<button class="secondary" type="button" disabled>未解锁</button>` : stateForChapter.claimed ? `<button class="secondary" type="button" disabled>已收藏</button>` : stateForChapter.complete ? `<button class="primary" type="button" data-pet-claim-story="${escapeAttr(chapter.id)}">领取剧情奖励</button>` : `<button class="primary" type="button" data-pet-story-practice>继续故事 ${progress}/${target}</button>`}
+        </div>`;
+    }
+    function renderPetMemoryCard(pet, profile = activeProfile()) {
+      if (!els.petMemoryCard) return;
+      const memories = normalizePetMemories(pet.memories);
+      const decor = PET_DECORATIONS.filter((item) => pet.decorations?.[item.id]).slice(-4);
+      els.petMemoryCard.innerHTML = `
+        <div class="pet-card-title"><span aria-hidden="true">📔</span><div><h3>成长日记</h3><p>心愿 ${memories.wishes} · 事件 ${memories.events} · 故事 ${memories.stories}</p></div></div>
+        <div class="pet-decoration-row">${decor.length ? decor.map((item) => `<span title="${escapeAttr(petCopy(item.desc, profile))}">${item.icon} ${escapeHTML(petCopy(item.title, profile))}</span>`).join("") : "<span>还没有装饰</span>"}</div>
+        <div class="pet-memory-list">${memories.log.length ? memories.log.slice(0, 3).map((item) => `<p><strong>${escapeHTML(petCopy(item.title, profile))}</strong><em>${escapeHTML(item.date)}</em><br>${escapeHTML(petCopy(item.desc, profile))}</p>`).join("") : "<p>完成心愿、随机事件或剧情后，会留下成长记录。</p>"}</div>`;
+    }
+    function shouldUsePetPanelModals() {
+      return window.matchMedia("(max-width: 980px)").matches;
+    }
+    function movePetCard(card, slot, home) {
+      if (!card || !slot || !home) return;
+      const target = shouldUsePetPanelModals() ? slot : home;
+      if (card.parentElement !== target) target.appendChild(card);
+    }
+    function syncPetPanelLayout() {
+      const dashboard = document.querySelector(".pet-care-dashboard");
+      if (!dashboard) return;
+      movePetCard(els.petWishCard, els.petWishPanelSlot, dashboard);
+      const carePlanCard = els.petCareChecklist?.closest(".pet-care-plan-card");
+      movePetCard(carePlanCard, els.petCarePlanPanelSlot, dashboard);
+      movePetCard(els.petEventCard, els.petEventPanelSlot, dashboard);
+      movePetCard(els.petMemoryCard, els.petMemoryPanelSlot, dashboard);
+      movePetCard(els.petLevelGiftCard, els.petLevelGiftPanelSlot, dashboard);
+      movePetCard(els.petStoryCard, els.petStoryPanelSlot, dashboard);
+      document.body.classList.toggle("pet-panel-compact", shouldUsePetPanelModals());
+    }
 
     function renderPetRunawayNotice(pet, profile) {
       if (!els.petRunawayNotice) return;
@@ -5506,12 +5894,18 @@ const STORE = {
       const pet = petState(profile);
       const name = petDisplayName(profile);
       const xpInLevel = pet.xp % PET_XP_PER_LEVEL;
-      const stage = petGrowthStage(pet);
+      const stage = petStageCopy(petGrowthStage(pet), profile);
       if (els.petSpaceTitle) els.petSpaceTitle.textContent = `${name}小窝`;
       if (els.petSpaceLead) els.petSpaceLead.textContent = `${stage.name}：${stage.copy}`;
       if (els.petRoomCatBtn) els.petRoomCatBtn.setAttribute("aria-label", `摸摸${name}`);
       if (els.petSpaceCoins) els.petSpaceCoins.textContent = String(pet.coins);
       if (els.petRoomStage) els.petRoomStage.dataset.petState = pet.runaway?.status || "home";
+      if (els.petRoomStage) {
+        els.petRoomStage.dataset.decorRug = String(Boolean(pet.decorations?.rug));
+        els.petRoomStage.dataset.decorCurtain = String(Boolean(pet.decorations?.curtain));
+        els.petRoomStage.dataset.decorLamp = String(Boolean(pet.decorations?.studyLamp));
+        els.petRoomStage.dataset.decorBadge = String(Boolean(pet.decorations?.guardianBadge));
+      }
       if (els.petRoomName) els.petRoomName.textContent = pet.runaway?.status === "lost"
         ? "等待重新领养"
         : pet.runaway?.status === "away"
@@ -5530,7 +5924,7 @@ const STORE = {
         els.petStageCard.innerHTML = `
           <strong>${escapeHTML(stage.name)}</strong>
           <span>${escapeHTML(stage.copy)}</span>
-          <em>${nextStage ? `Lv.${nextStage.minLevel} 解锁${nextStage.name}` : "成长阶段已全部解锁"}</em>`;
+          <em>${nextStage ? `Lv.${nextStage.minLevel} 解锁${petCopy(nextStage.name, profile)}` : "成长阶段已全部解锁"}</em>`;
       }
       if (els.petSpaceLevel) els.petSpaceLevel.textContent = `${stage.name} · Lv.${pet.level}`;
       if (els.petSpaceXp) els.petSpaceXp.textContent = `${xpInLevel} / ${PET_XP_PER_LEVEL}`;
@@ -5542,6 +5936,14 @@ const STORE = {
           petBarHTML("亲密值", pet.bond)
         ].join("");
       }
+      renderPetSkillStrip(pet);
+      renderPetWishCard(profile, pet);
+      renderPetLevelGiftCard(pet, profile);
+      renderPetCarePlan(profile, pet);
+      renderPetEventCard(pet, profile);
+      renderPetStoryCard(pet, profile);
+      renderPetMemoryCard(pet, profile);
+      syncPetPanelLayout();
       renderPetRunawayNotice(pet, profile);
       const tierLabels = { basic: "基础照料", advanced: "进阶用品", rare: "长期目标" };
       const tierCopy = {
@@ -5580,7 +5982,7 @@ const STORE = {
         ${bagItems.map((item) => `<article class="pet-bag-item" tabindex="0" role="button" data-pet-detail="${item.id}" aria-label="查看${escapeHTML(item.name)}作用">
           <div class="pet-bag-icon" aria-hidden="true">${item.icon}</div>
           <strong>${escapeHTML(item.name)}</strong>
-          <small>${tierLabels[item.tier || "advanced"] || "招财用品"}</small>
+          <small>${escapeHTML(petCopy(tierLabels[item.tier || "advanced"] || "招财用品", profile))}</small>
           <div class="pet-shop-buy">
             <span>背包 ${pet.inventory[item.id]} 件</span>
             <button class="primary" type="button" data-pet-use="${item.id}" ${pet.runaway?.status === "lost" && !item.rename ? "disabled" : ""}>使用</button>
@@ -5657,6 +6059,8 @@ const STORE = {
     function petModalFor(kind) {
       if (kind === "bag") return els.petBagModal;
       if (kind === "tasks") return els.petTaskModal;
+      if (kind === "care") return els.petCarePanelModal;
+      if (kind === "growth") return els.petGrowthPanelModal;
       return els.petShopModal;
     }
 
@@ -5678,7 +6082,7 @@ const STORE = {
 
     function closePetModals(options = {}) {
       const except = options.except || null;
-      const openModals = [els.petShopModal, els.petBagModal, els.petTaskModal].filter((modal) => modal && modal !== except && !modal.hidden);
+      const openModals = [els.petShopModal, els.petBagModal, els.petTaskModal, els.petCarePanelModal, els.petGrowthPanelModal].filter((modal) => modal && modal !== except && !modal.hidden);
       openModals.forEach((modal, index) => {
         closeWithMotion(modal, index === openModals.length - 1 ? () => {
           if (!except || except.hidden) document.body.classList.remove("pet-modal-open");
@@ -5849,6 +6253,8 @@ const STORE = {
       });
       pet.inventory[id] -= 1;
       applyPetItemEffects(pet, item);
+      const wishDone = finishPetWishWithItem(id, pet);
+      const careDone = updatePetCareMemory(profile, pet);
       if (!saveProfiles()) {
         pet.inventory = before.inventory;
         pet.careLog = before.careLog;
@@ -5868,8 +6274,83 @@ const STORE = {
       showItemFloatText(id, "-1", "var(--danger)", "use");
       renderPetSpace(profile);
       closePetModals();
-      updatePetStatus(`${petDisplayName(profile)}使用了${item.name}。${item.desc}。`, "舒服");
+      updatePetStatus(`${petDisplayName(profile)}使用了${item.name}。${item.desc}。${wishDone ? "今日心愿也完成了。" : ""}${careDone ? "今日照料清单完成，亲密增加。" : ""}`, wishDone ? "心愿" : "舒服");
       setPetAction(careKind === "feed" ? "fed" : careKind === "clean" ? "clean" : careKind === "play" ? "play" : "comfy", "舒服");
+    }
+
+    function claimPetLevelReward(level) {
+      const profile = activeProfile();
+      const pet = petState(profile);
+      const reward = PET_LEVEL_REWARD_MAP[String(level)];
+      if (!reward || Number(pet.level) < Number(reward.level) || pet.rewardsClaimed?.[reward.level]) return;
+      pet.rewardsClaimed = isPlainObject(pet.rewardsClaimed) ? pet.rewardsClaimed : {};
+      pet.rewardsClaimed[reward.level] = todayKey();
+      pet.coins += Math.max(0, Number(reward.coins) || 0);
+      if (reward.itemId && PET_ITEM_MAP[reward.itemId]) {
+        pet.inventory[reward.itemId] = (Number(pet.inventory[reward.itemId]) || 0) + Math.max(1, Number(reward.itemCount) || 1);
+      }
+      applyPetDecoration(pet, reward.decoration);
+      pet.memories = normalizePetMemories(pet.memories);
+      pet.memories.levelGifts += 1;
+      addPetMemory(pet, `Lv.${reward.level} ${reward.title}`, reward.unlock ? `解锁${reward.unlock}` : `成长礼物：金币 +${Number(reward.coins) || 0}`);
+      if (!saveProfiles()) return;
+      renderPetSpace(profile);
+      updatePetStatus(`${petDisplayName(profile)}升到 Lv.${reward.level}，领取了${reward.title}。`, "升级礼物");
+      UI.notify(`已领取 Lv.${reward.level} 成长礼物。`);
+    }
+
+    function claimPetStoryReward(id) {
+      const profile = activeProfile();
+      const pet = petState(profile);
+      const chapter = PET_STORY_CHAPTERS.find((item) => item.id === id);
+      const story = pet.story?.[id];
+      if (!chapter || !story || !story.complete || story.claimed) return;
+      story.claimed = true;
+      pet.coins += Math.max(0, Number(chapter.rewardCoins) || 0);
+      pet.bond = clamp(pet.bond + Number(chapter.rewardBond || 0), 0, 100);
+      pet.xp += 18 + Number(chapter.rewardBond || 0);
+      applyPetDecoration(pet, chapter.decoration);
+      pet.memories = normalizePetMemories(pet.memories);
+      pet.memories.stories += 1;
+      addPetMemory(pet, chapter.title, `剧情完成，金币 +${Number(chapter.rewardCoins) || 0}，亲密 +${Number(chapter.rewardBond) || 0}`);
+      applyPetLevel(pet);
+      if (!saveProfiles()) return;
+      renderPetSpace(profile);
+      updatePetStatus(`${petDisplayName(profile)}完成了故事：${chapter.title}。`, "故事完成");
+      UI.notify(`剧情奖励已领取：金币 +${Number(chapter.rewardCoins) || 0}`);
+    }
+
+    function resolvePetEventWithItem(itemId) {
+      const profile = activeProfile();
+      const pet = petState(profile);
+      const event = currentPetEvent(pet);
+      if (!event || pet.event?.resolved || event.itemId !== itemId || (Number(pet.inventory?.[itemId]) || 0) <= 0) return;
+      pet.inventory[itemId] -= 1;
+      resolvePetEvent(pet, event);
+      if (!saveProfiles()) return;
+      renderPetSpace(profile);
+      updatePetStatus(`${petDisplayName(profile)}用${PET_ITEM_MAP[itemId]?.name || "用品"}解决了${event.title}。`, "事件完成");
+    }
+
+    function startPetWishPractice() {
+      const pet = petState(activeProfile());
+      const wish = currentPetWish(pet);
+      const target = Math.max(3, Number(wish?.practiceTarget) || 5);
+      startPointSet(state.pointId === "auto" ? choosePoint().id : state.pointId, Math.min(12, target), "pet-wish");
+    }
+
+    function startPetEventPractice() {
+      const pet = petState(activeProfile());
+      const event = currentPetEvent(pet);
+      const left = Math.max(3, (Number(event?.target) || 5) - (Number(pet.event?.progress) || 0));
+      startPointSet(state.pointId === "auto" ? choosePoint().id : state.pointId, Math.min(12, left), "pet-event");
+    }
+
+    function startPetStoryPractice() {
+      const pet = petState(activeProfile());
+      const chapter = PET_STORY_CHAPTERS.find((item) => Number(pet.level) >= Number(item.minLevel || 1) && !pet.story?.[item.id]?.claimed && !pet.story?.[item.id]?.complete);
+      const left = chapter ? Math.max(3, Number(chapter.target) - Number(pet.story?.[chapter.id]?.progress || 0)) : 5;
+      startPointSet(state.pointId === "auto" ? choosePoint().id : state.pointId, Math.min(12, left), "pet-story");
     }
 
     function renamePet() {
@@ -6441,7 +6922,9 @@ const STORE = {
         item.lastResult = "correct";
         item.updatedAt = Date.now();
         const pet = petState(profile);
+        const hasWrongbookBuddy = petUnlockedSkillIds(pet).includes("wrongbookBuddy");
         pet.bond = clamp(pet.bond + 1, 0, 100);
+        if (hasWrongbookBuddy) pet.bond = clamp(pet.bond + 1, 0, 100);
         pet.mood = clamp(pet.mood + 1, 0, 100);
         if (item.correctStreak >= 3) {
           markWrongAsMastered(profile, item);
@@ -6449,7 +6932,7 @@ const STORE = {
           profile.rewards.clearedWrong = (profile.rewards.clearedWrong || 0) + 1;
           awardCoins(8, "掌握错题");
           pet.bond = clamp(pet.bond + 3, 0, 100);
-          els.companionTalk.textContent = '这道错题已经连续做对 3 次，移入"已掌握错题"记录了。招财额外奖励 8 金币。';
+          els.companionTalk.textContent = petCopy('这道错题已经连续做对 3 次，移入"已掌握错题"记录了。招财额外奖励 8 金币。');
           showRewardRibbon({ title: "错题掌握", copy: "连续做对 3 次，招财把它收进已掌握记录。", coins: 8 });
         }
       } else {
@@ -6490,6 +6973,7 @@ const STORE = {
       const profile = activeProfile();
       profile.history.unshift(entry);
       profile.history = profile.history.slice(0, 2500);
+      advancePetProgressFromQuestion(profile, Boolean(entry.correct));
       renderDailyGoal();
     }
     function checkAnswer() {
@@ -6522,8 +7006,13 @@ const STORE = {
       if (correct) {
         state.correct += 1;
         state.streak += 1;
+        const pet = petState(activeProfile());
+        const skillCoins = petUnlockedSkillIds(pet).includes("streakSpark") && state.streak > 0 && state.streak % 5 === 0
+          ? awardCoins(1, "连对鼓励")
+          : 0;
         const milestone = streakMilestone(state.streak);
-        setFeedback("good", milestone ? `${milestone.title}！正确答案是 ${formatAnswer(expected, current.answerLabel)}。金币 +${coinGain}。` : `招财：答对啦。正确答案是 ${formatAnswer(expected, current.answerLabel)}。金币 +${coinGain}。`, state.streak >= 3 ? "🥳" : "😄");
+        const coinCopy = `金币 +${coinGain + skillCoins}${skillCoins ? "（含连对鼓励 +1）" : ""}`;
+        setFeedback("good", milestone ? `${milestone.title}！正确答案是 ${formatAnswer(expected, current.answerLabel)}。${coinCopy}。` : `招财：答对啦。正确答案是 ${formatAnswer(expected, current.answerLabel)}。${coinCopy}。`, state.streak >= 3 ? "🥳" : "😄");
         updatePetStatus(milestone ? `招财：${milestone.copy}` : state.streak >= 3 ? "招财：连续答对很稳定，2 秒后我带你去下一题。" : "招财：这题很稳，2 秒后自动进入下一题。", milestone ? "奖励" : "答对");
         triggerAnswerAnimation("correct");
         if (milestone) awardStreakMilestone(milestone);
@@ -8056,15 +8545,59 @@ const STORE = {
     els.openPetShopBtn?.addEventListener("click", () => openPetModal("shop"));
     els.openPetBagBtn?.addEventListener("click", () => openPetModal("bag"));
     els.openPetTaskBtn?.addEventListener("click", () => openPetModal("tasks"));
-    els.petWeakPracticeBtn?.addEventListener("click", startWeakPractice);
-    [els.petShopModal, els.petBagModal, els.petTaskModal].forEach((modal) => {
+    els.openPetCarePanelBtn?.addEventListener("click", () => openPetModal("care"));
+    els.openPetGrowthPanelBtn?.addEventListener("click", () => openPetModal("growth"));
+    const handlePetPanelAction = (event) => {
+      if (event.target.closest("#petShopGrid, #petBagList")) return;
+      const buyBtn = event.target.closest("[data-pet-buy]");
+      if (buyBtn) {
+        buyPetItem(buyBtn.dataset.petBuy);
+        return;
+      }
+      const useBtn = event.target.closest("[data-pet-use]");
+      if (useBtn) {
+        usePetItem(useBtn.dataset.petUse);
+        return;
+      }
+      const levelBtn = event.target.closest("[data-pet-claim-level]");
+      if (levelBtn) {
+        claimPetLevelReward(levelBtn.dataset.petClaimLevel);
+        return;
+      }
+      const storyBtn = event.target.closest("[data-pet-claim-story]");
+      if (storyBtn) {
+        claimPetStoryReward(storyBtn.dataset.petClaimStory);
+        return;
+      }
+      const eventUseBtn = event.target.closest("[data-pet-event-use]");
+      if (eventUseBtn) {
+        resolvePetEventWithItem(eventUseBtn.dataset.petEventUse);
+        return;
+      }
+      if (event.target.closest("[data-pet-wish-practice]")) {
+        startPetWishPractice();
+        return;
+      }
+      if (event.target.closest("[data-pet-event-practice]")) {
+        startPetEventPractice();
+        return;
+      }
+      if (event.target.closest("[data-pet-story-practice]")) {
+        startPetStoryPractice();
+      }
+    };
+    els.petspaceView?.addEventListener("click", handlePetPanelAction);
+    els.petCarePanelModal?.addEventListener("click", handlePetPanelAction);
+    els.petGrowthPanelModal?.addEventListener("click", handlePetPanelAction);
+    els.petWishPracticeBtn?.addEventListener("click", startPetWishPractice);
+    [els.petShopModal, els.petBagModal, els.petTaskModal, els.petCarePanelModal, els.petGrowthPanelModal].forEach((modal) => {
       modal?.addEventListener("click", (event) => {
         if (event.target === modal || event.target.closest("[data-close-pet-modal]")) closePetModals();
         if (event.target.closest("[data-close-pet-detail]")) hidePetItemDetails();
       });
     });
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && (!els.petShopModal?.hidden || !els.petBagModal?.hidden || !els.petTaskModal?.hidden)) closePetModals();
+      if (event.key === "Escape" && (!els.petShopModal?.hidden || !els.petBagModal?.hidden || !els.petTaskModal?.hidden || !els.petCarePanelModal?.hidden || !els.petGrowthPanelModal?.hidden)) closePetModals();
       if (event.key === "Escape" && (!els.learningModal?.hidden || !els.systemModal?.hidden)) closeHubModals();
       if (event.key === "Escape" && !els.archiveModal?.hidden) closeArchiveModal();
     });
@@ -8423,6 +8956,22 @@ const STORE = {
         petCareLeft,
         consumePetCare,
         petGrowthStage,
+        petCopy,
+        petWishes: PET_WISHES,
+        petSkills: PET_SKILLS,
+        petLevelRewards: PET_LEVEL_REWARDS,
+        petRandomEvents: PET_RANDOM_EVENTS,
+        petStoryChapters: PET_STORY_CHAPTERS,
+        currentPetWish,
+        currentPetEvent,
+        advancePetProgressFromQuestion,
+        pendingPetLevelRewards,
+        claimPetLevelReward,
+        claimPetTask,
+        claimPetStoryReward,
+        resolvePetEventWithItem,
+        resolvePetEvent,
+        latestProfileActivityTime,
         awardQuestionReward,
         safeThemeId,
         themeRegistry: THEME_REGISTRY,

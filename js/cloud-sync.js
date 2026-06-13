@@ -245,12 +245,14 @@
   }
 
   function getProfileTime(profile) {
-    if (!profile || !profile.history || !profile.history.length) return 0;
-    var latest = 0;
-    profile.history.forEach(function (item) {
-      var t = Number(item.time) || 0;
-      if (t > latest) latest = t;
-    });
+    if (!profile) return 0;
+    var latest = Number(profile.updatedAt) || 0;
+    if (Array.isArray(profile.history)) {
+      profile.history.forEach(function (item) {
+        var t = Number(item.time) || 0;
+        if (t > latest) latest = t;
+      });
+    }
     return latest;
   }
 

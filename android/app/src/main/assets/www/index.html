@@ -339,14 +339,70 @@
                 <div><span>等级</span><strong id="petSpaceLevel">Lv.1</strong></div>
                 <div><span>经验</span><strong id="petSpaceXp">0 / 80</strong></div>
               </div>
+              <div class="pet-skill-strip" id="petSkillStrip" aria-label="亲密技能"></div>
             </div>
           </div>
           <div class="pet-space-bars" id="petSpaceBars"></div>
+          <div class="pet-mobile-panel-actions" aria-label="招财空间详情">
+            <button class="secondary" type="button" id="openPetCarePanelBtn">🌱 今日照料</button>
+            <button class="secondary" type="button" id="openPetGrowthPanelBtn">📔 成长记录</button>
+          </div>
+          <div class="pet-care-dashboard">
+            <section class="pet-wish-card" id="petWishCard" aria-live="polite"></section>
+            <section class="pet-level-gift-card" id="petLevelGiftCard" aria-live="polite"></section>
+            <section class="pet-care-plan-card">
+              <div class="pet-care-plan-head">
+                <div>
+                  <h3>今日照料</h3>
+                  <p class="muted">把照料和练习串起来，金币不够时就去做一小组题。</p>
+                </div>
+                <strong id="petCareScore">0/4</strong>
+              </div>
+              <div class="pet-care-checklist" id="petCareChecklist"></div>
+            </section>
+            <section class="pet-event-card" id="petEventCard" aria-live="polite"></section>
+            <section class="pet-story-card" id="petStoryCard" aria-live="polite"></section>
+            <section class="pet-memory-card" id="petMemoryCard" aria-live="polite"></section>
+          </div>
           <div class="pet-space-actions" aria-label="宠物空间操作">
             <button class="primary" type="button" id="openPetShopBtn">🛒 打开宠物商店</button>
             <button class="secondary" type="button" id="openPetBagBtn">🎒 查看背包</button>
             <button class="secondary" type="button" id="openPetTaskBtn">✅ 每日 / 每周任务</button>
-            <button class="secondary" type="button" id="petWeakPracticeBtn">🎯 薄弱点练习</button>
+            <button class="secondary" type="button" id="petWishPracticeBtn">🪙 做题赚心愿金币</button>
+          </div>
+        </article>
+      </div>
+
+      <div class="pet-modal pet-panel-modal" id="petCarePanelModal" role="dialog" aria-modal="true" aria-labelledby="petCarePanelTitle" hidden>
+        <article class="pet-modal-panel pet-task-modal-panel task-home">
+          <div class="item-top">
+            <div>
+              <h2 id="petCarePanelTitle">今日照料</h2>
+              <p class="muted">今日心愿、照料清单和随机事件都在这里处理。</p>
+            </div>
+            <button class="secondary icon-btn pet-modal-close" type="button" data-close-pet-modal aria-label="关闭今日照料">×</button>
+          </div>
+          <div class="pet-panel-grid pet-care-panel-grid">
+            <div id="petWishPanelSlot"></div>
+            <div id="petCarePlanPanelSlot"></div>
+            <div id="petEventPanelSlot"></div>
+          </div>
+        </article>
+      </div>
+
+      <div class="pet-modal pet-panel-modal" id="petGrowthPanelModal" role="dialog" aria-modal="true" aria-labelledby="petGrowthPanelTitle" hidden>
+        <article class="pet-modal-panel pet-task-modal-panel task-home">
+          <div class="item-top">
+            <div>
+              <h2 id="petGrowthPanelTitle">成长记录</h2>
+              <p class="muted">成长日记、成长礼物和招财故事会沉淀为长期目标。</p>
+            </div>
+            <button class="secondary icon-btn pet-modal-close" type="button" data-close-pet-modal aria-label="关闭成长记录">×</button>
+          </div>
+          <div class="pet-panel-grid pet-growth-panel-grid">
+            <div id="petMemoryPanelSlot"></div>
+            <div id="petLevelGiftPanelSlot"></div>
+            <div id="petStoryPanelSlot"></div>
           </div>
         </article>
       </div>
