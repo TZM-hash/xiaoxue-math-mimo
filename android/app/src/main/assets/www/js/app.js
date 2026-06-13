@@ -8927,6 +8927,9 @@ const STORE = {
     startNewSet();
     if (!isAndroidWebView()) generatePrintSheet();
     initCloudSync();
+    if (state.musicOn) {
+      startBackgroundMusic();
+    }
     window.addEventListener("resize", () => {
       closeCustomSelects();
       syncCompactOnlyFeatures();

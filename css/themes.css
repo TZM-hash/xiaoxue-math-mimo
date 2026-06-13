@@ -7536,18 +7536,20 @@
         display: none !important;
       }
       #petspaceView.active {
-        overflow: hidden;
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
       }
       #petspaceView.active .pet-space-layout {
-        height: 100%;
-        overflow: hidden;
+        height: auto;
+        min-height: 100%;
+        overflow: visible;
       }
       #petspaceView.active .pet-room-card {
         display: grid;
-        grid-template-rows: auto minmax(0, 1fr) auto auto;
+        grid-template-rows: auto minmax(0, 1fr) auto auto auto auto;
         gap: 9px;
         min-height: 0;
-        overflow: hidden;
+        overflow: visible;
       }
       #petspaceView.active .pet-room-top {
         min-height: 0;
