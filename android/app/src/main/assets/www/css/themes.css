@@ -4741,14 +4741,15 @@
       .practice-workspace > .panel .panel-actions { margin-top: 16px !important; padding-top: 0; }
       .practice-workspace > .main-stack {
         min-height: 0;
-        overflow: hidden;
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
         grid-template-rows: auto auto minmax(0, 1fr);
       }
       .panel, .print-controls { position: static; }
       .practice-card {
         min-height: 0;
-        height: 100%;
-        overflow: hidden;
+        height: auto;
+        overflow: visible;
         padding: 14px;
         grid-template-rows: minmax(0, 1fr) auto;
       }
@@ -5875,7 +5876,8 @@
       .practice-workspace.focus-mode > .main-stack {
         display: grid !important;
         min-height: 0;
-        overflow: hidden;
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
         grid-template-rows: auto auto minmax(0, 1fr);
       }
       .practice-shell-topbar {
