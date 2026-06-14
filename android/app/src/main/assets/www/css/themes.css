@@ -2535,6 +2535,14 @@
       margin: 0;
       max-width: none;
     }
+    .pet-shop-card,
+    .pet-bag-card {
+      width: min(860px, 100%);
+      height: min(700px, calc(100dvh - 44px));
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+    }
     .pet-plan-menu-card {
       width: min(420px, 100%);
       overflow: visible;
@@ -3444,6 +3452,7 @@
     }
     .pet-shop-card .pet-shop-grid,
     .pet-bag-card .pet-bag-list {
+      min-height: 0;
       max-height: min(480px, calc(100dvh - 260px));
       overflow: auto;
       overscroll-behavior: contain;

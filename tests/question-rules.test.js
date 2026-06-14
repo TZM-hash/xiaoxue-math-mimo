@@ -392,6 +392,8 @@ function runPetEconomyTests() {
   assert.strictEqual(debug.petState(rewardProfile).coins, 2, "答对后宠物金币应增加");
 
   const pet = debug.petState(debug.normalizeProfile({ id: "pet-care", name: "Care", grade: 2 }));
+  assert.strictEqual(pet.level, 1, "New pet initial level should be 1");
+  assert.strictEqual(pet.xp, 0, "New pet initial XP should be 0");
   assert.strictEqual(debug.petCareLeft(pet, "encourage"), 5, "每日摸摸应有收益次数上限");
   for (let index = 0; index < 5; index += 1) assert.strictEqual(debug.consumePetCare(pet, "encourage"), true, "上限内摸摸应获得收益");
   assert.strictEqual(debug.consumePetCare(pet, "encourage"), false, "超过上限后摸摸不应继续刷收益");
