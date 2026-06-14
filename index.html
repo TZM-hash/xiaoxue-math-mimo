@@ -343,10 +343,6 @@
             </div>
           </div>
           <div class="pet-space-bars" id="petSpaceBars"></div>
-          <div class="pet-mobile-panel-actions" aria-label="招财空间详情">
-            <button class="secondary" type="button" id="openPetCarePanelBtn">🌱 今日照料</button>
-            <button class="secondary" type="button" id="openPetGrowthPanelBtn">📔 成长记录</button>
-          </div>
           <div class="pet-care-dashboard">
             <section class="pet-wish-card" id="petWishCard" aria-live="polite"></section>
             <section class="pet-level-gift-card" id="petLevelGiftCard" aria-live="polite"></section>
@@ -367,8 +363,10 @@
           <div class="pet-space-actions" aria-label="宠物空间操作">
             <button class="primary" type="button" id="openPetShopBtn">🛒 打开宠物商店</button>
             <button class="secondary" type="button" id="openPetBagBtn">🎒 查看背包</button>
+            <button class="secondary pet-plan-mobile-btn" type="button" id="openPetPlanBtn">🌿 养成计划</button>
+            <button class="secondary" type="button" id="openPetDressupBtn">🎨 装扮馆</button>
             <button class="secondary" type="button" id="openPetTaskBtn">✅ 每日 / 每周任务</button>
-            <button class="secondary" type="button" id="petWishPracticeBtn">🪙 做题赚心愿金币</button>
+            <button class="secondary" type="button" id="openPetAchievementBtn">🏅 成就图鉴</button>
           </div>
         </article>
       </div>
@@ -403,6 +401,21 @@
             <div id="petMemoryPanelSlot"></div>
             <div id="petLevelGiftPanelSlot"></div>
             <div id="petStoryPanelSlot"></div>
+          </div>
+        </article>
+      </div>
+
+      <div class="pet-modal" id="petPlanMenuModal" role="dialog" aria-modal="true" aria-labelledby="petPlanMenuTitle" hidden>
+        <article class="pet-modal-panel pet-plan-menu-card">
+          <div class="item-top">
+            <h2 id="petPlanMenuTitle">养成计划</h2>
+            <button class="secondary icon-btn pet-modal-close" type="button" data-close-pet-modal aria-label="关闭养成计划">×</button>
+          </div>
+          <div class="pet-plan-menu-grid">
+            <button class="secondary" type="button" data-open-pet-modal="care"><span aria-hidden="true">🌱</span><strong>今日照料</strong></button>
+            <button class="secondary" type="button" data-open-pet-modal="growth"><span aria-hidden="true">📔</span><strong>成长记录</strong></button>
+            <button class="secondary" type="button" data-open-pet-modal="achievements"><span aria-hidden="true">🏅</span><strong>成就图鉴</strong></button>
+            <button class="secondary" type="button" data-open-pet-modal="dressup"><span aria-hidden="true">🎨</span><strong>装扮馆</strong></button>
           </div>
         </article>
       </div>
@@ -444,6 +457,34 @@
               <button class="secondary" type="button" id="cancelRenamePetBtn">取消</button>
             </div>
           </article>
+        </article>
+      </div>
+
+      <div class="pet-modal" id="petDressupModal" role="dialog" aria-modal="true" aria-labelledby="petDressupTitle" hidden>
+        <article class="pet-modal-panel pet-task-modal-panel pet-dressup-card">
+          <div class="item-top">
+            <div>
+              <h2 id="petDressupTitle">装扮馆</h2>
+              <p class="muted">小窝主题、家具和宠物装扮会跟着等级、剧情和成就逐步解锁。</p>
+            </div>
+            <span class="tag" id="petDressupSummary">阳光小窝 · 家具 0 · 装扮 0</span>
+            <button class="secondary icon-btn pet-modal-close" type="button" data-close-pet-modal aria-label="关闭装扮馆">×</button>
+          </div>
+          <div class="pet-dressup-grid" id="petDressupGrid"></div>
+        </article>
+      </div>
+
+      <div class="pet-modal" id="petAchievementModal" role="dialog" aria-modal="true" aria-labelledby="petAchievementTitle" hidden>
+        <article class="pet-modal-panel pet-task-modal-panel pet-achievement-card-wrap">
+          <div class="item-top">
+            <div>
+              <h2 id="petAchievementTitle">成就图鉴</h2>
+              <p class="muted">学习、照料、剧情和收集都会点亮成就，领取后获得金币或稀有收藏。</p>
+            </div>
+            <span class="tag" id="petAchievementSummary">已完成 0/0</span>
+            <button class="secondary icon-btn pet-modal-close" type="button" data-close-pet-modal aria-label="关闭成就图鉴">×</button>
+          </div>
+          <div class="pet-achievement-list" id="petAchievementList"></div>
         </article>
       </div>
 

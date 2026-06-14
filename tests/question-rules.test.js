@@ -65,7 +65,6 @@ class FakeElement {
     this.innerHTML += html;
   }
 }
-
 function makeDocument(ids) {
   const elements = new Map(ids.map((id) => [id, new FakeElement(id)]));
   const documentElement = new FakeElement("documentElement", "html");
@@ -340,6 +339,30 @@ function runPetRewardClaimTests() {
   const coinsAfterEvent = eventPet.coins;
   assert.strictEqual(debug.resolvePetEvent(eventPet, event), false, "已完成随机事件不应再次解决");
   assert.strictEqual(eventPet.coins, coinsAfterEvent, "随机事件不应重复发放金币");
+
+  const achievementProfile = debug.normalizeProfile({ id: "claim-achievement", name: "Achieve", grade: 2 });
+  achievementProfile.history = Array.from({ length: 50 }, (_, index) => ({
+    date: debug.todayKey(),
+    time: Date.now() + index,
+    pointId: "g2-100-add",
+    grade: 2,
+    correct: true,
+    cause: "未标记",
+    mode: "practice",
+    text: "1 + 1 = ?"
+  }));
+  debug.state.profiles = [achievementProfile];
+  debug.state.activeId = achievementProfile.id;
+  const achievementPet = debug.petState(achievementProfile);
+  assert(achievementPet.unlockedThemes.sunny, "旧存档应自动补齐默认小窝主题");
+  assert(achievementPet.achievements && achievementPet.achievements.claimed, "旧存档应自动补齐成就领取桶");
+  const firstAchievement = debug.petAchievements.find((item) => item.id === "answer-50");
+  assert(debug.petAchievementState(achievementProfile, firstAchievement).complete, "50 题成就应可领取");
+  debug.claimPetAchievement("answer-50");
+  const coinsAfterAchievement = debug.petState(achievementProfile).coins;
+  assert.strictEqual(debug.petState(achievementProfile).achievements.claimed["answer-50"], true, "成就领取状态应写入存档");
+  debug.claimPetAchievement("answer-50");
+  assert.strictEqual(debug.petState(achievementProfile).coins, coinsAfterAchievement, "成就不应重复领取金币");
 }
 
 function runPetEconomyTests() {
