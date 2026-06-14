@@ -38,7 +38,10 @@
       </div>
       <nav class="tabs" aria-label="主要功能">
         <button class="tab-btn" type="button" data-view="practice" aria-selected="true">📝 在线练习</button>
-        <button class="tab-btn" type="button" data-start-challenge aria-selected="false">🏆 闯关模式</button>
+        <button class="tab-btn" type="button" data-top-mode-action aria-selected="false">
+          <span class="nav-label-desktop">🏆 闯关模式</span>
+          <span class="nav-label-mobile">⚙️ 题型设置</span>
+        </button>
         <button class="tab-btn desktop-pet-tab" type="button" data-view="petspace" aria-selected="false">🐾 招财空间</button>
         <button class="tab-btn" type="button" data-open-learning aria-selected="false">📚 学习精进</button>
         <button class="tab-btn" type="button" data-open-system aria-selected="false">⚙️ 系统设置</button>
@@ -52,11 +55,13 @@
     </header>
 
     <section class="hero home-dashboard" aria-labelledby="heroTitle">
+      <article class="home-settings-card" id="homeSettingsCard" aria-label="当前题型信息"></article>
       <article class="today-plan-card">
         <div class="eyebrow">今日计划</div>
-        <h1 id="heroTitle">今日学习台</h1>
+        <h1 id="heroTitle">今日学习路线</h1>
         <p class="lead" id="homePlanCopy">先补最需要的一小块：系统会根据错题、正确率和用时，推荐今天最该练的知识点。</p>
         <div class="weak-point-list" id="homeWeakList" aria-label="今日推荐知识点"></div>
+        <div class="home-route-list" id="homeRouteList" aria-label="今日学习路线"></div>
         <div class="hero-actions">
           <button class="primary" type="button" id="homeStartWeakBtn">开始薄弱点练习</button>
           <button class="secondary" type="button" id="homeStartTimedBtn">5 分钟限时小测</button>
@@ -90,16 +95,29 @@
             <button class="secondary" type="button" data-start-timed>限时小测</button>
           </div>
         </div>
+        <div class="home-mode-grid" aria-label="学习模式入口">
+          <button class="home-mode-card challenge" type="button" data-start-challenge>
+            <span>闯关模式</span>
+            <strong id="homeChallengeModeCopy">第 1 关</strong>
+            <em>按当前年级进入小关卡</em>
+          </button>
+          <button class="home-mode-card practice" type="button" id="homeStartPracticeBtn">
+            <span>练习模式</span>
+            <strong>生成新一轮练习</strong>
+            <em>使用题型设置里的年级和题量</em>
+          </button>
+        </div>
       </aside>
     </section>
 
     <section class="view active" id="practiceView">
       <div class="workspace practice-workspace" id="practiceWorkspace">
-        <aside class="panel" aria-label="练习设置">
-          <h2>练习设置</h2>
+        <aside class="panel" aria-label="题型设置">
+          <button class="secondary mobile-type-settings-back" type="button" id="closeTypeSettingsBtn">返回首页</button>
+          <h2>题型设置</h2>
           <div class="setup-step setup-step-primary">
             <div class="field">
-              <div class="field-label">年级</div>
+              <div class="field-label">年级设置</div>
               <div class="grade-grid" id="gradeGrid"></div>
             </div>
             <div class="field setup-point-field">
@@ -706,7 +724,7 @@
         </article>
         <article class="data-card">
           <h2>完整存档</h2>
-          <p class="muted">导出后可完整恢复学生信息、学习进度、错题本、学习报告、打印设置和宠物养成数据。</p>
+          <p class="muted">导出后可完整恢复学生信息、学习进度、错题本、学习报告、打印设置，以及宠物空间全部数据：金币、背包、装扮、家具、心愿、照料、成长记录、成就、剧情和随机事件。</p>
           <div class="row-actions">
             <button class="primary" type="button" data-open-archive>打开存档管理</button>
           </div>
@@ -784,7 +802,7 @@
             </div>
           </section>
           <section class="settings-block">
-            <h3>学生与年级</h3>
+            <h3>学生资料</h3>
             <div class="settings-profile-row">
               <select class="profile-select" id="profileSelect" aria-label="选择学生档案"></select>
               <button class="secondary icon-btn" type="button" id="quickAddProfileBtn" title="添加学生">＋</button>
@@ -793,10 +811,6 @@
               <div class="field">
                 <label for="systemProfileNameInput">学生姓名</label>
                 <input id="systemProfileNameInput" type="text" maxlength="18" />
-              </div>
-              <div class="field">
-                <label for="systemProfileGradeInput">常用年级</label>
-                <select id="systemProfileGradeInput"></select>
               </div>
             </div>
             <div class="row-actions">
@@ -813,7 +827,7 @@
           </section>
           <section class="settings-block settings-block-wide">
             <h3>☁️ 云端同步</h3>
-            <p class="muted">开启后，学习数据自动备份到云端，换设备登录即可恢复。使用 Supabase（国内可访问）。</p>
+            <p class="muted">开启后，做题、错题、题型设置和宠物空间全部数据都会自动备份到云端，换设备登录即可恢复。使用 Supabase（国内可访问）。</p>
             <div id="cloudSyncSection">
               <div class="field">
                 <label for="supabaseUrl">Supabase Project URL</label>
@@ -871,7 +885,7 @@ CREATE POLICY "allow_all_user_settings" ON user_settings FOR ALL USING (true) WI
         <div class="item-top">
           <div>
             <h2 id="archiveTitle">完整存档管理</h2>
-            <p class="muted">备份包含所有学生档案、练习记录、错题本、学习报告、打印设置、金币、背包和宠物状态。换手机或重装 APP 后导入即可恢复。</p>
+            <p class="muted">备份包含所有学生档案、练习记录、错题本、学习报告、打印设置、题型设置，以及宠物空间全部数据：金币、背包、装扮、家具、心愿、照料、成长记录、成就、剧情和随机事件。换手机或重装 APP 后导入即可恢复。</p>
           </div>
           <button class="secondary icon-btn archive-modal-close" type="button" data-close-archive aria-label="关闭存档管理">×</button>
         </div>
@@ -901,6 +915,8 @@ CREATE POLICY "allow_all_user_settings" ON user_settings FOR ALL USING (true) WI
   <script src="js/ui-feedback.js"></script>
   <script src="js/question-bank.js"></script>
   <script src="js/pet-economy.js"></script>
+  <script src="js/home-route.js"></script>
+  <script src="js/pet-dressup-meta.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

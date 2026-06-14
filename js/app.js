@@ -18,6 +18,8 @@ const STORE = {
     const PrintLayout = window.MathCampPrintLayout;
     const UI = window.MathCampUIFeedback;
     const PetEconomy = window.MathCampPetEconomy || {};
+    const HomeRoute = window.MathCampHomeRoute || {};
+    const PetDressupMeta = window.MathCampPetDressupMeta || {};
     const { grades, gradeNames, causes, causeTagsByTopic, points, pointMap, allOption } = window.MathCampQuestionBank;
     const isAndroidWebView = () => document.documentElement.classList.contains("android-webview");
     const isLowMotionMode = () => isAndroidWebView();
@@ -157,13 +159,17 @@ const STORE = {
       todayPill: document.getElementById("todayPill"),
       petCoinPill: document.getElementById("petCoinPill"),
       homePlanCopy: document.getElementById("homePlanCopy"),
+      homeSettingsCard: document.getElementById("homeSettingsCard"),
       homeWeakList: document.getElementById("homeWeakList"),
+      homeRouteList: document.getElementById("homeRouteList"),
       homeStartWeakBtn: document.getElementById("homeStartWeakBtn"),
       homeStartTimedBtn: document.getElementById("homeStartTimedBtn"),
       homeStartChallengeBtn: document.getElementById("homeStartChallengeBtn"),
+      homeStartPracticeBtn: document.getElementById("homeStartPracticeBtn"),
       homePetTitle: document.getElementById("homePetTitle"),
       homePetCopy: document.getElementById("homePetCopy"),
       homeChallengeCopy: document.getElementById("homeChallengeCopy"),
+      homeChallengeModeCopy: document.getElementById("homeChallengeModeCopy"),
       homeChallengePanel: document.getElementById("homeChallengePanel"),
       homeTimedCopy: document.getElementById("homeTimedCopy"),
       musicToggle: document.getElementById("musicToggle"),
@@ -175,6 +181,7 @@ const STORE = {
       themeOptions: [...document.querySelectorAll("[data-theme-option]")],
       practiceWorkspace: document.getElementById("practiceWorkspace"),
       backToSetupBtn: document.getElementById("backToSetupBtn"),
+      closeTypeSettingsBtn: document.getElementById("closeTypeSettingsBtn"),
       gradeGrid: document.getElementById("gradeGrid"),
       pointSelect: document.getElementById("pointSelect"),
       answerModeSelect: document.getElementById("answerModeSelect"),
@@ -314,7 +321,6 @@ const STORE = {
       learningModal: document.getElementById("learningModal"),
       systemModal: document.getElementById("systemModal"),
       systemProfileNameInput: document.getElementById("systemProfileNameInput"),
-      systemProfileGradeInput: document.getElementById("systemProfileGradeInput"),
       saveSystemProfileBtn: document.getElementById("saveSystemProfileBtn"),
       archiveModal: document.getElementById("archiveModal"),
       practiceWrongAllBtn: document.getElementById("practiceWrongAllBtn"),
@@ -1310,6 +1316,7 @@ const STORE = {
       });
       if (els.reportChallenge) els.reportChallenge.textContent = progress.level;
       if (els.homeChallengeCopy) els.homeChallengeCopy.textContent = draft ? `继续第 ${progress.level} 关` : `第 ${progress.level} 关 · 今日 ${progress.todayPlays || 0} 次`;
+      if (els.homeChallengeModeCopy) els.homeChallengeModeCopy.textContent = draft ? `继续第 ${progress.level} 关` : `第 ${progress.level} 关`;
     }
     function weakPointScore(profile, point) {
       const m = masteryFor(profile, point.id);
@@ -1318,8 +1325,34 @@ const STORE = {
       const recent = profile.history.slice(0, 40).filter((item) => item.pointId === point.id && !item.correct).length;
       return { accuracy, wrongs, recent, attempts: m.attempts || 0 };
     }
+    function answerModeLabel(mode) {
+      return {
+        auto: "智能混合",
+        input: "直接输入",
+        choice: "选择题",
+        judge: "判断对错",
+        step: "分步作答"
+      }[mode] || "智能混合";
+    }
+    function renderHomeSettingsCard(profile = activeProfile()) {
+      if (!els.homeSettingsCard || !profile) return;
+      const grade = clamp(Number(state.grade || profile.grade) || 1, 1, 6);
+      const pointId = safePointId(state.pointId || profile.settings?.pointId || "auto", grade);
+      const mode = normalizeAnswerModeForViewport(state.answerMode || profile.settings?.answerMode || "auto");
+      els.homeSettingsCard.innerHTML = `
+        <div class="home-settings-main">
+          <strong>${escapeHTML(profile.name)}</strong>
+          <span>${escapeHTML(gradeNames[grade - 1] || `${grade}年级`)}</span>
+        </div>
+        <div class="home-settings-meta">
+          <span title="知识点：${escapeAttr(pointLabel(pointId))}">知识点：${escapeHTML(pointLabel(pointId))}</span>
+          <span>答题：${escapeHTML(answerModeLabel(mode))}</span>
+          <span>目标：${dailyGoal(profile)}题</span>
+        </div>`;
+    }
     function renderHomeDashboard(profile = activeProfile()) {
       if (!els.homeWeakList) return;
+      renderHomeSettingsCard(profile);
       const weak = weakestPoints(3);
       const pet = petState(profile);
       const stage = petStageCopy(petGrowthStage(pet), profile);
@@ -1328,8 +1361,8 @@ const STORE = {
       if (els.homePlanCopy) {
         const first = weak[0];
         els.homePlanCopy.textContent = first
-          ? `先补最需要的一小块：今天建议练"${first.label}"，短练 8-10 题，做完再看错因和同类题。`
-          : "先补最需要的一小块：完成一轮 8-10 题，系统会根据正确率和错题自动推荐薄弱点。";
+          ? `今天按 3 步走：先练"${first.label}"，再订正错题，最后用小测或闯关收尾。`
+          : "今天按 3 步走：先完成一组基础练习，再检查错题，最后用小测或闯关收尾。";
       }
       els.homeWeakList.innerHTML = weak.map((point, index) => {
         const score = weakPointScore(profile, point);
@@ -1344,6 +1377,42 @@ const STORE = {
       els.homeWeakList.querySelectorAll("[data-home-point]").forEach((btn) => {
         btn.addEventListener("click", () => startPointSet(btn.dataset.homePoint, 8, "weak"));
       });
+      if (els.homeRouteList && typeof HomeRoute.buildTodayRoute === "function") {
+        const today = todayItems(profile);
+        const weakIds = new Set(weak.map((point) => point.id));
+        const weakToday = today.filter((item) => item.mode === "weak" || weakIds.has(item.pointId)).length;
+        const wrongToday = today.filter((item) => item.mode === "wrongbook").length;
+        const timedToday = today.filter((item) => item.mode === "timed").length;
+        const challengeToday = today.filter((item) => item.mode === "challenge").length;
+        const progress = challengeProgress(profile, profile.grade || state.grade);
+        const wrongAvailable = currentGradeWrongbook(profile, profile.grade || state.grade).length;
+        const steps = HomeRoute.buildTodayRoute({
+          weakPoint: weak[0] || null,
+          weakProgress: weakToday,
+          weakTarget: 8,
+          wrongProgress: wrongToday,
+          wrongTarget: Math.min(3, Math.max(1, wrongAvailable)),
+          wrongAvailable,
+          timedProgress: timedToday,
+          challengeProgress: Math.max(challengeToday ? 1 : 0, progress.todayPlays ? 1 : 0),
+          done,
+          goal
+        });
+        els.homeRouteList.innerHTML = steps.map((step) => `<article class="home-route-step ${step.complete ? "is-complete" : ""} ${step.current ? "is-current" : ""}">
+          <div class="home-route-step-head"><b>${escapeHTML(step.index)}</b><strong>${escapeHTML(step.title)}</strong></div>
+          <span>${escapeHTML(step.detail)}</span>
+          <div class="pet-mini-progress" aria-hidden="true"><i style="--value:${clamp(Number(step.pct) || 0, 0, 100)}%"></i></div>
+          <button class="${step.current ? "primary" : "secondary"}" type="button" data-home-route="${escapeAttr(step.action)}" ${step.disabled ? "disabled" : ""}>${escapeHTML(step.actionLabel)}</button>
+        </article>`).join("");
+        els.homeRouteList.querySelectorAll("[data-home-route]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            if (btn.dataset.homeRoute === "wrongbook") startWrongbookPractice();
+            else if (btn.dataset.homeRoute === "timed") startTimedQuizSet();
+            else if (btn.dataset.homeRoute === "challenge") startChallengeSet();
+            else startWeakPractice();
+          });
+        });
+      }
       if (els.homePetTitle) els.homePetTitle.textContent = `${petDisplayName(profile)} · ${stage.name}`;
       if (els.homePetCopy) els.homePetCopy.textContent = `${stage.copy} ${petCareHint(pet)}`;
       if (els.homeTimedCopy) els.homeTimedCopy.textContent = done >= goal ? "目标完成后可挑战" : "10 题 / 5 分钟";
@@ -4990,12 +5059,9 @@ const STORE = {
         btn.setAttribute("aria-label", gradeNames[grade - 1]);
         btn.addEventListener("click", () => {
           state.grade = grade;
-          activeProfile().grade = grade;
           state.pointId = safePointId(state.pointId, grade);
           renderGradeOptions();
           renderPointSelects();
-          saveProfiles();
-          startNewSet();
         });
         els.gradeGrid.appendChild(btn);
       });
@@ -5019,9 +5085,6 @@ const STORE = {
       els.printPoint.innerHTML = pointOptionsHTML(printGrade, printPoint);
       els.printPoint.value = printPoint;
       els.profileGradeInput.innerHTML = grades.map((grade) => `<option value="${grade}">${gradeNames[grade - 1]}</option>`).join("");
-      if (els.systemProfileGradeInput) {
-        els.systemProfileGradeInput.innerHTML = grades.map((grade) => `<option value="${grade}">${gradeNames[grade - 1]}</option>`).join("");
-      }
       els.causeSelect.value = "未标记";
       els.wrongCauseFilter.innerHTML = [`<option value="all">全部错因</option>`, ...causes.map((cause) => `<option value="${escapeAttr(cause)}">${escapeHTML(cause)}</option>`)].join("");
       const wrongGrade = activeProfile().grade || state.grade;
@@ -5032,6 +5095,7 @@ const STORE = {
         ? "当前会按年级混合出题；开启自适应时，会优先安排薄弱知识点。"
         : `${pointLabel(state.pointId)}：${pointMap[state.pointId]?.helper || "专项练习"}。`;
       renderKnowledgeDetail();
+      renderHomeSettingsCard();
       syncCustomSelects();
     }
     function renderProfilePanel() {
@@ -5039,7 +5103,6 @@ const STORE = {
       els.profileNameInput.value = profile.name;
       els.profileGradeInput.value = String(profile.grade);
       if (els.systemProfileNameInput) els.systemProfileNameInput.value = profile.name;
-      if (els.systemProfileGradeInput) els.systemProfileGradeInput.value = String(profile.grade);
       els.profileList.innerHTML = state.profiles.map((item) => {
         const total = item.history.length;
         const correct = item.history.filter((entry) => entry.correct).length;
@@ -5093,6 +5156,8 @@ const STORE = {
     function showView(view) {
       const previous = state.view;
       state.view = view;
+      document.body.classList.toggle("practice-view-active", view === "practice");
+      if (view !== "practice") setTypeSettingsOpen(false);
       els.tabs.forEach((btn) => btn.setAttribute("aria-selected", String(btn.dataset.view === view)));
       Object.entries(els.views).forEach(([key, element]) => {
         const active = key === view;
@@ -5119,6 +5184,22 @@ const STORE = {
       if (view === "print") syncPrintControls();
       if (view === "data") renderProfilePanel();
     }
+    function setTypeSettingsOpen(open) {
+      document.body.classList.toggle("type-settings-open", Boolean(open));
+    }
+    function openTypeSettings() {
+      showView("practice");
+      setPracticeLayer("setup");
+      setTypeSettingsOpen(true);
+    }
+    function closeTypeSettings() {
+      setTypeSettingsOpen(false);
+      showView("practice");
+    }
+    function handleTopModeAction() {
+      if (window.matchMedia("(max-width: 620px)").matches) openTypeSettings();
+      else startChallengeSet();
+    }
     function syncCompactOnlyFeatures() {
       els.tabs
         .filter((btn) => btn.dataset.view === "petspace")
@@ -5134,6 +5215,7 @@ const STORE = {
       if (els.practiceWorkspace) els.practiceWorkspace.classList.toggle("focus-mode", layer === "focus");
       document.body.classList.toggle("practice-focus-mode", layer === "focus");
       document.body.classList.toggle("practice-return-visible", layer === "focus" && state.mode !== "normal");
+      if (layer === "focus") setTypeSettingsOpen(false);
       if (layer !== "focus") closePetHintPopover();
     }
 
@@ -5148,6 +5230,7 @@ const STORE = {
     function returnToPracticeSetup() {
       els.mobileChallengeResult.hidden = true;
       setPracticeLayer("setup");
+      setTypeSettingsOpen(true);
     }
 
     function formatDuration(ms = 0) {
@@ -5916,6 +5999,11 @@ const STORE = {
       const minLevel = Number(item.minLevel || 1);
       const levelLocked = Number(pet.level || 1) < minLevel;
       const price = Math.max(0, Number(item.price) || 0);
+      const metaSources = {
+        levelRewards: PET_LEVEL_REWARDS,
+        storyChapters: PET_STORY_CHAPTERS,
+        achievements: PET_ACHIEVEMENTS
+      };
       let owned = false;
       let active = false;
       let action = "";
@@ -5944,12 +6032,20 @@ const STORE = {
             ? `<button class="${active ? "secondary" : "primary"}" type="button" data-pet-equip-outfit="${escapeAttr(item.id)}">${active ? "卸下" : "穿戴"}</button>`
             : `<button class="primary" type="button" data-pet-buy-outfit="${escapeAttr(item.id)}" ${pet.coins >= price ? "" : "disabled"}>${price} 金币</button>`;
       }
+      const unlockSource = typeof PetDressupMeta.unlockSourceText === "function"
+        ? PetDressupMeta.unlockSourceText(kind, item, metaSources)
+        : `解锁来源：${levelLocked ? `Lv.${minLevel}` : price ? `${price} 金币购买` : "成长奖励"}`;
+      const unlockProgress = typeof PetDressupMeta.unlockProgressText === "function"
+        ? PetDressupMeta.unlockProgressText(kind, item, pet, metaSources)
+        : owned ? "已拥有" : levelLocked ? `还差 ${minLevel - Number(pet.level || 1)} 级` : price > Number(pet.coins || 0) ? `还差 ${price - Number(pet.coins || 0)} 金币` : "可解锁";
       return `<article class="pet-collection-card ${owned ? "owned" : ""} ${active ? "active" : ""} ${levelLocked ? "locked" : ""}">
         <div class="pet-shop-icon" aria-hidden="true">${item.icon || "✦"}</div>
         <div>
           <strong>${escapeHTML(item.title)}</strong>
           <span>${escapeHTML(item.desc || "")}</span>
           <small>${levelLocked ? `Lv.${minLevel} 解锁` : owned ? "已拥有" : `${price} 金币`}</small>
+          <em class="pet-collection-source">${escapeHTML(unlockSource)}</em>
+          <em class="pet-collection-progress">${escapeHTML(unlockProgress)}</em>
         </div>
         ${action}
       </article>`;
@@ -6341,23 +6437,18 @@ const STORE = {
     }
 
     function saveSystemProfile() {
-      if (!els.systemProfileNameInput || !els.systemProfileGradeInput) return;
+      if (!els.systemProfileNameInput) return;
       const profile = activeProfile();
-      const before = { name: profile.name, grade: profile.grade, stateGrade: state.grade };
+      const before = { name: profile.name };
       profile.name = (els.systemProfileNameInput.value || profile.name).trim().slice(0, 18);
-      profile.grade = clamp(Number(els.systemProfileGradeInput.value) || profile.grade, 1, 6);
-      state.grade = profile.grade;
       if (!saveProfiles()) {
         profile.name = before.name;
-        profile.grade = before.grade;
-        state.grade = before.stateGrade;
         saveProfiles();
         syncFromProfile();
         UI.notify("本地保存失败，学生资料没有修改。请先导出备份。", { tone: "bad", duration: 4200 });
         return;
       }
       syncFromProfile();
-      startNewSet();
       UI.notify("学生设置已保存。");
     }
 
@@ -8726,8 +8817,12 @@ const STORE = {
     }
 
     els.tabs.forEach((btn) => btn.addEventListener("click", () => {
-      if (btn.dataset.view) showView(btn.dataset.view);
+      if (btn.dataset.view) {
+        showView(btn.dataset.view);
+        if (btn.dataset.view === "practice") setTypeSettingsOpen(false);
+      }
     }));
+    document.querySelectorAll("[data-top-mode-action]").forEach((btn) => btn.addEventListener("click", handleTopModeAction));
     document.querySelectorAll("[data-jump]").forEach((btn) => btn.addEventListener("click", () => {
       closeHubModals();
       showView(btn.dataset.jump);
@@ -8788,8 +8883,10 @@ const STORE = {
       if (state.view === "report") renderReport();
     });
     els.startSetBtn.addEventListener("click", () => startNewSet({ focus: true }));
+    els.homeStartPracticeBtn?.addEventListener("click", () => startNewSet({ focus: true }));
     els.startChallengeBtn?.addEventListener("click", startChallengeSet);
     els.backToSetupBtn.addEventListener("click", returnToPracticeSetup);
+    els.closeTypeSettingsBtn?.addEventListener("click", closeTypeSettings);
     els.checkBtn.addEventListener("click", checkAnswer);
     els.nextBtn.addEventListener("click", nextQuestion);
     if (els.skipBtn) els.skipBtn.addEventListener("click", skipQuestion);
@@ -9277,6 +9374,7 @@ const STORE = {
     });
 
     applyTheme(state.theme, { save: false });
+    document.body.classList.toggle("practice-view-active", state.view === "practice");
     syncCompactOnlyFeatures();
     updateSoundButtons();
     renderNumberPad();

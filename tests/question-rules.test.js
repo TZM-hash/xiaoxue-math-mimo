@@ -145,6 +145,8 @@ vm.createContext(context);
   "js/ui-feedback.js",
   "js/question-bank.js",
   "js/pet-economy.js",
+  "js/home-route.js",
+  "js/pet-dressup-meta.js",
   "js/cloud-sync.js",
   "js/app.js"
 ].forEach((file) => {
@@ -432,6 +434,176 @@ function runPetEconomyTests() {
   assert(debug.themeRegistry.star && debug.themeRegistry.forest && debug.themeRegistry.candy, "新增主题应存在于主题注册表");
 }
 
+function runTypeSettingsPersistenceTests() {
+  const debug = context.mathCampDebug;
+  const point = debug.availablePoints(4).find((item) => item.id !== "auto") || debug.availablePoints(4)[0];
+  assert(point, "grade 4 should expose at least one knowledge point");
+
+  const profile = debug.normalizeProfile({
+    id: "type-settings-profile",
+    name: "Type Settings",
+    grade: 2,
+    settings: { pointId: "auto", setSize: 10, adaptive: true, dailyGoal: 20, answerMode: "auto" }
+  });
+  debug.state.profiles = [profile];
+  debug.state.activeId = profile.id;
+  debug.state.grade = 4;
+  debug.state.pointId = point.id;
+  debug.els.pointSelect.value = point.id;
+  debug.els.setSizeInput.value = "8";
+  debug.els.adaptiveToggle.checked = false;
+  debug.els.answerModeSelect.value = "choice";
+  debug.els.dailyGoalInput.value = "35";
+
+  debug.startNewSet();
+
+  const saved = debug.state.profiles[0];
+  assert.strictEqual(saved.grade, 4, "starting a set should persist the selected grade");
+  assert.strictEqual(saved.settings.pointId, point.id, "starting a set should persist the selected knowledge point");
+  assert.strictEqual(saved.settings.setSize, 8, "starting a set should persist set size");
+  assert.strictEqual(saved.settings.adaptive, false, "starting a set should persist adaptive setting");
+  assert.strictEqual(saved.settings.answerMode, "choice", "starting a set should persist answer mode");
+  assert.strictEqual(saved.settings.dailyGoal, 35, "starting a set should persist daily goal");
+  assert.strictEqual(debug.state.currentSet.length, 8, "saved type settings should generate a full set");
+
+  const storedProfiles = JSON.parse(context.localStorage.getItem("mathcamp-profiles-v4") || "[]");
+  const stored = storedProfiles.find((item) => item.id === profile.id);
+  assert(stored, "starting a set should write the profile to local storage");
+  assert.strictEqual(stored.grade, 4, "local storage should keep the selected grade for next launch");
+  assert.strictEqual(stored.settings.pointId, point.id, "local storage should keep the selected knowledge point for next launch");
+  assert.strictEqual(stored.settings.answerMode, "choice", "local storage should keep the selected answer mode for next launch");
+  assert.strictEqual(stored.settings.dailyGoal, 35, "local storage should keep the selected daily goal for next launch");
+}
+
+function runArchiveCloudCoverageTests() {
+  const debug = context.mathCampDebug;
+  const today = debug.todayKey();
+  const point = debug.availablePoints(4)[0];
+  const wish = debug.petWishes[0];
+  const event = debug.petRandomEvents[0];
+  const chapter = debug.petStoryChapters[0];
+  const theme = debug.petRoomThemes.find((item) => item.id === "star") || debug.petRoomThemes.find((item) => item.id !== "sunny") || debug.petRoomThemes[0];
+  const furniture = debug.petFurniture.find((item) => item.id === "rug") || debug.petFurniture[0];
+  const outfit = debug.petOutfits[0];
+  const achievement = debug.petAchievements[0];
+  const dailyTask = debug.petDailyTasks[0];
+  const weeklyTask = debug.petWeeklyTasks[0];
+
+  assert(point && wish && event && chapter && theme && furniture && outfit && achievement && dailyTask && weeklyTask, "pet archive test data should be available");
+
+  const richPet = {
+    name: "Mimo",
+    coins: 321,
+    xp: 450,
+    mood: 88,
+    hunger: 77,
+    clean: 66,
+    bond: 55,
+    inventory: { basicFood: 3, towel: 2, yarnBall: 1 },
+    careLog: { date: today, encourage: 2, feed: 1, clean: 1, play: 1 },
+    tasks: { daily: { [dailyTask.id]: today }, weekly: { [weeklyTask.id]: "week-key" } },
+    wish: { date: today, id: wish.id, itemId: wish.itemId, progress: 2, fulfilled: true },
+    rewardsClaimed: { "level-2": true, "level-3": true },
+    decorations: { [furniture.id]: true, storyShelf: true },
+    ownedFurniture: { [furniture.id]: true },
+    equippedFurniture: { [furniture.id]: true },
+    unlockedThemes: { sunny: true, [theme.id]: true },
+    roomTheme: theme.id,
+    outfits: { [outfit.id]: true },
+    outfit: outfit.id,
+    achievements: { claimed: { [achievement.id]: true } },
+    event: { date: today, id: event.id, progress: 2, resolved: true },
+    story: { [chapter.id]: { progress: 3, complete: true, claimed: true } },
+    memories: {
+      wishes: 4,
+      careDays: 5,
+      events: 6,
+      stories: 7,
+      levelGifts: 8,
+      lastCareCompleteDate: today,
+      log: [{ date: today, title: "Care day", desc: "Full pet archive" }]
+    },
+    lastRewardDate: today,
+    lastDecayDate: today,
+    lastPracticeDate: today,
+    lastCareDate: today,
+    runaway: { status: "away", awayDate: today, lostDate: "" }
+  };
+  const profile = debug.normalizeProfile({
+    id: "pet-archive-rich",
+    name: "Pet Archive",
+    grade: 4,
+    settings: { pointId: point.id, setSize: 12, adaptive: false, dailyGoal: 33, answerMode: "judge" },
+    history: [{ date: today, time: Date.now(), grade: 4, pointId: point.id, text: "1 + 1 = ?", answer: 2, correct: true }],
+    wrongbook: [{ id: "wrong-rich", question: { id: "q-rich", grade: 4, pointId: point.id, topic: point.topic, text: "3 + 5 = ?", answer: 8 }, cause: "careless" }],
+    masteredWrong: [{ id: "mastered-rich", question: { id: "q-mastered", grade: 4, pointId: point.id, topic: point.topic, text: "2 + 6 = ?", answer: 8 }, masteredAt: Date.now() }],
+    rewards: { pet: richPet }
+  });
+
+  function assertRichPet(pet, label) {
+    assert.strictEqual(pet.name, "Mimo", `${label}: pet name should persist`);
+    assert.strictEqual(pet.coins, 321, `${label}: coins should persist`);
+    assert.strictEqual(pet.xp, 450, `${label}: xp should persist`);
+    assert.strictEqual(pet.level, 4, `${label}: level should be derived from xp and persist`);
+    assert.strictEqual(pet.inventory.basicFood, 3, `${label}: bag inventory should persist`);
+    assert.strictEqual(pet.careLog.encourage, 2, `${label}: care log should persist`);
+    assert.strictEqual(pet.tasks.daily[dailyTask.id], today, `${label}: daily task claims should persist`);
+    assert.strictEqual(pet.tasks.weekly[weeklyTask.id], "week-key", `${label}: weekly task claims should persist`);
+    assert.strictEqual(pet.wish.id, wish.id, `${label}: daily wish should persist`);
+    assert.strictEqual(pet.rewardsClaimed["level-2"], true, `${label}: level rewards should persist`);
+    assert.strictEqual(pet.decorations[furniture.id], true, `${label}: decorations should persist`);
+    assert.strictEqual(pet.ownedFurniture[furniture.id], true, `${label}: furniture ownership should persist`);
+    assert.strictEqual(pet.equippedFurniture[furniture.id], true, `${label}: equipped furniture should persist`);
+    assert.strictEqual(pet.unlockedThemes[theme.id], true, `${label}: theme unlocks should persist`);
+    assert.strictEqual(pet.roomTheme, theme.id, `${label}: active room theme should persist`);
+    assert.strictEqual(pet.outfits[outfit.id], true, `${label}: outfit ownership should persist`);
+    assert.strictEqual(pet.outfit, outfit.id, `${label}: equipped outfit should persist`);
+    assert.strictEqual(pet.achievements.claimed[achievement.id], true, `${label}: achievement claims should persist`);
+    assert.strictEqual(pet.event.id, event.id, `${label}: random event should persist`);
+    assert.strictEqual(pet.event.resolved, true, `${label}: random event state should persist`);
+    assert.strictEqual(pet.story[chapter.id].claimed, true, `${label}: story reward state should persist`);
+    assert.strictEqual(pet.memories.wishes, 4, `${label}: growth memory counters should persist`);
+    assert.strictEqual(pet.memories.log[0].title, "Care day", `${label}: growth records should persist`);
+    assert.strictEqual(pet.lastRewardDate, today, `${label}: pet dates should persist`);
+    assert.strictEqual(pet.lastPracticeDate, today, `${label}: practice date should persist`);
+    assert.strictEqual(pet.lastCareDate, today, `${label}: care date should persist`);
+    assert.strictEqual(pet.runaway.status, "away", `${label}: runaway status should persist`);
+  }
+
+  debug.state.profiles = [profile];
+  debug.state.activeId = profile.id;
+
+  const archive = debug.buildArchiveData();
+  const archivedProfile = archive.profiles.find((item) => item.id === profile.id);
+  assert(archivedProfile, "archive should include the rich pet profile");
+  assert.strictEqual(archivedProfile.settings.pointId, point.id, "archive should include type settings");
+  assert.strictEqual(archivedProfile.settings.dailyGoal, 33, "archive should include daily goal");
+  assert.strictEqual(archivedProfile.history.length, 1, "archive should include practice history");
+  assert.strictEqual(archivedProfile.wrongbook.length, 1, "archive should include wrongbook");
+  assert.strictEqual(archivedProfile.masteredWrong.length, 1, "archive should include mastered wrongbook");
+  assertRichPet(archivedProfile.rewards.pet, "export");
+
+  debug.els.importText.value = JSON.stringify(archive);
+  const imported = debug.parseImportBackup();
+  const importedProfile = imported.profiles.find((item) => item.id === profile.id);
+  assert(importedProfile, "import preview should include the rich pet profile");
+  assert.strictEqual(importedProfile.settings.answerMode, "judge", "import should keep type settings");
+  assertRichPet(importedProfile.rewards.pet, "import");
+
+  const cloudProfile = JSON.parse(JSON.stringify(archivedProfile));
+  cloudProfile.updatedAt = archivedProfile.updatedAt + 1000;
+  cloudProfile.rewards.pet.coins = 777;
+  cloudProfile.rewards.pet.inventory.basicFood = 9;
+  const merged = context.MathCampCloudSync.mergeProfiles(
+    [{ ...archivedProfile, updatedAt: archivedProfile.updatedAt - 1000 }],
+    [{ device_id: "cloud", profiles: [cloudProfile], active_id: profile.id }]
+  );
+  const mergedPet = debug.petState(merged[0]);
+  assert.strictEqual(mergedPet.coins, 777, "cloud sync should prefer newer full pet data");
+  assert.strictEqual(mergedPet.inventory.basicFood, 9, "cloud sync should keep newer bag inventory");
+  assertRichPet({ ...mergedPet, coins: 321, inventory: { ...mergedPet.inventory, basicFood: 3 } }, "cloud");
+}
+
 function runInteractionBoundaryTests() {
   const debug = context.mathCampDebug;
   assert.strictEqual(debug.parseNumericAnswer("1/2"), 0.5, "应支持分数输入");
@@ -595,6 +767,8 @@ runDataBoundaryTests();
 runUpgradeFeatureTests();
 runPetRewardClaimTests();
 runPetEconomyTests();
+runTypeSettingsPersistenceTests();
+runArchiveCloudCoverageTests();
 runInteractionBoundaryTests();
 runTwoStepMulDivTests();
 runVerticalQuestionTests();
@@ -607,6 +781,8 @@ console.log("Data boundary tests passed.");
 console.log("Upgrade feature tests passed.");
 console.log("Pet reward claim tests passed.");
 console.log("Pet economy tests passed.");
+console.log("Type settings persistence tests passed.");
+console.log("Archive and cloud coverage tests passed.");
 console.log("Interaction boundary tests passed.");
 console.log("Two-step multiplication/division tests passed.");
 console.log("Vertical calculation tests passed.");
