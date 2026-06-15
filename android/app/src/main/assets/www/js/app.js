@@ -160,6 +160,7 @@ const STORE = {
       todayPill: document.getElementById("todayPill"),
       petCoinPill: document.getElementById("petCoinPill"),
       homePlanCopy: document.getElementById("homePlanCopy"),
+      homeCockpitMeter: document.getElementById("homeCockpitMeter"),
       homeSettingsCard: document.getElementById("homeSettingsCard"),
       homeWeakList: document.getElementById("homeWeakList"),
       homeRouteList: document.getElementById("homeRouteList"),
@@ -210,7 +211,6 @@ const STORE = {
       modeTag: document.getElementById("modeTag"),
       questionText: document.getElementById("questionText"),
       answerInput: document.getElementById("answerInput"),
-      wordRelationPanel: document.getElementById("wordRelationPanel"),
       answerControlSlot: document.getElementById("answerControlSlot"),
       numberPad: document.getElementById("numberPad"),
       answerModePanel: document.getElementById("answerModePanel"),
@@ -1142,7 +1142,6 @@ const STORE = {
       records: [],
       roundCoins: 0,
       lastWrongRecordId: "",
-      wordRelationState: null,
       setFinished: false,
       challengeMeta: null,
       timedMeta: null,
@@ -1389,6 +1388,15 @@ const STORE = {
         els.homePlanCopy.textContent = first
           ? `今天按 4 步走：先复习到期错题，再练"${first.label}"，最后用小测或闯关收尾。`
           : "今天按 4 步走：先复习到期错题，再完成一组基础练习，最后用小测或闯关收尾。";
+      }
+      if (els.homeCockpitMeter) {
+        const quality = petLearningQuality(profile);
+        const dueCount = dueWrongbook(profile, profile.grade || state.grade).length;
+        const pct = clamp(Math.round(done / Math.max(1, goal) * 100), 0, 100);
+        els.homeCockpitMeter.innerHTML = `
+          <span><b>${done}/${goal}</b><em>今日进度</em><i class="pet-mini-progress"><b style="--value:${pct}%"></b></i></span>
+          <span><b>${dueCount}</b><em>待复习</em></span>
+          <span><b>${quality.recentCount ? `${quality.rate}%` : "--"}</b><em>${escapeHTML(quality.label)}</em></span>`;
       }
       els.homeWeakList.innerHTML = weak.map((point, index) => {
         const score = weakPointScore(profile, point);
@@ -1706,84 +1714,6 @@ const STORE = {
           <span class="vertical-line" aria-hidden="true"></span>
           <span class="vertical-row result">${escapeHTML(spec.result || "?")}</span>
         </span>`;
-    }
-    function wordRelationOptions(question) {
-      const topic = question?.topic || "word";
-      const known = question?.grade <= 2
-        ? ["找题目里的数量", "看谁多谁少", "先数一共有几份"]
-        : ["找已知条件", "找中间量", "找单位或比例"];
-      const ask = question?.grade <= 2
-        ? ["求一共有多少", "求还剩多少", "求多多少/少多少"]
-        : ["求最终结果", "求中间数量", "求单位量或每份数"];
-      const relations = {
-        muldiv: ["总数 = 每份数 × 份数", "每份数 = 总数 ÷ 份数", "份数 = 总数 ÷ 每份数"],
-        remainder: ["被除数 = 除数 × 商 + 余数", "剩下的是余数", "最多装满先用除法"],
-        geometry: ["周长/面积先写公式", "长方形面积 = 长 × 宽", "正方形周长 = 边长 × 4"],
-        unit: ["先统一单位", "大单位换小单位用乘法", "小单位换大单位用除法"],
-        percent: ["百分数先化成小数/分数", "部分量 = 总量 × 百分率", "折后价 = 原价 × 折扣"],
-        ratio: ["先求总份数", "每份数 = 总量 ÷ 总份数", "部分量 = 每份数 × 份数"],
-        equation: ["把未知数设为 x", "按题意列等式", "等式两边同变"],
-        word: ["总数 = 部分 + 部分", "差 = 大数 - 小数", "先求中间量再回答"]
-      };
-      return {
-        known,
-        ask,
-        relation: relations[topic] || relations.word
-      };
-    }
-    function resetWordRelationState() {
-      state.wordRelationState = { known: "", ask: "", relation: "" };
-    }
-    function renderWordRelationPanel(question) {
-      if (!els.wordRelationPanel) return;
-      const shouldShow = Boolean(question?.word);
-      els.wordRelationPanel.hidden = !shouldShow;
-      els.wordRelationPanel.innerHTML = "";
-      if (!shouldShow) {
-        state.wordRelationState = null;
-        return;
-      }
-      resetWordRelationState();
-      const groups = wordRelationOptions(question);
-      els.wordRelationPanel.innerHTML = `
-        <div class="word-relation-head">
-          <strong>先想关系</strong>
-          <span>应用题先完成这 3 步，再输入答案。</span>
-        </div>
-        <div class="word-relation-grid">
-          ${[
-            ["known", "已知什么", groups.known],
-            ["ask", "要求什么", groups.ask],
-            ["relation", "数量关系", groups.relation]
-          ].map(([key, label, options]) => `
-            <div class="word-relation-group" data-relation-group="${key}">
-              <span>${label}</span>
-              <div>
-                ${options.map((option) => `<button class="relation-chip" type="button" data-relation-key="${key}" data-relation-value="${escapeAttr(option)}" aria-pressed="false">${escapeHTML(option)}</button>`).join("")}
-              </div>
-            </div>`).join("")}
-        </div>`;
-      els.wordRelationPanel.querySelectorAll("[data-relation-key]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          if (state.checked) return;
-          const key = btn.dataset.relationKey;
-          state.wordRelationState[key] = btn.dataset.relationValue || "";
-          els.wordRelationPanel.querySelectorAll("[data-relation-key]").forEach((item) => {
-            if (item.dataset.relationKey === key) item.setAttribute("aria-pressed", "false");
-          });
-          btn.setAttribute("aria-pressed", "true");
-        });
-      });
-    }
-    function wordRelationReady(question) {
-      if (!question?.word) return { ok: true };
-      const relation = state.wordRelationState || {};
-      const missing = [
-        relation.known ? "" : "已知什么",
-        relation.ask ? "" : "要求什么",
-        relation.relation ? "" : "数量关系"
-      ].filter(Boolean);
-      return { ok: !missing.length, missing };
     }
     function stepHintContent(question) {
       const mode = question?.interaction?.mode || "input";
@@ -2210,6 +2140,30 @@ const STORE = {
       }
       return question;
     }
+    function pointQualityWarnings(point, idCounts, labelCounts) {
+      const warnings = [];
+      if (!point?.id || !/^g[1-6]-/.test(point.id)) warnings.push("知识点 id 命名不规范");
+      if (!Number.isInteger(Number(point?.grade)) || Number(point.grade) < 1 || Number(point.grade) > 6) warnings.push("年级不在 1-6 范围");
+      if (!point?.topic || !causeTagsByTopic[point.topic]) warnings.push("题型主题缺少错因标签配置");
+      if (!point?.label || String(point.label).length < 3) warnings.push("知识点名称过短");
+      if (!point?.short || String(point.short).length > 8) warnings.push("短标题缺失或过长");
+      if (!point?.helper || String(point.helper).length < 6) warnings.push("练习说明不够明确");
+      if (idCounts.get(point.id) > 1) warnings.push("知识点 id 重复");
+      if (labelCounts.get(`${point.grade}-${point.label}`) > 1) warnings.push("同年级知识点名称重复");
+      return warnings;
+    }
+    function questionQualityWarnings(point, question) {
+      const warnings = [];
+      const text = String(question?.text || "").trim();
+      const explanation = String(question?.explanation || "").trim();
+      const steps = Array.isArray(question?.steps) ? question.steps.filter(Boolean) : [];
+      if (text.length < 5) warnings.push("题干过短");
+      if (!/[？?]/.test(text)) warnings.push("题干缺少问号");
+      if (explanation.length < 10) warnings.push("解析过短");
+      if (steps.length < 2) warnings.push("步骤少于 2 步");
+      if (point?.topic === "word" && !question?.word) warnings.push("应用题知识点未标记 word");
+      return warnings;
+    }
     function runQuestionRuleSelfTest(sampleSize = 80) {
       const oldGrade = state.grade;
       const oldPoint = state.pointId;
@@ -2217,13 +2171,20 @@ const STORE = {
       const result = {
         total: 0,
         failed: 0,
+        warningTotal: 0,
         categories: {
           strictPoint: { total: 0, failed: 0 },
           gradeRandom: { total: 0, failed: 0 },
           interaction: { total: 0, failed: 0 },
           coverage: { total: 0, failed: 0 }
         },
-        failures: []
+        warningCategories: {
+          metadata: { total: 0, warning: 0 },
+          duplicate: { total: 0, warning: 0 },
+          answerQuality: { total: 0, warning: 0 }
+        },
+        failures: [],
+        warnings: []
       };
       const record = (category, point, question, issues) => {
         result.total += 1;
@@ -2241,16 +2202,40 @@ const STORE = {
           });
         }
       };
+      const warn = (category, point, question, issues) => {
+        result.warningCategories[category].total += 1;
+        if (!issues.length) return;
+        result.warningTotal += 1;
+        result.warningCategories[category].warning += 1;
+        if (result.warnings.length < 40) {
+          result.warnings.push({
+            category,
+            grade: point?.grade || question?.grade,
+            point: point?.label || pointLabel(question?.pointId),
+            text: question?.text || "",
+            issues
+          });
+        }
+      };
+      const idCounts = points.reduce((map, point) => map.set(point.id, (map.get(point.id) || 0) + 1), new Map());
+      const labelCounts = points.reduce((map, point) => map.set(`${point.grade}-${point.label}`, (map.get(`${point.grade}-${point.label}`) || 0) + 1), new Map());
+      points.forEach((point) => warn("metadata", point, { text: point.helper || point.label }, pointQualityWarnings(point, idCounts, labelCounts)));
       points.forEach((point) => {
         state.grade = point.grade;
         state.pointId = point.id;
         const patterns = new Set();
+        const signatures = new Map();
         for (let i = 0; i < sampleSize; i += 1) {
           const mode = ["input", "choice", "judge", "step"][i % 4];
           const question = applyQuestionInteraction(makeQuestion(point, { strict: true }), mode);
           patterns.add(questionPatternKey(question));
+          const sig = `${question.text}|${formatAnswer(question.answer, question.answerLabel)}`;
+          signatures.set(sig, (signatures.get(sig) || 0) + 1);
           record("strictPoint", point, question, [...questionRuleIssues(point, question, { strict: true }), ...interactionRuleIssues(question)]);
+          warn("answerQuality", point, question, questionQualityWarnings(point, question));
         }
+        const repeated = [...signatures.entries()].filter(([, count]) => count >= Math.max(6, Math.ceil(sampleSize * .28)));
+        warn("duplicate", point, { text: `${point.label} 精确重复 ${repeated.length} 组` }, repeated.length ? [`同一知识点抽样出现高频重复题干：${repeated[0][0].slice(0, 60)}`] : []);
         for (let i = 0; i < Math.max(8, Math.floor(sampleSize / 2)); i += 1) {
           const level = Math.max(1, masteryFor(activeProfile(), point.id).level || 1);
           [makeSupplementalQuestion(point, level), makeExtraQuestion(point, level)]
@@ -2291,17 +2276,27 @@ const STORE = {
       state.adaptive = oldAdaptive;
       return result;
     }
+    function runQuestionQualityAudit(sampleSize = 48) {
+      return runQuestionRuleSelfTest(sampleSize);
+    }
     function renderRuleCheckResult(result) {
       if (!els.ruleCheckResult) return;
       const labels = {
         strictPoint: "专项练习",
         gradeRandom: "按年级随机",
         interaction: "答题控件",
-        coverage: "模板覆盖"
+        coverage: "模板覆盖",
+        metadata: "知识点元数据",
+        duplicate: "题干重复",
+        answerQuality: "解析完整度"
       };
       const categoryText = Object.entries(result.categories).map(([key, item]) => {
         const ok = item.failed === 0 ? "通过" : `${item.failed} 个问题`;
         return `<span>${labels[key] || key}：${item.total} 次，${ok}</span>`;
+      }).join(" · ");
+      const warningText = Object.entries(result.warningCategories || {}).map(([key, item]) => {
+        const ok = item.warning === 0 ? "无预警" : `${item.warning} 个预警`;
+        return `<span>${labels[key] || key}：${item.total} 项，${ok}</span>`;
       }).join(" · ");
       const failures = result.failures.slice(0, 8).map((failure) => `
         <li>
@@ -2309,23 +2304,29 @@ const STORE = {
           ${escapeHTML(failure.text || "未记录题干")}<br>
           <span class="muted">${failure.issues.map(escapeHTML).join("；")}</span>
         </li>`).join("");
+      const warnings = (result.warnings || []).slice(0, 6).map((warning) => `
+        <li>
+          <strong>${labels[warning.category] || warning.category} / ${gradeNames[(Number(warning.grade) || 1) - 1] || "未知年级"} / ${escapeHTML(warning.point || "未知知识点")}</strong><br>
+          ${escapeHTML(warning.text || "未记录题干")}<br>
+          <span class="muted">${warning.issues.map(escapeHTML).join("；")}</span>
+        </li>`).join("");
       els.ruleCheckResult.className = `rule-check-panel ${result.failed ? "bad" : "good"}`;
       els.ruleCheckResult.innerHTML = result.failed
-        ? `<strong>发现 ${result.failed} 个风险点</strong><p>${categoryText}</p><ul>${failures}</ul><p class="muted">这里只显示前 8 条；需要完整结果可在控制台运行 mathCampSelfTest(80)。</p>`
-        : `<strong>体检通过</strong><p>${categoryText}</p><p class="muted">本次抽样没有发现年级、知识点或答题控件混入问题。</p>`;
+        ? `<strong>发现 ${result.failed} 个硬规则风险</strong><p>${categoryText}</p><ul>${failures}</ul><p class="muted">质量预警：${warningText}</p>${warnings ? `<ul>${warnings}</ul>` : ""}<p class="muted">这里只显示前几条；需要完整结果可在控制台运行 mathCampQualityAudit(80)。</p>`
+        : `<strong>${result.warningTotal ? `硬规则通过，发现 ${result.warningTotal} 个质量预警` : "质量巡检通过"}</strong><p>${categoryText}</p><p>质量预警：${warningText}</p>${warnings ? `<ul>${warnings}</ul>` : `<p class="muted">本次抽样没有发现年级、知识点、答题控件、重复题干或解析完整度问题。</p>`}`;
     }
     function runRuleCheckFromUI() {
       if (!els.ruleCheckBtn || !els.ruleCheckResult) return;
       els.ruleCheckBtn.disabled = true;
       els.ruleCheckResult.className = "rule-check-panel";
-      els.ruleCheckResult.textContent = "正在抽样检查题库规则，请稍等...";
+      els.ruleCheckResult.textContent = "正在自动巡检题库质量，请稍等...";
       window.setTimeout(() => {
         try {
-          const result = runQuestionRuleSelfTest(32);
+          const result = runQuestionQualityAudit(32);
           renderRuleCheckResult(result);
         } catch (error) {
           els.ruleCheckResult.className = "rule-check-panel bad";
-          els.ruleCheckResult.textContent = `体检运行失败：${error?.message || error}`;
+          els.ruleCheckResult.textContent = `质量巡检运行失败：${error?.message || error}`;
         } finally {
           els.ruleCheckBtn.disabled = false;
         }
@@ -4994,7 +4995,7 @@ const STORE = {
     function petTokenLabels(kind) {
       if (kind === "correct") return ["星星", "猫粮", "加油"];
       if (kind === "wrong") return ["慢慢来", "看步骤"];
-      if (kind === "hint") return ["提示", "圈数字", "列关系"];
+      if (kind === "hint") return ["提示", "圈数字", "想方法"];
       if (kind === "encourage") return ["呼噜", "陪你", "稳住"];
       if (kind === "finish") return ["完成", "奖励"];
       return ["加油"];
@@ -5508,6 +5509,17 @@ const STORE = {
         <div><strong>技能影响</strong><span>${escapeHTML(activeSkills)}${quality.xpBonus ? ` · 高质量答题经验 +${quality.xpBonus}` : ""}</span></div>
       </div>`;
     }
+    function petExpression(profile = activeProfile(), pet = petState(profile), quality = petLearningQuality(profile)) {
+      if (pet.runaway?.status === "lost") return { key: "lost", icon: "?" };
+      if (pet.runaway?.status === "away") return { key: "away", icon: "…" };
+      if (pet.hunger < 25) return { key: "hungry", icon: "饭" };
+      if (pet.clean < 25) return { key: "dirty", icon: "洗" };
+      if (pet.mood < 30) return { key: "tired", icon: "慢" };
+      if (quality.recentCount >= 10 && quality.rate >= 90) return { key: "proud", icon: "稳" };
+      if (quality.reviewCount > 0) return { key: "focused", icon: "复" };
+      if (pet.bond >= 80) return { key: "close", icon: "亲" };
+      return { key: "calm", icon: "学" };
+    }
     function normalizePetWish(raw = {}, pet = null) {
       const today = todayKey();
       const wish = isPlainObject(raw) ? { ...raw } : {};
@@ -5642,11 +5654,12 @@ const STORE = {
       if (pet.runaway?.status !== "home") return;
       const quality = petLearningQuality(profile);
       const mode = context.mode || state.mode || "practice";
-      const relationReady = Boolean(context.wordRelationReady);
-      const qualityXp = correct ? quality.xpBonus + (relationReady ? 1 : 0) + (mode === "wrongbook" ? 1 : 0) : 0;
+      const qualityXp = correct ? quality.xpBonus + (mode === "wrongbook" ? 1 : 0) + (mode === "timed" && quality.rate >= 80 ? 1 : 0) : 0;
       if (qualityXp) pet.xp += qualityXp;
       if (correct && quality.rate >= 85 && quality.recentCount >= 6) pet.mood = clamp(pet.mood + 1, 0, 100);
+      if (correct && quality.rate >= 90 && quality.recentCount >= 10) pet.bond = clamp(pet.bond + 1, 0, 100);
       if (correct && mode === "wrongbook") pet.bond = clamp(pet.bond + 1, 0, 100);
+      if (correct && mode === "timed" && quality.rate >= 80) pet.mood = clamp(pet.mood + 1, 0, 100);
       if (!correct && quality.recentCount >= 6 && quality.rate < 60) pet.mood = clamp(pet.mood - 1, 0, 100);
       const wish = currentPetWish(pet);
       if (correct && wish && !pet.wish.fulfilled) {
@@ -6535,8 +6548,13 @@ const STORE = {
       if (els.petSpaceCoins) els.petSpaceCoins.textContent = String(pet.coins);
       if (els.petRoomStage) els.petRoomStage.dataset.petState = pet.runaway?.status || "home";
       if (els.petRoomStage) {
+        const quality = petLearningQuality(profile);
+        const expression = petExpression(profile, pet, quality);
+        const outfit = pet.outfit ? PET_OUTFIT_MAP[pet.outfit] : null;
         els.petRoomStage.dataset.roomTheme = pet.roomTheme || "sunny";
         els.petRoomStage.dataset.outfit = pet.outfit || "";
+        els.petRoomStage.dataset.quality = quality.rate >= 90 && quality.recentCount >= 10 ? "excellent" : quality.rate >= 75 && quality.recentCount >= 6 ? "steady" : quality.rate < 60 && quality.recentCount >= 6 ? "slow" : "building";
+        els.petRoomStage.dataset.expression = expression.key;
         els.petRoomStage.dataset.decorRug = String(Boolean(pet.equippedFurniture?.rug));
         els.petRoomStage.dataset.decorCurtain = String(Boolean(pet.equippedFurniture?.curtain));
         els.petRoomStage.dataset.decorLamp = String(Boolean(pet.equippedFurniture?.studyLamp || pet.equippedFurniture?.starLamp));
@@ -6544,6 +6562,10 @@ const STORE = {
         els.petRoomStage.dataset.decorDesk = String(Boolean(pet.equippedFurniture?.bookDesk));
         els.petRoomStage.dataset.decorBed = String(Boolean(pet.equippedFurniture?.royalBed));
         els.petRoomStage.dataset.decorBasket = String(Boolean(pet.equippedFurniture?.toyBasket));
+        if (els.petRoomCatBtn) {
+          els.petRoomCatBtn.dataset.outfitIcon = outfit?.icon || "";
+          els.petRoomCatBtn.dataset.expressionIcon = expression.icon;
+        }
       }
       if (els.petRoomName) els.petRoomName.textContent = pet.runaway?.status === "lost"
         ? "等待重新领养"
@@ -7654,7 +7676,6 @@ const STORE = {
       const petPrompt = current.word ? '我陪你先读题：找"已知什么、要求什么"，再决定用加减乘除。' : '我陪你先看运算符号，再按正确顺序计算。';
       els.companionTalk.textContent = petPrompt;
       els.methodHint.textContent = petCopy('提示默认隐藏。需要帮助时，点"让招财提示"。');
-      renderWordRelationPanel(current);
       renderAnswerModePanel(current);
       const interactionMode = current.interaction?.mode || "input";
       setFeedback("", interactionMode === "choice"
@@ -7846,17 +7867,10 @@ const STORE = {
     function checkAnswer() {
       if (state.checked) return;
       const current = state.currentSet[state.index];
-      const relationCheck = wordRelationReady(current);
-      if (!relationCheck.ok) {
-        setFeedback("bad", `应用题先想清楚：请补上${relationCheck.missing.join("、")}，再检查答案。`, "🧭");
-        updatePetStatus("招财：先把已知、要求和数量关系选好，再算答案会稳很多。", "先想关系");
-        triggerAnswerAnimation("wrong");
-        return;
-      }
       const parsed = parseAnswer();
       if (!parsed.valid) {
         setFeedback("bad", parsed.message, "😯");
-        updatePetStatus("还没关系，招财先等你把答案写上。写完以后，我再帮你检查。", "等你");
+        updatePetStatus("招财先等你把答案写上。写完以后，我再帮你检查。", "等你");
         triggerAnswerAnimation("wrong");
         playSound("wrong");
         return;
@@ -7907,15 +7921,12 @@ const STORE = {
       updateMastery(current.pointId, correct);
       if (state.mode === "wrongbook") updateWrongbookAttempt(current.wrongId, correct);
       else if (!correct) upsertWrong(current);
-      addHistory({ date: record.date, time: record.time, pointId: current.pointId, grade: current.grade, correct, cause: record.cause, text: current.text, mode: state.mode || "practice", wordRelationReady: current.word ? relationCheck.ok : false });
+      addHistory({ date: record.date, time: record.time, pointId: current.pointId, grade: current.grade, correct, cause: record.cause, text: current.text, mode: state.mode || "practice" });
       state.records[state.index] = record;
       state.lastWrongRecordId = correct ? "" : record.id;
       els.answerInput.disabled = true;
       els.checkBtn.disabled = true;
       els.answerModePanel.querySelectorAll(".answer-option").forEach((btn) => {
-        btn.disabled = true;
-      });
-      els.wordRelationPanel?.querySelectorAll("button").forEach((btn) => {
         btn.disabled = true;
       });
       saveChallengeDraft({ persist: false, render: false });
@@ -9908,6 +9919,7 @@ const STORE = {
       syncCustomSelects();
     });
     window.mathCampSelfTest = runQuestionRuleSelfTest;
+    window.mathCampQualityAudit = runQuestionQualityAudit;
     if (window.__MATHCAMP_TEST__) {
       window.mathCampDebug = {
         normalizeProfile,
@@ -9963,6 +9975,7 @@ const STORE = {
         applyQuestionInteraction,
         questionRuleIssues,
         interactionRuleIssues,
+        runQuestionQualityAudit,
         parseNumericAnswer,
         todayKey,
         availablePoints,

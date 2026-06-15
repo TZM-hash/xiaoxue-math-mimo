@@ -60,6 +60,7 @@
         <div class="eyebrow">今日计划</div>
         <h1 id="heroTitle">今日学习路线</h1>
         <p class="lead" id="homePlanCopy">先补最需要的一小块：系统会根据错题、正确率和用时，推荐今天最该练的知识点。</p>
+        <div class="home-cockpit-meter" id="homeCockpitMeter" aria-label="今日任务舱状态"></div>
         <div class="weak-point-list" id="homeWeakList" aria-label="今日推荐知识点"></div>
         <div class="home-route-list" id="homeRouteList" aria-label="今日学习路线"></div>
         <div class="hero-actions">
@@ -215,7 +216,6 @@
                 <input class="answer-input" id="answerInput" inputmode="decimal" autocomplete="off" placeholder="在这里输入答案" aria-label="输入答案" />
                 <button class="primary" type="button" id="checkBtn">🔍 检查答案</button>
               </div>
-              <div class="word-relation-panel" id="wordRelationPanel" hidden></div>
               <div class="answer-mode-panel" id="answerModePanel" hidden></div>
               <div class="answer-control-slot" id="answerControlSlot">
                 <div class="number-pad" id="numberPad" aria-label="数字输入键盘"></div>
@@ -236,7 +236,7 @@
                 <button class="danger" type="button" id="resetSetBtn">♻️ 重置本轮</button>
               </div>
               <div class="answer-tip-card">
-                支持整数、小数和分数输入；应用题先写关键关系，答错后可以标记错因，系统会自动加入错题本。
+                支持整数、小数和分数输入；应用题直接作答，答错后可以标记错因，系统会自动加入错题本。
               </div>
 
             </div>
@@ -756,12 +756,12 @@
           <div class="save-status" id="saveStatus">数据保存状态：已保存。</div>
         </article>
         <article class="data-card">
-          <h2>题库规则体检</h2>
-          <p class="muted">家长或维护者可以在改题库后抽查 1-6 年级、专项练习、随机练习和选择/判断控件，避免题目混入错误年级或知识点。</p>
+          <h2>题库质量巡检</h2>
+          <p class="muted">家长或维护者可以在改题库后自动巡检 1-6 年级、专项练习、随机练习、选择/判断控件、题干重复和知识点元数据。</p>
           <div class="row-actions">
-            <button class="primary" type="button" id="ruleCheckBtn">运行题库体检</button>
+            <button class="primary" type="button" id="ruleCheckBtn">运行质量巡检</button>
           </div>
-          <div class="rule-check-panel" id="ruleCheckResult">还没有运行体检。</div>
+          <div class="rule-check-panel" id="ruleCheckResult">还没有运行质量巡检。</div>
         </article>
       </div>
     </section>
