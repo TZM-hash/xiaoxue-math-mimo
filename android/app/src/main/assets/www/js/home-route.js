@@ -28,7 +28,7 @@
         id: "review",
         action: "review",
         index: "1",
-        title: hasReview ? "今日复习" : "复习检查",
+        title: "复习检查",
         detail: hasReview ? `${reviewProgress}/${reviewTarget} 题 · 到期 ${reviewDue} 题` : "暂无到期错题，保持节奏",
         progress: hasReview ? reviewProgress : 1,
         target: hasReview ? reviewTarget : 1,
@@ -54,7 +54,7 @@
         id: "wrongbook",
         action: "wrongbook",
         index: "3",
-        title: hasWrongbook ? "错题订正" : "错题检查",
+        title: "错题检查",
         detail: hasWrongbook ? `${wrongProgress}/${wrongTarget} 题 · 错题本 ${data.wrongAvailable} 题` : "暂无错题，保持今日节奏",
         progress: hasWrongbook ? wrongProgress : 1,
         target: hasWrongbook ? wrongTarget : 1,
@@ -67,7 +67,7 @@
         id: timedDone ? "challenge" : "timed",
         action: timedDone ? "challenge" : "timed",
         index: "4",
-        title: timedDone ? "闯关巩固" : "限时小测",
+        title: "限时小测",
         detail: timedDone
           ? (challengeDone ? "今天已挑战，继续冲关" : "用一关检查今天状态")
           : "10 题 / 5 分钟，做一次收尾",

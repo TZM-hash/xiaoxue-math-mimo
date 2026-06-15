@@ -432,6 +432,7 @@
             <h2 id="petPlanMenuTitle">养成计划</h2>
             <button class="secondary icon-btn pet-modal-close" type="button" data-close-pet-modal aria-label="关闭养成计划">×</button>
           </div>
+          <div id="petShowcasePanelSlot"></div>
           <div class="pet-plan-menu-grid">
             <button class="secondary" type="button" data-open-pet-modal="care"><span aria-hidden="true">🌱</span><strong>今日照料</strong></button>
             <button class="secondary" type="button" data-open-pet-modal="growth"><span aria-hidden="true">📔</span><strong>成长记录</strong></button>
@@ -632,6 +633,24 @@
       </div>
     </section>
 
+    <section class="view" id="knowledgeMapView">
+      <div class="main-stack">
+        <article class="report-card learning-map-page">
+          <div class="item-top">
+            <div>
+              <h2>知识地图</h2>
+              <p class="muted">按年级查看知识点掌握、待复习和下一步练习，和学习报告一样作为独立页面展示。</p>
+            </div>
+            <div class="row-actions">
+              <button class="secondary" type="button" data-jump="report">查看学习报告</button>
+              <button class="primary" type="button" data-jump="practice">返回练习</button>
+            </div>
+          </div>
+          <section class="learning-map-panel" id="learningKnowledgeMap" aria-label="知识地图"></section>
+        </article>
+      </div>
+    </section>
+
     <section class="view" id="printView">
       <div class="print-layout">
         <aside class="panel print-controls" aria-label="打印设置">
@@ -772,8 +791,12 @@
             <strong>打印题单</strong>
             <small>按年级、知识点和错题生成 PDF 题单。</small>
           </button>
+          <button class="hub-action-card" type="button" data-open-learning-map>
+            <span>🗺️</span>
+            <strong>知识地图</strong>
+            <small>按年级查看知识点掌握、待复习和下一步练习。</small>
+          </button>
         </div>
-        <section class="learning-map-panel" id="learningKnowledgeMap" aria-label="知识地图"></section>
       </article>
     </div>
 

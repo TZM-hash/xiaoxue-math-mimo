@@ -152,6 +152,7 @@ const STORE = {
         tasks: document.getElementById("tasksView"),
         wrongbook: document.getElementById("wrongbookView"),
         report: document.getElementById("reportView"),
+        knowledgeMap: document.getElementById("knowledgeMapView"),
         print: document.getElementById("printView"),
         data: document.getElementById("dataView")
       },
@@ -280,6 +281,7 @@ const STORE = {
       petCarePlanPanelSlot: document.getElementById("petCarePlanPanelSlot"),
       petEventPanelSlot: document.getElementById("petEventPanelSlot"),
       petStagePanelSlot: document.getElementById("petStagePanelSlot"),
+      petShowcasePanelSlot: document.getElementById("petShowcasePanelSlot"),
       petMemoryPanelSlot: document.getElementById("petMemoryPanelSlot"),
       petLevelGiftPanelSlot: document.getElementById("petLevelGiftPanelSlot"),
       petStoryPanelSlot: document.getElementById("petStoryPanelSlot"),
@@ -5261,6 +5263,7 @@ const STORE = {
       if (state.view === "wrongbook") renderWrongbook();
       if (state.view === "tasks") renderPetTasks();
       if (state.view === "report") renderReport();
+      if (state.view === "knowledgeMap") renderLearningKnowledgeMap();
     }
     function showView(view) {
       const previous = state.view;
@@ -5290,6 +5293,7 @@ const STORE = {
       }
       if (view === "tasks") renderPetTasks();
       if (view === "report") renderReport();
+      if (view === "knowledgeMap") renderLearningKnowledgeMap();
       if (view === "print") syncPrintControls();
       if (view === "data") renderProfilePanel();
     }
@@ -6184,7 +6188,7 @@ const STORE = {
         </div>`;
       els.petShowcaseCard.querySelector("[data-open-pet-modal]")?.addEventListener("click", (event) => {
         event.stopPropagation();
-        openPetModal(event.currentTarget.dataset.openPetModal);
+        openPetModal(event.currentTarget.dataset.openPetModal, { returnToPlan: Boolean(event.currentTarget.closest("#petPlanMenuModal")) });
       });
     }
     function petShopRecommendation(profile = activeProfile(), pet = petState(profile)) {
@@ -6386,6 +6390,20 @@ const STORE = {
         else if (els.petStageCard.parentElement !== petRoomInfo) petRoomInfo.appendChild(els.petStageCard);
       }
     }
+    function movePetShowcaseCard() {
+      if (!els.petShowcaseCard || !els.petShowcasePanelSlot) return;
+      if (shouldUsePetPanelModals()) {
+        if (els.petShowcaseCard.parentElement !== els.petShowcasePanelSlot) els.petShowcasePanelSlot.appendChild(els.petShowcaseCard);
+        return;
+      }
+      const bars = els.petSpaceBars;
+      const dashboard = document.querySelector(".pet-care-dashboard");
+      if (!bars || !dashboard) return;
+      if (els.petShowcaseCard.parentElement !== bars.parentElement || els.petShowcaseCard.nextElementSibling !== dashboard) {
+        if (typeof bars.parentElement?.insertBefore === "function") bars.parentElement.insertBefore(els.petShowcaseCard, dashboard);
+        else if (els.petShowcaseCard.parentElement !== bars.parentElement) bars.parentElement.appendChild(els.petShowcaseCard);
+      }
+    }
     function syncPetPanelLayout() {
       const dashboard = document.querySelector(".pet-care-dashboard");
       if (!dashboard) return;
@@ -6394,6 +6412,7 @@ const STORE = {
       movePetCard(carePlanCard, els.petCarePlanPanelSlot, dashboard);
       movePetCard(els.petEventCard, els.petEventPanelSlot, dashboard);
       movePetStageCard();
+      movePetShowcaseCard();
       movePetCard(els.petMemoryCard, els.petMemoryPanelSlot, dashboard);
       movePetCard(els.petLevelGiftCard, els.petLevelGiftPanelSlot, dashboard);
       movePetCard(els.petStoryCard, els.petStoryPanelSlot, dashboard);
@@ -6704,7 +6723,7 @@ const STORE = {
       }
     }
 
-    function openPetModal(kind) {
+    function openPetModal(kind, options = {}) {
       const target = petModalFor(kind);
       if (!target) return;
       resetPetModalScrollAnchor();
@@ -6712,6 +6731,8 @@ const STORE = {
       if (kind === "tasks") renderPetTasks();
       if (kind === "dressup") renderPetDressup();
       if (kind === "achievements") renderPetAchievements();
+      if (options.returnToPlan && target !== els.petPlanMenuModal) target.dataset.returnPetPlan = "true";
+      else delete target.dataset.returnPetPlan;
       target.hidden = false;
       target.classList.remove("is-closing");
       delete target.dataset.closeToken;
@@ -6732,6 +6753,19 @@ const STORE = {
         } : null);
       });
       if (!openModals.length && (!except || except.hidden)) document.body.classList.remove("pet-modal-open");
+    }
+
+    function closePetModalWithReturn(modal) {
+      if (!modal) {
+        closePetModals();
+        return;
+      }
+      if (modal.dataset.returnPetPlan === "true") {
+        delete modal.dataset.returnPetPlan;
+        closeWithMotion(modal, () => openPetModal("plan"));
+        return;
+      }
+      closePetModals();
     }
 
     function knowledgeMapRows(profile = activeProfile(), grade = profile.grade || state.grade) {
@@ -6780,10 +6814,18 @@ const STORE = {
         });
       });
     }
+    function openLearningKnowledgeMap(profile = activeProfile()) {
+      if (!els.learningKnowledgeMap || !els.views.knowledgeMap) return;
+      closeHubModals();
+      showView("knowledgeMap");
+      renderLearningKnowledgeMap(profile);
+      window.setTimeout(() => {
+        try { els.views.knowledgeMap.scrollTo({ top: 0, behavior: "smooth" }); } catch (_) {}
+      }, 0);
+    }
 
     function openHubModal(modal) {
       if (!modal) return;
-      if (modal === els.learningModal) renderLearningKnowledgeMap(activeProfile());
       if (modal === els.systemModal) renderProfilePanel();
       modal.hidden = false;
       modal.classList.remove("is-closing");
@@ -9275,6 +9317,7 @@ const STORE = {
       showView(btn.dataset.jump);
     }));
     document.querySelectorAll("[data-open-learning]").forEach((btn) => btn.addEventListener("click", () => openHubModal(els.learningModal)));
+    document.querySelectorAll("[data-open-learning-map]").forEach((btn) => btn.addEventListener("click", () => openLearningKnowledgeMap(activeProfile())));
     document.querySelectorAll("[data-close-learning]").forEach((btn) => btn.addEventListener("click", closeHubModals));
     document.querySelectorAll("[data-open-system]").forEach((btn) => btn.addEventListener("click", () => openHubModal(els.systemModal)));
     document.querySelectorAll("[data-close-system]").forEach((btn) => btn.addEventListener("click", closeHubModals));
@@ -9413,13 +9456,16 @@ const STORE = {
     els.openPetDressupBtn?.addEventListener("click", () => openPetModal("dressup"));
     els.openPetAchievementBtn?.addEventListener("click", () => openPetModal("achievements"));
     document.querySelectorAll("[data-open-pet-modal]").forEach((button) => {
-      button.addEventListener("click", () => openPetModal(button.dataset.openPetModal));
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        openPetModal(button.dataset.openPetModal, { returnToPlan: Boolean(button.closest("#petPlanMenuModal")) });
+      });
     });
     const handlePetPanelAction = (event) => {
       if (event.target.closest("#petShopGrid, #petBagList")) return;
       const openPetPanelBtn = event.target.closest("[data-open-pet-modal]");
       if (openPetPanelBtn) {
-        openPetModal(openPetPanelBtn.dataset.openPetModal);
+        openPetModal(openPetPanelBtn.dataset.openPetModal, { returnToPlan: Boolean(openPetPanelBtn.closest("#petPlanMenuModal")) });
         return;
       }
       const buyBtn = event.target.closest("[data-pet-buy]");
@@ -9507,12 +9553,15 @@ const STORE = {
     els.petAchievementModal?.addEventListener("click", handlePetPanelAction);
     [els.petShopModal, els.petBagModal, els.petTaskModal, els.petCarePanelModal, els.petGrowthPanelModal, els.petPlanMenuModal, els.petDressupModal, els.petAchievementModal].forEach((modal) => {
       modal?.addEventListener("click", (event) => {
-        if (event.target === modal || event.target.closest("[data-close-pet-modal]")) closePetModals();
+        if (event.target === modal || event.target.closest("[data-close-pet-modal]")) closePetModalWithReturn(modal);
         if (event.target.closest("[data-close-pet-detail]")) hidePetItemDetails();
       });
     });
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && (!els.petShopModal?.hidden || !els.petBagModal?.hidden || !els.petTaskModal?.hidden || !els.petCarePanelModal?.hidden || !els.petGrowthPanelModal?.hidden || !els.petPlanMenuModal?.hidden || !els.petDressupModal?.hidden || !els.petAchievementModal?.hidden)) closePetModals();
+      if (event.key === "Escape" && (!els.petShopModal?.hidden || !els.petBagModal?.hidden || !els.petTaskModal?.hidden || !els.petCarePanelModal?.hidden || !els.petGrowthPanelModal?.hidden || !els.petPlanMenuModal?.hidden || !els.petDressupModal?.hidden || !els.petAchievementModal?.hidden)) {
+        const modal = [els.petShopModal, els.petBagModal, els.petTaskModal, els.petCarePanelModal, els.petGrowthPanelModal, els.petPlanMenuModal, els.petDressupModal, els.petAchievementModal].find((item) => item && !item.hidden);
+        closePetModalWithReturn(modal);
+      }
       if (event.key === "Escape" && (!els.learningModal?.hidden || !els.systemModal?.hidden)) closeHubModals();
       if (event.key === "Escape" && !els.archiveModal?.hidden) closeArchiveModal();
     });
