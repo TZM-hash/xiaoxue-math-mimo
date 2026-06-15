@@ -215,6 +215,7 @@
                 <input class="answer-input" id="answerInput" inputmode="decimal" autocomplete="off" placeholder="在这里输入答案" aria-label="输入答案" />
                 <button class="primary" type="button" id="checkBtn">🔍 检查答案</button>
               </div>
+              <div class="word-relation-panel" id="wordRelationPanel" hidden></div>
               <div class="answer-mode-panel" id="answerModePanel" hidden></div>
               <div class="answer-control-slot" id="answerControlSlot">
                 <div class="number-pad" id="numberPad" aria-label="数字输入键盘"></div>
@@ -361,6 +362,7 @@
             </div>
           </div>
           <div class="pet-space-bars" id="petSpaceBars"></div>
+          <section class="pet-showcase-card" id="petShowcaseCard" aria-live="polite"></section>
           <div class="pet-care-dashboard">
             <section class="pet-wish-card" id="petWishCard" aria-live="polite"></section>
             <section class="pet-level-gift-card" id="petLevelGiftCard" aria-live="polite"></section>
@@ -411,11 +413,12 @@
           <div class="item-top">
             <div>
               <h2 id="petGrowthPanelTitle">成长记录</h2>
-              <p class="muted">成长日记、成长礼物和招财故事会沉淀为长期目标。</p>
+              <p class="muted">学习质量、成长日记、成长礼物和招财故事会沉淀为长期目标。</p>
             </div>
             <button class="secondary icon-btn pet-modal-close" type="button" data-close-pet-modal aria-label="关闭成长记录">×</button>
           </div>
           <div class="pet-panel-grid pet-growth-panel-grid">
+            <div id="petStagePanelSlot"></div>
             <div id="petMemoryPanelSlot"></div>
             <div id="petLevelGiftPanelSlot"></div>
             <div id="petStoryPanelSlot"></div>
@@ -447,6 +450,7 @@
             </div>
             <button class="secondary icon-btn pet-modal-close" type="button" data-close-pet-modal aria-label="关闭宠物商店">×</button>
           </div>
+          <section class="pet-shop-advisor" id="petShopAdvisor" aria-live="polite"></section>
           <div class="pet-shop-grid" id="petShopGrid"></div>
           <div class="pet-item-detail" id="petShopDetail" hidden></div>
         </article>
@@ -488,6 +492,7 @@
             <span class="tag" id="petDressupSummary">阳光小窝 · 家具 0 · 装扮 0</span>
             <button class="secondary icon-btn pet-modal-close" type="button" data-close-pet-modal aria-label="关闭装扮馆">×</button>
           </div>
+          <section class="pet-dressup-preview" id="petDressupPreview" aria-live="polite"></section>
           <div class="pet-dressup-grid" id="petDressupGrid"></div>
         </article>
       </div>
@@ -502,6 +507,7 @@
             <span class="tag" id="petAchievementSummary">已完成 0/0</span>
             <button class="secondary icon-btn pet-modal-close" type="button" data-close-pet-modal aria-label="关闭成就图鉴">×</button>
           </div>
+          <section class="pet-achievement-board" id="petAchievementBoard" aria-live="polite"></section>
           <div class="pet-achievement-list" id="petAchievementList"></div>
         </article>
       </div>
@@ -767,6 +773,7 @@
             <small>按年级、知识点和错题生成 PDF 题单。</small>
           </button>
         </div>
+        <section class="learning-map-panel" id="learningKnowledgeMap" aria-label="知识地图"></section>
       </article>
     </div>
 

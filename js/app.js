@@ -209,6 +209,7 @@ const STORE = {
       modeTag: document.getElementById("modeTag"),
       questionText: document.getElementById("questionText"),
       answerInput: document.getElementById("answerInput"),
+      wordRelationPanel: document.getElementById("wordRelationPanel"),
       answerControlSlot: document.getElementById("answerControlSlot"),
       numberPad: document.getElementById("numberPad"),
       answerModePanel: document.getElementById("answerModePanel"),
@@ -272,11 +273,13 @@ const STORE = {
       petSpaceXp: document.getElementById("petSpaceXp"),
       petSkillStrip: document.getElementById("petSkillStrip"),
       petSpaceBars: document.getElementById("petSpaceBars"),
+      petShowcaseCard: document.getElementById("petShowcaseCard"),
       petWishCard: document.getElementById("petWishCard"),
       petLevelGiftCard: document.getElementById("petLevelGiftCard"),
       petWishPanelSlot: document.getElementById("petWishPanelSlot"),
       petCarePlanPanelSlot: document.getElementById("petCarePlanPanelSlot"),
       petEventPanelSlot: document.getElementById("petEventPanelSlot"),
+      petStagePanelSlot: document.getElementById("petStagePanelSlot"),
       petMemoryPanelSlot: document.getElementById("petMemoryPanelSlot"),
       petLevelGiftPanelSlot: document.getElementById("petLevelGiftPanelSlot"),
       petStoryPanelSlot: document.getElementById("petStoryPanelSlot"),
@@ -311,6 +314,9 @@ const STORE = {
       petAchievementList: document.getElementById("petAchievementList"),
       petDressupSummary: document.getElementById("petDressupSummary"),
       petAchievementSummary: document.getElementById("petAchievementSummary"),
+      petShopAdvisor: document.getElementById("petShopAdvisor"),
+      petDressupPreview: document.getElementById("petDressupPreview"),
+      petAchievementBoard: document.getElementById("petAchievementBoard"),
       petShopDetail: document.getElementById("petShopDetail"),
       petBagDetail: document.getElementById("petBagDetail"),
       petRenameCard: document.getElementById("petRenameCard"),
@@ -319,6 +325,7 @@ const STORE = {
       cancelRenamePetBtn: document.getElementById("cancelRenamePetBtn"),
       petRoomCatBtn: document.getElementById("petRoomCatBtn"),
       learningModal: document.getElementById("learningModal"),
+      learningKnowledgeMap: document.getElementById("learningKnowledgeMap"),
       systemModal: document.getElementById("systemModal"),
       systemProfileNameInput: document.getElementById("systemProfileNameInput"),
       saveSystemProfileBtn: document.getElementById("saveSystemProfileBtn"),
@@ -556,6 +563,17 @@ const STORE = {
       const date = new Date();
       date.setDate(date.getDate() + offset);
       return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    }
+    function dateKeyFromDayNumber(value) {
+      const day = Number(value);
+      if (!Number.isFinite(day)) return todayKey();
+      const date = new Date(day * 86400000);
+      return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
+    }
+    function addDaysToKey(key, offset = 0) {
+      const base = dayNumber(key || todayKey());
+      if (!Number.isFinite(base)) return todayKey(offset);
+      return dateKeyFromDayNumber(base + Number(offset || 0));
     }
     function dayNumber(key) {
       const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(key || ""));
@@ -1017,6 +1035,8 @@ const STORE = {
       const question = normalizeStoredQuestion(item.question);
       if (!question) return null;
       const cause = normalizeCause(item.cause);
+      const reviewStage = clamp(Number(item.reviewStage ?? item.correctStreak ?? 0) || 0, 0, 4);
+      const dueDate = /^\d{4}-\d{2}-\d{2}$/.test(String(item.dueDate || "")) ? String(item.dueDate) : todayKey();
       return {
         id: safeRecordId(item.id, "wrong"),
         signature: String(item.signature || signature(question)),
@@ -1024,6 +1044,9 @@ const STORE = {
         cause,
         wrongCount: clamp(Number(item.wrongCount) || 1, 1, 999),
         correctStreak: clamp(Number(item.correctStreak) || 0, 0, 3),
+        reviewStage,
+        dueDate,
+        lastReviewedAt: Number(item.lastReviewedAt) || 0,
         lastResult: item.lastResult === "correct" ? "correct" : "wrong",
         updatedAt: Number(item.updatedAt) || Date.now()
       };
@@ -1117,6 +1140,7 @@ const STORE = {
       records: [],
       roundCoins: 0,
       lastWrongRecordId: "",
+      wordRelationState: null,
       setFinished: false,
       challengeMeta: null,
       timedMeta: null,
@@ -1361,8 +1385,8 @@ const STORE = {
       if (els.homePlanCopy) {
         const first = weak[0];
         els.homePlanCopy.textContent = first
-          ? `今天按 3 步走：先练"${first.label}"，再订正错题，最后用小测或闯关收尾。`
-          : "今天按 3 步走：先完成一组基础练习，再检查错题，最后用小测或闯关收尾。";
+          ? `今天按 4 步走：先复习到期错题，再练"${first.label}"，最后用小测或闯关收尾。`
+          : "今天按 4 步走：先复习到期错题，再完成一组基础练习，最后用小测或闯关收尾。";
       }
       els.homeWeakList.innerHTML = weak.map((point, index) => {
         const score = weakPointScore(profile, point);
@@ -1386,10 +1410,16 @@ const STORE = {
         const challengeToday = today.filter((item) => item.mode === "challenge").length;
         const progress = challengeProgress(profile, profile.grade || state.grade);
         const wrongAvailable = currentGradeWrongbook(profile, profile.grade || state.grade).length;
+        const reviewDue = dueWrongbook(profile, profile.grade || state.grade);
+        const reviewToday = today.filter((item) => item.mode === "wrongbook").length;
+        const reviewTarget = Math.min(3, Math.max(1, reviewDue.length + reviewToday));
         const steps = HomeRoute.buildTodayRoute({
           weakPoint: weak[0] || null,
           weakProgress: weakToday,
           weakTarget: 8,
+          reviewProgress: reviewToday,
+          reviewTarget,
+          reviewDue: reviewDue.length,
           wrongProgress: wrongToday,
           wrongTarget: Math.min(3, Math.max(1, wrongAvailable)),
           wrongAvailable,
@@ -1406,7 +1436,8 @@ const STORE = {
         </article>`).join("");
         els.homeRouteList.querySelectorAll("[data-home-route]").forEach((btn) => {
           btn.addEventListener("click", () => {
-            if (btn.dataset.homeRoute === "wrongbook") startWrongbookPractice();
+            if (btn.dataset.homeRoute === "review") startDueReviewPractice();
+            else if (btn.dataset.homeRoute === "wrongbook") startWrongbookPractice();
             else if (btn.dataset.homeRoute === "timed") startTimedQuizSet();
             else if (btn.dataset.homeRoute === "challenge") startChallengeSet();
             else startWeakPractice();
@@ -1673,6 +1704,84 @@ const STORE = {
           <span class="vertical-line" aria-hidden="true"></span>
           <span class="vertical-row result">${escapeHTML(spec.result || "?")}</span>
         </span>`;
+    }
+    function wordRelationOptions(question) {
+      const topic = question?.topic || "word";
+      const known = question?.grade <= 2
+        ? ["找题目里的数量", "看谁多谁少", "先数一共有几份"]
+        : ["找已知条件", "找中间量", "找单位或比例"];
+      const ask = question?.grade <= 2
+        ? ["求一共有多少", "求还剩多少", "求多多少/少多少"]
+        : ["求最终结果", "求中间数量", "求单位量或每份数"];
+      const relations = {
+        muldiv: ["总数 = 每份数 × 份数", "每份数 = 总数 ÷ 份数", "份数 = 总数 ÷ 每份数"],
+        remainder: ["被除数 = 除数 × 商 + 余数", "剩下的是余数", "最多装满先用除法"],
+        geometry: ["周长/面积先写公式", "长方形面积 = 长 × 宽", "正方形周长 = 边长 × 4"],
+        unit: ["先统一单位", "大单位换小单位用乘法", "小单位换大单位用除法"],
+        percent: ["百分数先化成小数/分数", "部分量 = 总量 × 百分率", "折后价 = 原价 × 折扣"],
+        ratio: ["先求总份数", "每份数 = 总量 ÷ 总份数", "部分量 = 每份数 × 份数"],
+        equation: ["把未知数设为 x", "按题意列等式", "等式两边同变"],
+        word: ["总数 = 部分 + 部分", "差 = 大数 - 小数", "先求中间量再回答"]
+      };
+      return {
+        known,
+        ask,
+        relation: relations[topic] || relations.word
+      };
+    }
+    function resetWordRelationState() {
+      state.wordRelationState = { known: "", ask: "", relation: "" };
+    }
+    function renderWordRelationPanel(question) {
+      if (!els.wordRelationPanel) return;
+      const shouldShow = Boolean(question?.word);
+      els.wordRelationPanel.hidden = !shouldShow;
+      els.wordRelationPanel.innerHTML = "";
+      if (!shouldShow) {
+        state.wordRelationState = null;
+        return;
+      }
+      resetWordRelationState();
+      const groups = wordRelationOptions(question);
+      els.wordRelationPanel.innerHTML = `
+        <div class="word-relation-head">
+          <strong>先想关系</strong>
+          <span>应用题先完成这 3 步，再输入答案。</span>
+        </div>
+        <div class="word-relation-grid">
+          ${[
+            ["known", "已知什么", groups.known],
+            ["ask", "要求什么", groups.ask],
+            ["relation", "数量关系", groups.relation]
+          ].map(([key, label, options]) => `
+            <div class="word-relation-group" data-relation-group="${key}">
+              <span>${label}</span>
+              <div>
+                ${options.map((option) => `<button class="relation-chip" type="button" data-relation-key="${key}" data-relation-value="${escapeAttr(option)}" aria-pressed="false">${escapeHTML(option)}</button>`).join("")}
+              </div>
+            </div>`).join("")}
+        </div>`;
+      els.wordRelationPanel.querySelectorAll("[data-relation-key]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          if (state.checked) return;
+          const key = btn.dataset.relationKey;
+          state.wordRelationState[key] = btn.dataset.relationValue || "";
+          els.wordRelationPanel.querySelectorAll("[data-relation-key]").forEach((item) => {
+            if (item.dataset.relationKey === key) item.setAttribute("aria-pressed", "false");
+          });
+          btn.setAttribute("aria-pressed", "true");
+        });
+      });
+    }
+    function wordRelationReady(question) {
+      if (!question?.word) return { ok: true };
+      const relation = state.wordRelationState || {};
+      const missing = [
+        relation.known ? "" : "已知什么",
+        relation.ask ? "" : "要求什么",
+        relation.relation ? "" : "数量关系"
+      ].filter(Boolean);
+      return { ok: !missing.length, missing };
     }
     function stepHintContent(question) {
       const mode = question?.interaction?.mode || "input";
@@ -5369,6 +5478,32 @@ const STORE = {
     function petUnlockedSkillIds(pet) {
       return PET_SKILLS.filter((skill) => petSkillUnlocked(pet, skill)).map((skill) => skill.id);
     }
+    function petLearningQuality(profile = activeProfile()) {
+      const today = todayItems(profile);
+      const recent = today.length ? today : (profile.history || []).slice(0, 12);
+      const rate = recent.length ? accuracyOf(recent) : 0;
+      const reviewCount = today.filter((item) => item.mode === "wrongbook").length;
+      const pointCount = new Set(today.map((item) => item.pointId).filter(Boolean)).size;
+      const dueCount = dueWrongbook(profile, profile.grade || state.grade).length;
+      let label = "建立节奏";
+      if (recent.length >= 10 && rate >= 90) label = "高质量学习";
+      else if (recent.length >= 6 && rate >= 75) label = "稳定学习";
+      else if (reviewCount > 0) label = "认真复习";
+      else if (recent.length > 0 && rate < 60) label = "需要慢一点";
+      const xpBonus = recent.length >= 10 && rate >= 90 ? 2 : recent.length >= 6 && rate >= 75 ? 1 : 0;
+      return { rate, recentCount: recent.length, reviewCount, pointCount, dueCount, label, xpBonus };
+    }
+    function petLearningQualityHTML(profile = activeProfile(), pet = petState(profile)) {
+      const quality = petLearningQuality(profile);
+      const skills = petUnlockedSkillIds(pet);
+      const activeSkills = skills.length
+        ? skills.map((id) => PET_SKILLS.find((skill) => skill.id === id)?.title).filter(Boolean).join("、")
+        : "暂无已激活技能";
+      return `<div class="pet-quality-panel">
+        <div><strong>${escapeHTML(quality.label)}</strong><span>今日正确率 ${quality.recentCount ? quality.rate + "%" : "--"} · 复习 ${quality.reviewCount} 题 · 到期 ${quality.dueCount} 题</span></div>
+        <div><strong>技能影响</strong><span>${escapeHTML(activeSkills)}${quality.xpBonus ? ` · 高质量答题经验 +${quality.xpBonus}` : ""}</span></div>
+      </div>`;
+    }
     function normalizePetWish(raw = {}, pet = null) {
       const today = todayKey();
       const wish = isPlainObject(raw) ? { ...raw } : {};
@@ -5498,9 +5633,17 @@ const STORE = {
       if (reward.roomTheme) grantPetTheme(pet, reward.roomTheme);
       if (reward.outfit) grantPetOutfit(pet, reward.outfit, true);
     }
-    function advancePetProgressFromQuestion(profile, correct) {
+    function advancePetProgressFromQuestion(profile, correct, context = {}) {
       const pet = petState(profile);
       if (pet.runaway?.status !== "home") return;
+      const quality = petLearningQuality(profile);
+      const mode = context.mode || state.mode || "practice";
+      const relationReady = Boolean(context.wordRelationReady);
+      const qualityXp = correct ? quality.xpBonus + (relationReady ? 1 : 0) + (mode === "wrongbook" ? 1 : 0) : 0;
+      if (qualityXp) pet.xp += qualityXp;
+      if (correct && quality.rate >= 85 && quality.recentCount >= 6) pet.mood = clamp(pet.mood + 1, 0, 100);
+      if (correct && mode === "wrongbook") pet.bond = clamp(pet.bond + 1, 0, 100);
+      if (!correct && quality.recentCount >= 6 && quality.rate < 60) pet.mood = clamp(pet.mood - 1, 0, 100);
       const wish = currentPetWish(pet);
       if (correct && wish && !pet.wish.fulfilled) {
         pet.wish.progress = clamp(Number(pet.wish.progress) + 1, 0, Number(wish.practiceTarget) || 10);
@@ -5517,6 +5660,7 @@ const STORE = {
         stateForChapter.progress = clamp(Number(stateForChapter.progress) + 1, 0, Number(chapter.target) || 1);
         if (stateForChapter.progress >= Number(chapter.target || 1)) stateForChapter.complete = true;
       });
+      if (qualityXp) applyPetLevel(pet);
       updatePetCareMemory(profile, pet);
     }
     function resolvePetEvent(pet, event) {
@@ -5822,7 +5966,8 @@ const STORE = {
       const unlocked = new Set(petUnlockedSkillIds(pet));
       els.petSkillStrip.innerHTML = PET_SKILLS.length ? PET_SKILLS.map((skill) => {
         const active = unlocked.has(skill.id);
-        return `<span class="${active ? "unlocked" : "locked"}" title="${escapeAttr(skill.desc)}">${active ? "✓" : "Lv." + skill.minLevel} ${escapeHTML(skill.title)}</span>`;
+        const lock = active ? "已影响学习体验" : `Lv.${skill.minLevel} / 亲密 ${skill.minBond}`;
+        return `<span class="${active ? "unlocked" : "locked"}" title="${escapeAttr(skill.desc)}">${active ? "✓" : lock} ${escapeHTML(skill.title)}</span>`;
       }).join("") : "";
     }
     function renderPetWishCard(profile, pet) {
@@ -5835,6 +5980,7 @@ const STORE = {
       const item = PET_ITEM_MAP[wish.itemId] || {};
       const progress = clamp(Number(pet.wish?.progress) || 0, 0, Number(wish.practiceTarget) || 1);
       const target = Math.max(1, Number(wish.practiceTarget) || 1);
+      const practiceLeft = Math.max(0, target - progress);
       const have = Number(pet.inventory?.[wish.itemId]) || 0;
       const coinGap = Math.max(0, Number(item.price || 0) - Number(pet.coins || 0));
       const done = Boolean(pet.wish?.fulfilled);
@@ -5844,11 +5990,11 @@ const STORE = {
           ? `<button class="primary" type="button" data-pet-use="${escapeAttr(wish.itemId)}">使用${escapeHTML(item.name || "用品")}</button>`
           : coinGap <= 0
             ? `<button class="primary" type="button" data-pet-buy="${escapeAttr(wish.itemId)}">购买${escapeHTML(item.name || "用品")}</button>`
-            : "";
+            : `<button class="secondary" type="button" data-pet-wish-practice>做 ${practiceLeft || 3} 题攒心愿</button>`;
       els.petWishCard.innerHTML = `
         <div class="pet-card-title"><span aria-hidden="true">${item.icon || "⭐"}</span><div><h3>今日心愿</h3><p>${escapeHTML(petCopy(wish.title, profile))}</p></div></div>
         <div class="pet-mini-progress"><i style="--value:${Math.round(progress / target * 100)}%"></i></div>
-        <p>${done ? `${petDisplayName(profile)}很开心，今天的心愿完成啦。` : coinGap > 0 ? `还差 ${coinGap} 金币。完成平时练习会继续积攒金币。` : `已经可以买 ${item.name || "用品"} 了。`}</p>
+        <p>${done ? `${petDisplayName(profile)}很开心，今天的心愿完成啦。` : coinGap > 0 ? `还差 ${coinGap} 金币。完成 ${practiceLeft || 3} 道学习任务会继续推进心愿。` : `已经可以买 ${item.name || "用品"} 了。`}</p>
         ${action ? `<div class="pet-card-actions">${action}</div>` : ""}`;
     }
     function renderPetCarePlan(profile, pet) {
@@ -5971,6 +6117,150 @@ const STORE = {
         claimed: Boolean(pet.achievements?.claimed?.[achievement.id])
       };
     }
+    function petAchievementGroupKey(state) {
+      const key = state.progressKey || "";
+      if (["answerCount", "learningDays", "todayAccuracy", "petLevel"].includes(key)) return "学习成长";
+      if (["careDays", "wishes", "events", "stories"].includes(key)) return "陪伴照料";
+      return "收藏展示";
+    }
+    function equippedFurnitureList(pet) {
+      return PET_FURNITURE.filter((item) => pet.equippedFurniture?.[item.id]);
+    }
+    function petCollectionCounts(pet) {
+      return {
+        themes: countTruthy(pet.unlockedThemes),
+        furniture: countTruthy(pet.ownedFurniture),
+        equippedFurniture: equippedFurnitureList(pet).length,
+        outfits: countTruthy(pet.outfits),
+        achievements: countTruthy(pet.achievements?.claimed)
+      };
+    }
+    function nextCollectionGoal(pet) {
+      const level = Number(pet.level || 1);
+      const candidates = [
+        ...PET_ROOM_THEMES.map((item) => ({ kind: "theme", item, owned: Boolean(pet.unlockedThemes?.[item.id]) })),
+        ...PET_FURNITURE.map((item) => ({ kind: "furniture", item, owned: Boolean(pet.ownedFurniture?.[item.id]) })),
+        ...PET_OUTFITS.map((item) => ({ kind: "outfit", item, owned: Boolean(pet.outfits?.[item.id]) }))
+      ].filter((entry) => !entry.owned);
+      return candidates
+        .map((entry) => ({
+          ...entry,
+          levelGap: Math.max(0, Number(entry.item.minLevel || 1) - level),
+          coinGap: Math.max(0, Number(entry.item.price || 0) - Number(pet.coins || 0))
+        }))
+        .sort((a, b) => a.levelGap - b.levelGap || a.coinGap - b.coinGap || Number(a.item.price || 0) - Number(b.item.price || 0))[0];
+    }
+    function renderPetShowcase(profile = activeProfile(), pet = petState(profile)) {
+      if (!els.petShowcaseCard) return;
+      const theme = PET_ROOM_THEME_MAP[pet.roomTheme] || PET_ROOM_THEME_MAP.sunny || { title: "阳光小窝", icon: "" };
+      const outfit = pet.outfit ? PET_OUTFIT_MAP[pet.outfit] : null;
+      const furniture = equippedFurnitureList(pet);
+      const counts = petCollectionCounts(pet);
+      const next = nextCollectionGoal(pet);
+      const nextCopy = next
+        ? next.levelGap > 0
+          ? `Lv.${next.item.minLevel} 解锁 ${next.item.title}`
+          : next.coinGap > 0
+            ? `${next.item.title} 还差 ${next.coinGap} 金币`
+            : `${next.item.title} 可以解锁`
+        : "收藏已全部点亮";
+      els.petShowcaseCard.innerHTML = `
+        <div class="pet-showcase-head">
+          <div>
+            <h3>展示成果</h3>
+            <p class="muted">${escapeHTML(theme.title)} · ${outfit ? escapeHTML(outfit.title) : "未穿戴装扮"} · 成就 ${counts.achievements}/${PET_ACHIEVEMENTS.length}</p>
+          </div>
+          <button class="secondary compact-btn" type="button" data-open-pet-modal="dressup">去装扮</button>
+        </div>
+        <div class="pet-showcase-grid">
+          <span><b>${theme.icon || "◌"}</b><strong>${escapeHTML(theme.title)}</strong><em>当前主题</em></span>
+          <span><b>${outfit?.icon || "◇"}</b><strong>${escapeHTML(outfit?.title || "清爽原貌")}</strong><em>当前造型</em></span>
+          <span><b>▦</b><strong>${counts.equippedFurniture}/${counts.furniture}</strong><em>已摆放家具</em></span>
+          <span><b>🏅</b><strong>${counts.achievements}</strong><em>已领成就</em></span>
+        </div>
+        <div class="pet-showcase-strip">
+          ${furniture.length ? furniture.slice(0, 5).map((item) => `<i title="${escapeAttr(item.desc || item.title)}">${item.icon || "✦"} ${escapeHTML(item.title)}</i>`).join("") : "<i>还没有摆放家具</i>"}
+          <i>${escapeHTML(nextCopy)}</i>
+        </div>`;
+      els.petShowcaseCard.querySelector("[data-open-pet-modal]")?.addEventListener("click", (event) => {
+        event.stopPropagation();
+        openPetModal(event.currentTarget.dataset.openPetModal);
+      });
+    }
+    function petShopRecommendation(profile = activeProfile(), pet = petState(profile)) {
+      const wish = currentPetWish(pet);
+      if (wish && !pet.wish?.fulfilled && PET_ITEM_MAP[wish.itemId]) {
+        return { item: PET_ITEM_MAP[wish.itemId], reason: "今日心愿需要" };
+      }
+      const lowNeeds = [
+        { key: "hunger", label: "饥饿值偏低", itemIds: ["basicFood", "premiumFood"] },
+        { key: "clean", label: "清洁值偏低", itemIds: ["towel", "bath"] },
+        { key: "mood", label: "心情需要补一补", itemIds: ["yarnBall", "teaser"] },
+        { key: "bond", label: "亲密值可以提升", itemIds: ["yarnBall", "fishToy"] }
+      ].filter((need) => Number(pet[need.key]) < 65).sort((a, b) => Number(pet[a.key]) - Number(pet[b.key]));
+      for (const need of lowNeeds) {
+        const item = need.itemIds.map((id) => PET_ITEM_MAP[id]).filter(Boolean).find((entry) => Number(entry.price || 0) <= Number(pet.coins || 0)) || PET_ITEM_MAP[need.itemIds[0]];
+        if (item) return { item, reason: need.label };
+      }
+      const affordable = PET_SHOP.filter((item) => Number(item.price || 0) <= Number(pet.coins || 0)).sort((a, b) => Number(b.price || 0) - Number(a.price || 0))[0];
+      return affordable ? { item: affordable, reason: "当前金币可购买" } : { item: PET_ITEM_MAP.basicFood || PET_SHOP[0], reason: "先攒基础照料用品" };
+    }
+    function renderPetShopAdvisor(profile = activeProfile(), pet = petState(profile)) {
+      if (!els.petShopAdvisor) return;
+      const recommendation = petShopRecommendation(profile, pet);
+      const item = recommendation?.item;
+      const careLeft = item ? petCareLeft(pet, petCareKindForItem(item)) : 0;
+      const gap = item ? Math.max(0, Number(item.price || 0) - Number(pet.coins || 0)) : 0;
+      els.petShopAdvisor.innerHTML = item ? `
+        <div>
+          <strong>推荐购买：${escapeHTML(item.name)}</strong>
+          <span>${escapeHTML(recommendation.reason)} · ${gap ? `还差 ${gap} 金币` : "金币足够"}${Number.isFinite(careLeft) ? ` · 今日收益 ${careLeft} 次` : ""}</span>
+        </div>
+        <button class="${gap ? "secondary" : "primary"} compact-btn" type="button" data-pet-buy="${escapeAttr(item.id)}" ${gap ? "disabled" : ""}>${gap ? "继续攒金币" : "购买"}</button>` : "";
+    }
+    function renderPetDressupPreview(profile = activeProfile(), pet = petState(profile)) {
+      if (!els.petDressupPreview) return;
+      const theme = PET_ROOM_THEME_MAP[pet.roomTheme] || PET_ROOM_THEME_MAP.sunny || { title: "阳光小窝", icon: "" };
+      const outfit = pet.outfit ? PET_OUTFIT_MAP[pet.outfit] : null;
+      const furniture = equippedFurnitureList(pet);
+      const counts = petCollectionCounts(pet);
+      els.petDressupPreview.innerHTML = `
+        <div class="pet-dressup-preview-scene" data-room-theme="${escapeAttr(pet.roomTheme || "sunny")}" data-outfit="${escapeAttr(pet.outfit || "")}">
+          <span>${theme.icon || "☀️"}</span>
+          <b>${outfit?.icon || "🐾"}</b>
+        </div>
+        <div>
+          <strong>当前展示</strong>
+          <p>${escapeHTML(theme.title)} · ${outfit ? escapeHTML(outfit.title) : "未穿戴装扮"} · 已摆放 ${counts.equippedFurniture} 件家具</p>
+          <div class="pet-dressup-preview-tags">
+            ${furniture.length ? furniture.slice(0, 4).map((item) => `<span>${item.icon || "✦"} ${escapeHTML(item.title)}</span>`).join("") : "<span>还没有摆放家具</span>"}
+          </div>
+        </div>`;
+    }
+    function renderPetAchievementBoard(profile = activeProfile()) {
+      if (!els.petAchievementBoard) return;
+      const states = PET_ACHIEVEMENTS.map((item) => petAchievementState(profile, item));
+      const groups = ["学习成长", "陪伴照料", "收藏展示"].map((group) => {
+        const items = states.filter((state) => petAchievementGroupKey(state) === group);
+        const complete = items.filter((state) => state.claimed).length;
+        const ready = items.filter((state) => state.complete && !state.claimed).length;
+        const pct = items.length ? Math.round(complete / items.length * 100) : 0;
+        return { group, items, complete, ready, pct };
+      });
+      const next = states.find((state) => state.complete && !state.claimed) || states.filter((state) => !state.claimed).sort((a, b) => b.pct - a.pct)[0];
+      els.petAchievementBoard.innerHTML = `
+        <div class="pet-achievement-board-next">
+          <strong>${next ? escapeHTML(next.complete && !next.claimed ? `可领取：${next.title}` : `接近完成：${next.title}`) : "成就已全部完成"}</strong>
+          <span>${next ? `${escapeHTML(petAchievementGroupKey(next))} · ${next.value}/${next.target} · ${escapeHTML(petCollectionRewardText(next))}` : "奖励都已经进入收藏展示"}</span>
+        </div>
+        <div class="pet-achievement-board-grid">
+          ${groups.map((group) => `<span>
+            <strong>${escapeHTML(group.group)}</strong>
+            <em>${group.complete}/${group.items.length}${group.ready ? ` · ${group.ready} 可领` : ""}</em>
+            <i class="pet-mini-progress"><b style="--value:${group.pct}%"></b></i>
+          </span>`).join("")}
+        </div>`;
+    }
     function renderPetAchievementCard(state) {
       const action = state.claimed
         ? `<button class="secondary" type="button" disabled>已完成</button>`
@@ -5993,6 +6283,7 @@ const STORE = {
       const ready = states.filter((item) => item.complete && !item.claimed).length;
       const claimed = states.filter((item) => item.claimed).length;
       if (els.petAchievementSummary) els.petAchievementSummary.textContent = ready ? `${ready} 项可领取` : `已完成 ${claimed}/${states.length}`;
+      renderPetAchievementBoard(profile);
       els.petAchievementList.innerHTML = states.map(renderPetAchievementCard).join("");
     }
     function collectionCard(kind, item, pet) {
@@ -6058,6 +6349,7 @@ const STORE = {
       if (els.petDressupSummary) {
         els.petDressupSummary.textContent = `${currentTheme} · 家具 ${countTruthy(pet.ownedFurniture)} · 装扮 ${countTruthy(pet.outfits)} · ${currentOutfit}`;
       }
+      renderPetDressupPreview(profile, pet);
       els.petDressupGrid.innerHTML = `
         <section class="pet-collection-section">
           <div class="pet-shop-tier-head"><h3>小窝主题</h3><span>主题随宠物等级开放，金币用于真正装进小窝。</span></div>
@@ -6080,6 +6372,20 @@ const STORE = {
       const target = shouldUsePetPanelModals() ? slot : home;
       if (card.parentElement !== target) target.appendChild(card);
     }
+    function movePetStageCard() {
+      if (!els.petStageCard || !els.petStagePanelSlot) return;
+      if (shouldUsePetPanelModals()) {
+        if (els.petStageCard.parentElement !== els.petStagePanelSlot) els.petStagePanelSlot.appendChild(els.petStageCard);
+        return;
+      }
+      const petRoomInfo = document.querySelector(".pet-room-info");
+      const progress = document.querySelector(".pet-space-progress");
+      if (!petRoomInfo || !progress) return;
+      if (els.petStageCard.parentElement !== petRoomInfo || els.petStageCard.nextElementSibling !== progress) {
+        if (typeof petRoomInfo.insertBefore === "function") petRoomInfo.insertBefore(els.petStageCard, progress);
+        else if (els.petStageCard.parentElement !== petRoomInfo) petRoomInfo.appendChild(els.petStageCard);
+      }
+    }
     function syncPetPanelLayout() {
       const dashboard = document.querySelector(".pet-care-dashboard");
       if (!dashboard) return;
@@ -6087,6 +6393,7 @@ const STORE = {
       const carePlanCard = els.petCareChecklist?.closest(".pet-care-plan-card");
       movePetCard(carePlanCard, els.petCarePlanPanelSlot, dashboard);
       movePetCard(els.petEventCard, els.petEventPanelSlot, dashboard);
+      movePetStageCard();
       movePetCard(els.petMemoryCard, els.petMemoryPanelSlot, dashboard);
       movePetCard(els.petLevelGiftCard, els.petLevelGiftPanelSlot, dashboard);
       movePetCard(els.petStoryCard, els.petStoryPanelSlot, dashboard);
@@ -6225,7 +6532,7 @@ const STORE = {
           ? `${name}暂时离家了`
           : `${name}今天在等你练习`;
       if (els.petRoomStatus) els.petRoomStatus.textContent = pet.runaway?.status === "home"
-        ? `完成练习、复习错题和闯关会影响成长。当前状态：${petStatusLabel(pet)}。${petCareHint(pet)}`
+        ? `完成练习、复习错题和闯关会影响成长。当前状态：${petStatusLabel(pet)}。${petLearningQuality(profile).label}会影响经验、心情和亲密。${petCareHint(pet)}`
         : pet.runaway?.status === "away"
           ? `完成一轮练习可以找回${name}。`
           : "重新领养后可以继续从 1 级开始养成。";
@@ -6237,7 +6544,8 @@ const STORE = {
         els.petStageCard.innerHTML = `
           <strong>${escapeHTML(stage.name)}</strong>
           <span>${escapeHTML(stage.copy)}</span>
-          <em>${nextStage ? `Lv.${nextStage.minLevel} 解锁${petCopy(nextStage.name, profile)}` : "成长阶段已全部解锁"}</em>`;
+          <em>${nextStage ? `Lv.${nextStage.minLevel} 解锁${petCopy(nextStage.name, profile)}` : "成长阶段已全部解锁"}</em>
+          ${petLearningQualityHTML(profile, pet)}`;
       }
       if (els.petSpaceLevel) els.petSpaceLevel.textContent = `${stage.name} · Lv.${pet.level}`;
       if (els.petSpaceXp) els.petSpaceXp.textContent = `${xpInLevel} / ${PET_XP_PER_LEVEL}`;
@@ -6256,6 +6564,7 @@ const STORE = {
       renderPetEventCard(pet, profile);
       renderPetStoryCard(pet, profile);
       renderPetMemoryCard(pet, profile);
+      renderPetShowcase(profile, pet);
       renderPetDressup(profile);
       renderPetAchievements(profile);
       syncPetPanelLayout();
@@ -6266,6 +6575,8 @@ const STORE = {
         advanced: "完成额外练习后使用，主要补状态和亲密。",
         rare: "连续坚持几天后再购买，作为长期目标。"
       };
+      renderPetShopAdvisor(profile, pet);
+      const recommendedShopItem = petShopRecommendation(profile, pet)?.item?.id || "";
       els.petShopGrid.innerHTML = ["basic", "advanced", "rare"].map((tier) => {
         const items = PET_SHOP.filter((item) => (item.tier || "advanced") === tier);
         if (!items.length) return "";
@@ -6279,10 +6590,11 @@ const STORE = {
               const afford = pet.coins >= item.price && pet.runaway?.status !== "lost";
               const careKind = petCareKindForItem(item);
               const left = careKind ? petCareLeft(pet, careKind) : Infinity;
-              return `<article class="pet-shop-item" tabindex="0" role="button" data-pet-detail="${item.id}" aria-label="查看${escapeHTML(item.name)}作用">
+              const recommended = item.id === recommendedShopItem;
+              return `<article class="pet-shop-item ${recommended ? "recommended" : ""}" tabindex="0" role="button" data-pet-detail="${item.id}" aria-label="查看${escapeHTML(item.name)}作用">
                 <div class="pet-shop-icon" aria-hidden="true">${item.icon}</div>
                 <strong>${escapeHTML(item.name)}</strong>
-                <small>${tierLabels[tier]}</small>
+                <small>${recommended ? "推荐 · " : ""}${tierLabels[tier]}${Number.isFinite(left) ? ` · 今日 ${left} 次` : ""}</small>
                 <div class="pet-shop-buy">
                   <span>${item.price} 金币</span>
                   <button class="primary" type="button" data-pet-buy="${item.id}" ${afford ? "" : "disabled"}>购买</button>
@@ -6381,10 +6693,21 @@ const STORE = {
       if (kind === "achievements") return els.petAchievementModal;
       return els.petShopModal;
     }
+    function resetPetModalScrollAnchor() {
+      const view = els.views?.petspace;
+      if (!view) return;
+      try {
+        view.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      } catch (_) {
+        view.scrollTop = 0;
+        view.scrollLeft = 0;
+      }
+    }
 
     function openPetModal(kind) {
       const target = petModalFor(kind);
       if (!target) return;
+      resetPetModalScrollAnchor();
       renderPetSpace(activeProfile());
       if (kind === "tasks") renderPetTasks();
       if (kind === "dressup") renderPetDressup();
@@ -6411,8 +6734,56 @@ const STORE = {
       if (!openModals.length && (!except || except.hidden)) document.body.classList.remove("pet-modal-open");
     }
 
+    function knowledgeMapRows(profile = activeProfile(), grade = profile.grade || state.grade) {
+      return availablePoints(grade).map((point) => {
+        const mastery = masteryFor(profile, point.id);
+        const attempts = Number(mastery.attempts) || 0;
+        const rate = attempts ? Math.round((Number(mastery.correct) || 0) / attempts * 100) : 0;
+        const wrong = (profile.wrongbook || []).filter((item) => item.question?.pointId === point.id).length;
+        const due = dueWrongbook(profile, grade).filter((item) => item.question?.pointId === point.id).length;
+        const level = attempts >= 8 && rate >= 85 && !wrong ? "mastered" : wrong || due || (attempts >= 3 && rate < 75) ? "weak" : attempts ? "learning" : "new";
+        return { point, attempts, rate, wrong, due, level };
+      });
+    }
+    function knowledgeMapLevelLabel(level) {
+      return { mastered: "已掌握", learning: "学习中", weak: "需巩固", new: "待开启" }[level] || "学习中";
+    }
+    function renderLearningKnowledgeMap(profile = activeProfile()) {
+      if (!els.learningKnowledgeMap) return;
+      const grade = clamp(Number(profile.grade || state.grade) || 1, 1, 6);
+      const rows = knowledgeMapRows(profile, grade);
+      const mastered = rows.filter((row) => row.level === "mastered").length;
+      const weak = rows.filter((row) => row.level === "weak").length;
+      const next = rows.find((row) => row.due > 0) || rows.find((row) => row.level === "weak") || rows.find((row) => row.level === "new") || rows[0];
+      els.learningKnowledgeMap.innerHTML = `
+        <div class="learning-map-head">
+          <div>
+            <h3>知识地图</h3>
+            <p class="muted">${escapeHTML(gradeNames[grade - 1] || `${grade}年级`)} · 已掌握 ${mastered}/${rows.length} · 需巩固 ${weak}</p>
+          </div>
+          ${next ? `<button class="primary compact-btn" type="button" data-map-practice="${escapeAttr(next.point.id)}">${next.due ? "先复习到期" : "开始下一点"}</button>` : ""}
+        </div>
+        <div class="learning-map-grid">
+          ${rows.map((row) => `<button class="learning-map-node ${row.level}" type="button" data-map-practice="${escapeAttr(row.point.id)}">
+            <strong>${escapeHTML(row.point.short || row.point.label)}</strong>
+            <span>${escapeHTML(row.point.helper || row.point.label)}</span>
+            <em>${knowledgeMapLevelLabel(row.level)} · ${row.attempts ? `${row.rate}%` : "未练"}${row.due ? ` · 到期 ${row.due}` : row.wrong ? ` · 错题 ${row.wrong}` : ""}</em>
+          </button>`).join("")}
+        </div>`;
+      els.learningKnowledgeMap.querySelectorAll("[data-map-practice]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          closeHubModals();
+          const pointId = btn.dataset.mapPractice;
+          const dueIds = dueWrongbook(profile, grade).filter((item) => item.question?.pointId === pointId).map((item) => item.id);
+          if (dueIds.length) startWrongbookPractice(dueIds.slice(0, 6));
+          else startPointSet(pointId, 8, "knowledge-map");
+        });
+      });
+    }
+
     function openHubModal(modal) {
       if (!modal) return;
+      if (modal === els.learningModal) renderLearningKnowledgeMap(activeProfile());
       if (modal === els.systemModal) renderProfilePanel();
       modal.hidden = false;
       modal.classList.remove("is-closing");
@@ -6754,6 +7125,7 @@ const STORE = {
       const pet = petState(activeProfile());
       const event = currentPetEvent(pet);
       const left = Math.max(3, (Number(event?.target) || 5) - (Number(pet.event?.progress) || 0));
+      closePetModals();
       startPointSet(state.pointId === "auto" ? choosePoint().id : state.pointId, Math.min(12, left), "pet-event");
     }
 
@@ -6761,6 +7133,7 @@ const STORE = {
       const pet = petState(activeProfile());
       const chapter = PET_STORY_CHAPTERS.find((item) => Number(pet.level) >= Number(item.minLevel || 1) && !pet.story?.[item.id]?.claimed && !pet.story?.[item.id]?.complete);
       const left = chapter ? Math.max(3, Number(chapter.target) - Number(pet.story?.[chapter.id]?.progress || 0)) : 5;
+      closePetModals();
       startPointSet(state.pointId === "auto" ? choosePoint().id : state.pointId, Math.min(12, left), "pet-story");
     }
 
@@ -6997,7 +7370,10 @@ const STORE = {
     }
     function currentGradeWrongbook(profile = activeProfile(), grade = Number(profile.grade || state.grade)) {
       grade = Number(grade || profile.grade || state.grade);
-      return profile.wrongbook.filter((item) => Number(item.question.grade || grade) === grade);
+      const today = todayKey();
+      return profile.wrongbook
+        .filter((item) => Number(item.question.grade || grade) === grade)
+        .sort((a, b) => String(a.dueDate || today).localeCompare(String(b.dueDate || today)) || (a.correctStreak || 0) - (b.correctStreak || 0) || (b.wrongCount || 0) - (a.wrongCount || 0));
     }
     function startWrongbookPractice(ids = currentGradeWrongbook().map((item) => item.id)) {
       const profile = activeProfile();
@@ -7025,6 +7401,14 @@ const STORE = {
       renderPracticeQuestion();
       enterPracticeFocus();
       startRoundTimer();
+    }
+    function startDueReviewPractice() {
+      const due = dueWrongbook(activeProfile()).slice(0, Math.max(1, Math.min(8, state.setSize || 8)));
+      if (due.length) {
+        startWrongbookPractice(due.map((item) => item.id));
+        return;
+      }
+      startWrongbookPractice();
     }
     function challengeDraftPayload() {
       if (state.mode !== "challenge" || !state.challengeMeta || state.setFinished) return null;
@@ -7228,6 +7612,7 @@ const STORE = {
       const petPrompt = current.word ? '我陪你先读题：找"已知什么、要求什么"，再决定用加减乘除。' : '我陪你先看运算符号，再按正确顺序计算。';
       els.companionTalk.textContent = petPrompt;
       els.methodHint.textContent = petCopy('提示默认隐藏。需要帮助时，点"让招财提示"。');
+      renderWordRelationPanel(current);
       renderAnswerModePanel(current);
       const interactionMode = current.interaction?.mode || "input";
       setFeedback("", interactionMode === "choice"
@@ -7285,6 +7670,23 @@ const STORE = {
     function signature(question) {
       return `${question.pointId}|${question.text}|${formatAnswer(question.answer, question.answerLabel)}`;
     }
+    const REVIEW_STAGE_OFFSETS = [0, 1, 3, 7];
+    function nextReviewDueDate(stage) {
+      const offset = REVIEW_STAGE_OFFSETS[clamp(Number(stage) || 0, 0, REVIEW_STAGE_OFFSETS.length - 1)] ?? 7;
+      return addDaysToKey(todayKey(), offset);
+    }
+    function dueWrongbook(profile = activeProfile(), grade = Number(profile.grade || state.grade)) {
+      const today = todayKey();
+      return currentGradeWrongbook(profile, grade)
+        .filter((item) => String(item.dueDate || today) <= today)
+        .sort((a, b) => String(a.dueDate || today).localeCompare(String(b.dueDate || today)) || (a.correctStreak || 0) - (b.correctStreak || 0) || (b.wrongCount || 0) - (a.wrongCount || 0));
+    }
+    function reviewDateLabel(item) {
+      const due = String(item?.dueDate || todayKey());
+      if (due <= todayKey()) return "今日待复习";
+      if (due === todayKey(1)) return "明天复习";
+      return `${due.slice(5).replace("-", "/")} 复习`;
+    }
     function upsertWrong(question, cause = "未标记") {
       const profile = activeProfile();
       const sig = signature(question);
@@ -7292,6 +7694,9 @@ const STORE = {
       if (found) {
         found.wrongCount += 1;
         found.correctStreak = 0;
+        found.reviewStage = 0;
+        found.dueDate = todayKey();
+        found.lastReviewedAt = Date.now();
         found.lastResult = "wrong";
         found.cause = cause || found.cause || "未标记";
         found.updatedAt = Date.now();
@@ -7304,6 +7709,9 @@ const STORE = {
         cause: cause || "未标记",
         wrongCount: 1,
         correctStreak: 0,
+        reviewStage: 0,
+        dueDate: todayKey(),
+        lastReviewedAt: Date.now(),
         lastResult: "wrong",
         updatedAt: Date.now()
       };
@@ -7330,6 +7738,9 @@ const STORE = {
       if (!item) return;
       if (correct) {
         item.correctStreak += 1;
+        item.reviewStage = clamp((Number(item.reviewStage) || 0) + 1, 0, 4);
+        item.dueDate = nextReviewDueDate(item.reviewStage);
+        item.lastReviewedAt = Date.now();
         item.lastResult = "correct";
         item.updatedAt = Date.now();
         const pet = petState(profile);
@@ -7348,6 +7759,9 @@ const STORE = {
         }
       } else {
         item.correctStreak = 0;
+        item.reviewStage = 0;
+        item.dueDate = todayKey();
+        item.lastReviewedAt = Date.now();
         item.wrongCount += 1;
         item.lastResult = "wrong";
         item.updatedAt = Date.now();
@@ -7384,12 +7798,19 @@ const STORE = {
       const profile = activeProfile();
       profile.history.unshift(entry);
       profile.history = profile.history.slice(0, 2500);
-      advancePetProgressFromQuestion(profile, Boolean(entry.correct));
+      advancePetProgressFromQuestion(profile, Boolean(entry.correct), entry);
       renderDailyGoal();
     }
     function checkAnswer() {
       if (state.checked) return;
       const current = state.currentSet[state.index];
+      const relationCheck = wordRelationReady(current);
+      if (!relationCheck.ok) {
+        setFeedback("bad", `应用题先想清楚：请补上${relationCheck.missing.join("、")}，再检查答案。`, "🧭");
+        updatePetStatus("招财：先把已知、要求和数量关系选好，再算答案会稳很多。", "先想关系");
+        triggerAnswerAnimation("wrong");
+        return;
+      }
       const parsed = parseAnswer();
       if (!parsed.valid) {
         setFeedback("bad", parsed.message, "😯");
@@ -7430,8 +7851,11 @@ const STORE = {
         playSound("correct");
       } else {
         state.streak = 0;
-        setFeedback("bad", `招财：这题要再想一步。正确答案是 ${formatAnswer(expected, current.answerLabel)}。这题先不奖励金币，保存错因后下一题继续加油。`, "😢");
-        updatePetStatus("招财：我把这题放进错题本。后面连续做对 3 次，它就会自动移除。", "看步骤");
+        const firstHint = current.word
+          ? `先看"已知什么、要求什么"，再检查数量关系：${methodHintFor(current)}`
+          : methodHintFor(current);
+        setFeedback("bad", `招财：这题先不急着看答案。第一步提示：${firstHint} 点"查看答案"可以看完整答案和步骤。`, "😢");
+        updatePetStatus("招财：我先给你读题和方法提示，这题也会进入错题复习日程。", "看方法");
         triggerAnswerAnimation("wrong");
         playSound("wrong");
         els.numberPad.hidden = shouldHideAnswerControlsForWrong(current);
@@ -7441,12 +7865,15 @@ const STORE = {
       updateMastery(current.pointId, correct);
       if (state.mode === "wrongbook") updateWrongbookAttempt(current.wrongId, correct);
       else if (!correct) upsertWrong(current);
-      addHistory({ date: record.date, time: record.time, pointId: current.pointId, grade: current.grade, correct, cause: record.cause, text: current.text, mode: state.mode || "practice" });
+      addHistory({ date: record.date, time: record.time, pointId: current.pointId, grade: current.grade, correct, cause: record.cause, text: current.text, mode: state.mode || "practice", wordRelationReady: current.word ? relationCheck.ok : false });
       state.records[state.index] = record;
       state.lastWrongRecordId = correct ? "" : record.id;
       els.answerInput.disabled = true;
       els.checkBtn.disabled = true;
       els.answerModePanel.querySelectorAll(".answer-option").forEach((btn) => {
+        btn.disabled = true;
+      });
+      els.wordRelationPanel?.querySelectorAll("button").forEach((btn) => {
         btn.disabled = true;
       });
       saveChallengeDraft({ persist: false, render: false });
@@ -7517,10 +7944,22 @@ const STORE = {
       const current = state.currentSet[state.index];
       if (!current || !state.checked) return;
       const answerText = `正确答案：${formatAnswer(current.answer, current.answerLabel)}`;
+      const steps = (current.steps && current.steps.length ? current.steps : [current.explanation || methodHintFor(current)]).slice(0, 4);
+      const pitfall = (current.commonPitfalls || [])[0] || "容易跳步或看错题意";
+      const detailHTML = `
+        <div class="answer-detail-popover">
+          <strong>${escapeHTML(answerText)}</strong>
+          <p>${escapeHTML(methodHintFor(current))}</p>
+          <ol>${steps.map((step) => `<li>${escapeHTML(step)}</li>`).join("")}</ol>
+          <span>易错点：${escapeHTML(pitfall)}</span>
+        </div>`;
+      if (els.methodHint) {
+        els.methodHint.textContent = `${answerText}。${methodHintFor(current)}`;
+      }
       if (shouldUseMobilePetHintPopover()) {
-        openPetHintPopover(answerText, { kind: "answer", title: "查看答案", html: false });
+        openPetHintPopover(detailHTML, { kind: "answer", title: "查看答案", html: true });
       } else {
-        UI.notify(answerText);
+        UI.notify(`${answerText}。${steps[0] || methodHintFor(current)}`, { duration: 5200 });
       }
     }
 
@@ -7932,13 +8371,17 @@ const STORE = {
       const weak = weakestPoints(1)[0];
       const title = almost.length
         ? `再稳一下，${name}就能帮你清掉错题`
-        : hot.length
+        : list.some((item) => String(item.dueDate || todayKey()) <= todayKey())
+          ? `${name}排好了今日复习`
+          : hot.length
           ? `${name}发现了高频错题`
           : gradeWrongCount
             ? `${name}帮你排好了复习顺序`
             : `${name}的小错题篮清空了`;
       const copy = almost.length
         ? `有 ${almost.length} 道题已经连续做对 2 次，再做对 1 次会自动移入已掌握记录，并额外奖励金币。`
+        : list.some((item) => String(item.dueDate || todayKey()) <= todayKey())
+          ? `今天有 ${list.filter((item) => String(item.dueDate || todayKey()) <= todayKey()).length} 道到期错题。先复习这些题，做对后会自动排到下一次复习。`
         : hot.length
           ? `先攻 ${hot.length} 道反复出错的题。建议先看讲解，再点"同类题"做 3 道变式。`
           : gradeWrongCount
@@ -7994,14 +8437,18 @@ const STORE = {
         return;
       }
       const grouped = {
+        due: list.filter((item) => String(item.dueDate || todayKey()) <= todayKey()),
         hot: list.filter((item) => (item.wrongCount || 0) >= 3),
         almost: list.filter((item) => (item.correctStreak || 0) >= 2),
         normal: list.filter((item) => (item.wrongCount || 0) < 3 && (item.correctStreak || 0) < 2)
       };
       const summary = `<div class="report-item">
         <div class="item-top"><h3>当前错题分层</h3><span class="tag">本年级 ${gradeWrongbook.length} 题</span></div>
-        <div class="mini-meta"><span>反复错 ${grouped.hot.length} 题</span><span>快掌握 ${grouped.almost.length} 题</span><span>待订正 ${grouped.normal.length} 题</span></div>
+        <div class="mini-meta"><span>今日复习 ${grouped.due.length} 题</span><span>反复错 ${grouped.hot.length} 题</span><span>快掌握 ${grouped.almost.length} 题</span><span>待订正 ${grouped.normal.length} 题</span></div>
         <div class="wrong-task-grid">
+          <button class="wrong-task" type="button" data-wrong-task="due" ${grouped.due.length ? "" : "disabled"}>
+            <strong>今日待复习</strong><span>${grouped.due.length || 0} 题 · 按间隔复习</span>
+          </button>
           <button class="wrong-task" type="button" data-wrong-task="hot" ${grouped.hot.length ? "" : "disabled"}>
             <strong>先攻高频错题</strong><span>${grouped.hot.length || 0} 题 · 先看讲解再练</span>
           </button>
@@ -8020,7 +8467,7 @@ const STORE = {
           <div class="wrong-top">
             <div>
               <h3>${escapeHTML(pointLabel(q.pointId))}</h3>
-              <div class="wrong-meta"><span class="tag ${status.tone}">${status.label}</span><span>已错 ${item.wrongCount} 次</span><span>连续做对 ${item.correctStreak}/3</span></div>
+              <div class="wrong-meta"><span class="tag ${status.tone}">${status.label}</span><span>${escapeHTML(reviewDateLabel(item))}</span><span>已错 ${item.wrongCount} 次</span><span>连续做对 ${item.correctStreak}/3</span></div>
               ${wrongProgressHTML(item.correctStreak || 0)}
               <div class="wrong-meta"><span>错因</span>${causeSelectHTML(item.cause || "未标记", item.id)}<span>${escapeHTML(status.copy)}</span></div>
             </div>
@@ -8970,6 +9417,11 @@ const STORE = {
     });
     const handlePetPanelAction = (event) => {
       if (event.target.closest("#petShopGrid, #petBagList")) return;
+      const openPetPanelBtn = event.target.closest("[data-open-pet-modal]");
+      if (openPetPanelBtn) {
+        openPetModal(openPetPanelBtn.dataset.openPetModal);
+        return;
+      }
       const buyBtn = event.target.closest("[data-pet-buy]");
       if (buyBtn) {
         buyPetItem(buyBtn.dataset.petBuy);
@@ -9034,6 +9486,14 @@ const STORE = {
         startPetEventPractice();
         return;
       }
+      if (event.target.closest("[data-pet-wish-practice]")) {
+        const pet = petState(activeProfile());
+        const wish = currentPetWish(pet);
+        const left = Math.max(3, (Number(wish?.practiceTarget) || 5) - (Number(pet.wish?.progress) || 0));
+        closePetModals();
+        startPointSet(state.pointId === "auto" ? choosePoint().id : state.pointId, Math.min(12, left), "pet-wish");
+        return;
+      }
       if (event.target.closest("[data-pet-story-practice]")) {
         startPetStoryPractice();
       }
@@ -9042,6 +9502,7 @@ const STORE = {
     els.petCarePanelModal?.addEventListener("click", handlePetPanelAction);
     els.petGrowthPanelModal?.addEventListener("click", handlePetPanelAction);
     els.petPlanMenuModal?.addEventListener("click", handlePetPanelAction);
+    els.petShopModal?.addEventListener("click", handlePetPanelAction);
     els.petDressupModal?.addEventListener("click", handlePetPanelAction);
     els.petAchievementModal?.addEventListener("click", handlePetPanelAction);
     [els.petShopModal, els.petBagModal, els.petTaskModal, els.petCarePanelModal, els.petGrowthPanelModal, els.petPlanMenuModal, els.petDressupModal, els.petAchievementModal].forEach((modal) => {

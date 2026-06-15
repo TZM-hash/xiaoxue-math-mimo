@@ -2058,6 +2058,86 @@
       background: color-mix(in oklch, var(--accent-2), white 66%);
       color: color-mix(in oklch, var(--fg), white 8%);
     }
+    .word-relation-panel {
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 14px;
+      background: color-mix(in oklch, var(--accent-2), white 88%);
+      border: 1px solid color-mix(in oklch, var(--accent-2), white 46%);
+      display: grid;
+      gap: 10px;
+    }
+    .word-relation-panel[hidden] { display: none; }
+    .word-relation-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .word-relation-head strong {
+      font-size: 14px;
+      color: color-mix(in oklch, var(--accent-2), black 24%);
+    }
+    .word-relation-head span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .word-relation-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .word-relation-group {
+      display: grid;
+      gap: 6px;
+      min-width: 0;
+    }
+    .word-relation-group > span {
+      font-size: 12px;
+      font-weight: 950;
+      color: color-mix(in oklch, var(--fg), white 16%);
+    }
+    .word-relation-group > div {
+      display: grid;
+      gap: 6px;
+    }
+    .relation-chip {
+      width: 100%;
+      min-height: 34px;
+      padding: 7px 8px;
+      border-radius: 10px;
+      border: 1px solid color-mix(in oklch, var(--border), white 22%);
+      background: rgba(255,255,255,.74);
+      color: color-mix(in oklch, var(--fg), white 6%);
+      font-size: 12px;
+      font-weight: 900;
+      line-height: 1.25;
+      text-align: left;
+      box-shadow: none;
+    }
+    .relation-chip[aria-pressed="true"] {
+      background: color-mix(in oklch, var(--accent-2), white 72%);
+      border-color: color-mix(in oklch, var(--accent-2), white 18%);
+      color: color-mix(in oklch, var(--accent-2), black 30%);
+    }
+    .answer-detail-popover {
+      display: grid;
+      gap: 8px;
+      text-align: left;
+    }
+    .answer-detail-popover p,
+    .answer-detail-popover ol {
+      margin: 0;
+    }
+    .answer-detail-popover ol {
+      padding-left: 20px;
+    }
+    .answer-detail-popover span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 850;
+    }
     .feedback {
       min-height: 58px;
       margin-top: 14px;
@@ -2785,6 +2865,83 @@
       font-weight: 800;
       line-height: 1.45;
     }
+    .learning-map-panel {
+      margin-top: 14px;
+      padding: 14px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.78);
+      border: 1px solid color-mix(in oklch, var(--border), white 14%);
+      box-shadow: 0 12px 28px rgba(44, 86, 108, .08);
+    }
+    .learning-map-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .learning-map-head h3 {
+      margin: 0;
+      font: 950 18px/1.15 var(--font-display);
+    }
+    .learning-map-head p {
+      margin-top: 3px;
+      font-size: 12px;
+      font-weight: 850;
+    }
+    .learning-map-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(152px, 1fr));
+      gap: 9px;
+    }
+    .learning-map-node {
+      min-height: 104px;
+      padding: 11px;
+      border-radius: 13px;
+      display: grid;
+      align-content: start;
+      justify-items: start;
+      gap: 5px;
+      text-align: left;
+      background: var(--surface);
+      border: 1px solid color-mix(in oklch, var(--border), white 12%);
+      color: var(--fg);
+      box-shadow: none;
+    }
+    .learning-map-node strong {
+      font: 950 15px/1.18 var(--font-display);
+    }
+    .learning-map-node span,
+    .learning-map-node em {
+      font-size: 11px;
+      line-height: 1.35;
+      font-style: normal;
+      font-weight: 820;
+      color: var(--muted);
+    }
+    .learning-map-node em {
+      margin-top: auto;
+      padding: 4px 7px;
+      border-radius: 999px;
+      background: color-mix(in oklch, var(--border), white 58%);
+      color: color-mix(in oklch, var(--fg), white 8%);
+    }
+    .learning-map-node.mastered {
+      border-color: color-mix(in oklch, var(--success), white 36%);
+      background: linear-gradient(180deg, color-mix(in oklch, var(--success), white 88%), rgba(255,255,255,.84));
+    }
+    .learning-map-node.learning {
+      border-color: color-mix(in oklch, var(--accent), white 36%);
+      background: linear-gradient(180deg, color-mix(in oklch, var(--accent), white 88%), rgba(255,255,255,.84));
+    }
+    .learning-map-node.weak {
+      border-color: color-mix(in oklch, var(--coral), white 34%);
+      background: linear-gradient(180deg, color-mix(in oklch, var(--coral), white 86%), rgba(255,255,255,.84));
+    }
+    .learning-map-node.new {
+      border-color: color-mix(in oklch, var(--sun), white 28%);
+      background: linear-gradient(180deg, color-mix(in oklch, var(--sun), white 76%), rgba(255,255,255,.86));
+    }
     .system-settings-grid {
       display: grid;
       grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
@@ -3166,6 +3323,32 @@
     .pet-stage-card em {
       color: color-mix(in oklch, var(--accent), black 8%);
     }
+    .pet-quality-panel {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .pet-quality-panel div {
+      min-width: 0;
+      padding: 8px;
+      border-radius: 11px;
+      background: rgba(255,255,255,.7);
+      border: 1px solid color-mix(in oklch, var(--border), white 18%);
+    }
+    .pet-quality-panel strong {
+      display: block;
+      font: 950 13px/1.15 var(--font-display);
+      color: color-mix(in oklch, var(--fg), var(--accent) 10%);
+    }
+    .pet-quality-panel span {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+      font-weight: 820;
+    }
     .pet-space-progress {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3245,6 +3428,79 @@
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 12px;
       margin-top: 16px;
+    }
+    .pet-showcase-card {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+      padding: 14px;
+      border-radius: 14px;
+      background:
+        linear-gradient(135deg, color-mix(in oklch, var(--accent), white 86%), rgba(255,255,255,.72));
+      border: 1px solid color-mix(in oklch, var(--accent), white 42%);
+      box-shadow: 0 10px 22px rgba(44,86,108,.07);
+    }
+    .pet-showcase-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      gap: 10px;
+    }
+    .pet-showcase-head h3 {
+      margin: 0;
+      font: 950 16px/1.15 var(--font-display);
+    }
+    .pet-showcase-head p {
+      margin-top: 3px;
+      font-size: 12px;
+      font-weight: 850;
+    }
+    .pet-showcase-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .pet-showcase-grid span {
+      min-width: 0;
+      display: grid;
+      gap: 3px;
+      justify-items: start;
+      padding: 9px;
+      border-radius: 12px;
+      background: rgba(255,255,255,.72);
+      border: 1px solid color-mix(in oklch, var(--border), white 22%);
+    }
+    .pet-showcase-grid b {
+      font-size: 18px;
+      line-height: 1;
+    }
+    .pet-showcase-grid strong {
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font: 950 13px/1.15 var(--font-display);
+    }
+    .pet-showcase-grid em,
+    .pet-showcase-strip i {
+      color: var(--muted);
+      font-size: 11px;
+      font-style: normal;
+      font-weight: 850;
+      line-height: 1.25;
+    }
+    .pet-showcase-strip,
+    .pet-dressup-preview-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .pet-showcase-strip i,
+    .pet-dressup-preview-tags span {
+      padding: 5px 7px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.7);
+      border: 1px solid color-mix(in oklch, var(--border), white 24%);
     }
     .pet-mobile-panel-actions {
       display: none;
@@ -3351,6 +3607,13 @@
       overflow: hidden;
     }
     .pet-mini-progress i {
+      display: block;
+      width: var(--value, 0%);
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--accent), var(--sun));
+    }
+    .pet-mini-progress b {
       display: block;
       width: var(--value, 0%);
       height: 100%;
@@ -3631,6 +3894,98 @@
       padding: 2px 4px 4px 2px;
       scrollbar-width: thin;
     }
+    .pet-shop-advisor,
+    .pet-dressup-preview,
+    .pet-achievement-board {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.72);
+      border: 1px solid color-mix(in oklch, var(--border), white 18%);
+      box-shadow: 0 8px 18px rgba(44,86,108,.07);
+    }
+    .pet-shop-advisor {
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+    }
+    .pet-shop-advisor strong,
+    .pet-dressup-preview strong,
+    .pet-achievement-board strong {
+      display: block;
+      font: 950 14px/1.15 var(--font-display);
+    }
+    .pet-shop-advisor span,
+    .pet-dressup-preview p,
+    .pet-achievement-board span,
+    .pet-achievement-board em {
+      color: var(--muted);
+      font-size: 12px;
+      font-style: normal;
+      font-weight: 850;
+      line-height: 1.35;
+    }
+    .pet-dressup-preview {
+      grid-template-columns: 94px minmax(0, 1fr);
+      align-items: center;
+    }
+    .pet-dressup-preview-scene {
+      height: 84px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      position: relative;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 24% 22%, color-mix(in oklch, var(--sun), white 46%) 0 22px, transparent 23px),
+        linear-gradient(135deg, color-mix(in oklch, var(--accent), white 82%), color-mix(in oklch, var(--accent-2), white 82%));
+      border: 1px solid color-mix(in oklch, var(--accent), white 45%);
+    }
+    .pet-dressup-preview-scene[data-room-theme="forest"] {
+      background: linear-gradient(135deg, color-mix(in oklch, var(--accent), white 76%), color-mix(in oklch, var(--success), white 70%));
+    }
+    .pet-dressup-preview-scene[data-room-theme="star"] {
+      background: linear-gradient(180deg, color-mix(in oklch, var(--accent-2), black 18%), color-mix(in oklch, var(--accent), black 12%));
+    }
+    .pet-dressup-preview-scene[data-room-theme="candy"] {
+      background: linear-gradient(90deg, color-mix(in oklch, var(--coral), white 78%), color-mix(in oklch, var(--accent-2), white 76%));
+    }
+    .pet-dressup-preview-scene[data-room-theme="ocean"] {
+      background: linear-gradient(180deg, color-mix(in oklch, var(--accent-2), white 40%), color-mix(in oklch, var(--accent), white 58%));
+    }
+    .pet-dressup-preview-scene span {
+      position: absolute;
+      top: 8px;
+      left: 10px;
+      font-size: 18px;
+    }
+    .pet-dressup-preview-scene b {
+      width: 48px;
+      height: 48px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      background: rgba(255,255,255,.72);
+      font-size: 24px;
+      box-shadow: 0 8px 18px rgba(44,86,108,.12);
+    }
+    .pet-achievement-board-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .pet-achievement-board-grid span {
+      display: grid;
+      gap: 5px;
+      padding: 9px;
+      border-radius: 12px;
+      background: rgba(255,255,255,.68);
+      border: 1px solid color-mix(in oklch, var(--border), white 22%);
+    }
+    .pet-achievement-board-grid .pet-mini-progress {
+      width: 100%;
+    }
     .pet-shop-item,
     .pet-bag-item {
       display: grid;
@@ -3659,6 +4014,11 @@
       border-color: color-mix(in oklch, var(--accent), white 38%);
       box-shadow: 0 12px 28px rgba(44, 86, 108, .16);
       outline: none;
+    }
+    .pet-shop-item.recommended {
+      border-color: color-mix(in oklch, var(--accent), white 32%);
+      background:
+        linear-gradient(180deg, color-mix(in oklch, var(--accent), white 88%), rgba(255,255,255,.68));
     }
     .pet-shop-icon,
     .pet-bag-icon {
@@ -5468,6 +5828,52 @@
       .pet-care-dashboard {
         grid-template-columns: 1fr;
       }
+      .pet-showcase-card {
+        margin-top: 8px;
+        padding: 10px;
+        gap: 8px;
+      }
+      .pet-showcase-head {
+        align-items: center;
+      }
+      .pet-showcase-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+      }
+      .pet-showcase-grid span {
+        padding: 8px;
+      }
+      .pet-shop-advisor,
+      .pet-dressup-preview,
+      .pet-achievement-board {
+        margin-top: 8px;
+        padding: 9px;
+      }
+      .pet-shop-advisor {
+        grid-template-columns: 1fr;
+        justify-items: stretch;
+      }
+      .pet-shop-advisor button {
+        width: 100%;
+      }
+      .pet-dressup-preview {
+        grid-template-columns: 74px minmax(0, 1fr);
+      }
+      .pet-dressup-preview-scene {
+        height: 68px;
+        border-radius: 13px;
+      }
+      .pet-achievement-board-grid {
+        grid-template-columns: 1fr;
+        gap: 6px;
+      }
+      .pet-quality-panel {
+        grid-template-columns: 1fr;
+        gap: 6px;
+      }
+      .pet-quality-panel div {
+        padding: 7px;
+      }
       .pet-panel-grid,
       .pet-care-panel-grid,
       .pet-growth-panel-grid {
@@ -5563,6 +5969,31 @@
       .hub-action-card small {
         font-size: 12px;
         line-height: 1.35;
+      }
+      .learning-map-panel {
+        margin-top: 8px;
+        padding: 10px;
+        border-radius: 14px;
+      }
+      .learning-map-head {
+        align-items: stretch;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .learning-map-head h3 {
+        font-size: 16px;
+      }
+      .learning-map-head .compact-btn {
+        flex: 0 0 auto;
+        min-width: 88px;
+      }
+      .learning-map-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 7px;
+      }
+      .learning-map-node {
+        min-height: 92px;
+        padding: 9px;
       }
       .settings-block {
         padding: 8px;
@@ -8161,6 +8592,9 @@
       #petspaceView.active .pet-stage-card {
         display: none;
       }
+      #petspaceView.active #petGrowthPanelModal .pet-stage-card {
+        display: grid;
+      }
       #petspaceView.active .pet-space-progress div,
       #petspaceView.active .pet-space-bar {
         padding: 6px;
@@ -8283,6 +8717,13 @@
       #petShopModal .pet-shop-card,
       #petBagModal .pet-bag-card {
         grid-template-rows: auto minmax(0, 1fr) auto;
+      }
+      #petShopModal .pet-shop-card {
+        grid-template-rows: auto auto minmax(0, 1fr) auto;
+      }
+      #petAchievementModal .pet-task-modal-panel,
+      #petDressupModal .pet-task-modal-panel {
+        grid-template-rows: auto auto minmax(0, 1fr);
       }
       #petTaskModal .pet-task-modal-panel {
         grid-template-rows: auto auto minmax(0, 1fr);
@@ -8650,4 +9091,33 @@
     html.android-webview .reward-ribbon {
       box-shadow: none;
       animation-duration: .9s !important;
+    }
+
+    @media (max-width: 720px) {
+      .word-relation-panel {
+        margin-top: 8px;
+        padding: 10px;
+        gap: 8px;
+      }
+      .word-relation-head {
+        align-items: start;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .word-relation-grid {
+        grid-template-columns: 1fr;
+      }
+      .word-relation-group {
+        grid-template-columns: 70px minmax(0, 1fr);
+        align-items: start;
+      }
+      .word-relation-group > div {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      .relation-chip {
+        min-height: 32px;
+        padding: 6px;
+        font-size: 11px;
+        text-align: center;
+      }
     }

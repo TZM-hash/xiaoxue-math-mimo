@@ -29,6 +29,13 @@ const dressupMeta = read("js/pet-dressup-meta.js");
 
 assertContains(html, 'id="homeRouteList"', "首页应包含今日学习路线容器");
 assertContains(html, 'id="homeSettingsCard"', "mobile home should include the compact student/type summary card");
+assertContains(html, 'id="learningKnowledgeMap"', "learning modal should include the knowledge map mount");
+assertContains(html, 'id="petStagePanelSlot"', "mobile pet growth modal should include a stage/quality slot");
+assertContains(html, 'id="petShowcaseCard"', "pet space should include a visible showcase card");
+assertContains(html, 'id="petShopAdvisor"', "pet shop should include a recommendation panel");
+assertContains(html, 'id="petDressupPreview"', "dressup modal should include a current display preview");
+assertContains(html, 'id="petAchievementBoard"', "achievement modal should include grouped progress board");
+assertContains(html, 'id="wordRelationPanel"', "word problems should include the relation training panel");
 assertContains(html, 'id="heroTitle">今日学习路线</h1>', "home hero title should be today's route");
 assertContains(html, 'data-top-mode-action', "mobile top action should use the type setting entry");
 assertContains(html, 'nav-label-mobile">⚙️ 题型设置</span>', "mobile top action should be labeled as type settings");
@@ -42,6 +49,16 @@ assertContains(html, 'src="js/pet-dressup-meta.js"', "页面应加载装扮馆�
 assertContains(app, "homeRouteList: document.getElementById", "app 应缓存首页路线 DOM");
 assertContains(app, "homeSettingsCard: document.getElementById", "app should bind the mobile home summary card");
 assertContains(app, "renderHomeSettingsCard", "app should render the mobile home summary card from current type settings");
+assertContains(app, "renderWordRelationPanel", "app should render the word problem relation training panel");
+assertContains(app, "renderLearningKnowledgeMap", "app should render the learning knowledge map");
+assertContains(app, "petLearningQuality", "app should bind pet growth to learning quality");
+assertContains(app, "movePetStageCard", "app should move the pet stage quality card into the mobile growth modal");
+assertContains(app, "renderPetShowcase", "app should render pet display outcomes");
+assertContains(app, "renderPetShopAdvisor", "app should render pet shop recommendations");
+assertContains(app, "renderPetDressupPreview", "app should render current dressup preview");
+assertContains(app, "renderPetAchievementBoard", "app should render grouped achievement progress");
+assertContains(app, "dueWrongbook", "app should support scheduled wrongbook review");
+assertContains(app, "startDueReviewPractice", "home review route should start due wrongbook practice");
 assertContains(app, "practice-view-active", "app should expose current view state for responsive home route");
 assertContains(app, "type-settings-open", "app should expose mobile type settings state");
 assertContains(app, "handleTopModeAction", "top mode button should branch by mobile viewport");
@@ -55,12 +72,21 @@ assertNotContains(app, "systemProfileGradeInput", "app should not bind removed s
 
 assertContains(homeRoute, "window.MathCampHomeRoute", "今日学习路线模块应暴露全局接口");
 assertContains(homeRoute, "buildTodayRoute", "今日学习路线模块应导出 buildTodayRoute");
+assertContains(homeRoute, "reviewDue", "home route should include due review progress");
 assertContains(dressupMeta, "window.MathCampPetDressupMeta", "装扮馆文案模块应暴露全局接口");
 assertContains(dressupMeta, "unlockSourceText", "装扮馆文案模块应导出来源函数");
 assertContains(dressupMeta, "unlockProgressText", "装扮馆文案模块应导出进度函数");
 
 assertContains(css, ".home-route-list", "CSS 应包含首页路线网格");
 assertContains(css, ".home-settings-card", "CSS should style the mobile home summary card");
+assertContains(css, ".learning-map-panel", "CSS should style the learning knowledge map");
+assertContains(css, ".pet-quality-panel", "CSS should style the pet learning quality panel");
+assertContains(css, ".pet-showcase-card", "CSS should style the pet display showcase");
+assertContains(css, ".pet-shop-advisor", "CSS should style the pet shop advisor");
+assertContains(css, ".pet-dressup-preview", "CSS should style the dressup preview");
+assertContains(css, ".pet-achievement-board", "CSS should style the achievement board");
+assertContains(css, "#petspaceView.active #petGrowthPanelModal .pet-stage-card", "mobile growth modal should reveal the moved pet stage card");
+assertContains(css, ".word-relation-panel", "CSS should style the word problem relation training panel");
 assertContains(css, "body.practice-view-active:not(.practice-focus-mode):not(.type-settings-open) .home-settings-card", "mobile home should show the summary card only on the home state");
 assertContains(css, ".home-route-step", "CSS 应包含首页路线步骤卡片");
 assertContains(css, "body.practice-view-active:not(.practice-focus-mode) .home-dashboard", "mobile/tablet should show compact route on practice home");
