@@ -109,7 +109,7 @@
               <input type="checkbox" data-setting="catInteraction" ${this.settings.catInteraction ? 'checked' : ''}>
               <span>招财猫互动</span>
             </label>
-            <small>眼睛跟随、动作、气泡</small>
+            <small>点击动作、心情反馈、气泡</small>
           </div>
 
           <div class="control-item">

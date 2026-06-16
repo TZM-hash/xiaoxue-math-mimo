@@ -1,6 +1,6 @@
 /**
  * 喵喵数学 - 招财猫互动升级系统
- * 包含：眼睛跟随、多种动作、表情系统、互动反馈、语音气泡
+ * 包含：多种动作、表情系统、互动反馈、语音气泡
  */
 
 (function() {
@@ -19,7 +19,6 @@
     enabled: effectSettingEnabled('catInteraction'),
     catElement: null,
     catImage: null,
-    eyesElement: null,
     bubbleElement: null,
     randomActionTimer: null,
     currentMood: 'idle',
@@ -33,7 +32,6 @@
         return;
       }
 
-      this.setupEyeTracking();
       this.setupClickInteraction();
       this.setupRandomActions();
       this.setupMoodSystem();
@@ -59,60 +57,6 @@
           break;
         }
       }
-    },
-
-    /**
-     * 眼睛跟随光标
-     */
-    setupEyeTracking() {
-      if (!this.catElement) return;
-
-      // 创建眼睛元素
-      const eyesContainer = document.createElement('div');
-      eyesContainer.className = 'cat-eyes';
-      eyesContainer.innerHTML = `
-        <div class="cat-eye cat-eye-left">
-          <div class="cat-pupil"></div>
-        </div>
-        <div class="cat-eye cat-eye-right">
-          <div class="cat-pupil"></div>
-        </div>
-      `;
-
-      this.catElement.appendChild(eyesContainer);
-      this.eyesElement = eyesContainer;
-
-      // 眼睛跟随鼠标
-      document.addEventListener('mousemove', (e) => {
-        if (!this.enabled) return;
-        this.updateEyePosition(e.clientX, e.clientY);
-      });
-    },
-
-    updateEyePosition(mouseX, mouseY) {
-      if (!this.eyesElement) return;
-
-      const pupils = this.eyesElement?.querySelectorAll('.cat-pupil');
-      if (!pupils) return;
-
-      const catRect = this.catElement.getBoundingClientRect();
-      const catCenterX = catRect.left + catRect.width / 2;
-      const catCenterY = catRect.top + catRect.height / 2;
-
-      pupils.forEach((pupil, index) => {
-        const eye = pupil.parentElement;
-        const eyeRect = eye.getBoundingClientRect();
-        const eyeCenterX = eyeRect.left + eyeRect.width / 2;
-        const eyeCenterY = eyeRect.top + eyeRect.height / 2;
-
-        const angle = Math.atan2(mouseY - eyeCenterY, mouseX - eyeCenterX);
-        const distance = Math.min(5, Math.hypot(mouseX - eyeCenterX, mouseY - eyeCenterY) / 50);
-
-        const pupilX = Math.cos(angle) * distance;
-        const pupilY = Math.sin(angle) * distance;
-
-        pupil.style.transform = `translate(${pupilX}px, ${pupilY}px)`;
-      });
     },
 
     /**
@@ -283,9 +227,7 @@
           clearInterval(this.randomActionTimer);
           this.randomActionTimer = null;
         }
-        this.eyesElement?.remove();
         this.bubbleElement?.remove();
-        this.eyesElement = null;
         this.bubbleElement = null;
       } else {
         this.init();
@@ -300,53 +242,6 @@
     .cat {
       position: relative;
       user-select: none;
-    }
-
-    /* 眼睛 */
-    .cat-eyes {
-      position: absolute;
-      top: 30%;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      gap: 20px;
-      pointer-events: none;
-      z-index: 10;
-    }
-
-    .cat-eye {
-      width: 12px;
-      height: 12px;
-      background: white;
-      border-radius: 50%;
-      position: relative;
-      border: 2px solid #333;
-    }
-
-    .cat-pupil {
-      width: 6px;
-      height: 6px;
-      background: #333;
-      border-radius: 50%;
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      transition: transform 0.1s ease;
-    }
-
-    /* 心情状态 */
-    .cat[data-mood="happy"] .cat-eye {
-      animation: cat-eye-happy 0.5s ease;
-    }
-
-    .cat[data-mood="sad"] .cat-eye {
-      transform: scaleY(0.6);
-    }
-
-    @keyframes cat-eye-happy {
-      0%, 100% { transform: scaleY(1); }
-      50% { transform: scaleY(0.2); }
     }
 
     /* 动作动画 */
@@ -413,12 +308,6 @@
       }
     }
 
-    /* 移动端优化 */
-    @media (max-width: 768px) {
-      .cat-eyes {
-        display: none;
-      }
-    }
   `;
   document.head.appendChild(style);
 
