@@ -10025,9 +10025,6 @@ const STORE = {
       if (!rippleContainer) return;
 
       function createRipple(x, y) {
-        // 在Android WebView中禁用涟漪效果以提高性能
-        if (isAndroidWebView()) return;
-
         // 创建主涟漪
         const mainRipple = document.createElement('div');
         mainRipple.className = 'ripple-effect ripple-main';
