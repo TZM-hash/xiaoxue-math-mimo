@@ -2109,6 +2109,10 @@ const STORE = {
       if (point.topic === "statistics" && !textHas(question, /平均|统计|表|数据|最多|最少|合计/)) issues.push("统计题缺少统计语境");
       if (point.id === "g6-circle" && !textHas(question, /圆|半径|直径|π|3\.14/)) issues.push("圆题缺少圆的公式语境");
       if (point.id === "g5-volume" && !textHas(question, /长方体|正方体|体积|表面积|立方/)) issues.push("体积题缺少立体图形语境");
+      if (point.id === "g4-area" && !textHas(question, /面积|平方米|平方厘米/)) issues.push("面积专项混入非面积题");
+      if (point.id === "g2-table-div" && !textHas(question, /÷|平均分|每人|分成|每 \d+ 个/)) issues.push("表内除法专项混入非除法题");
+      if (point.id === "g5-decimal-add" && textHas(question, /[×÷]/)) issues.push("小数加减专项混入乘除题");
+      if (point.id === "g6-scale" && !textHas(question, /比例尺|图上|实际距离/)) issues.push("比例尺专项混入普通比例题");
       if (point.topic === "mixed" && !/[×÷()+\-]/.test(String(question.text || ""))) issues.push("混合运算题缺少运算符");
       if (point.topic === "twostep" && !/[×÷()+\-]/.test(String(question.text || ""))) issues.push("两步计算题缺少运算符");
       if (point.topic === "vertical" && !textHas(question, /竖式|数位|对齐|进位|退位|试商|小数点/)) issues.push("竖式题缺少竖式计算语境");
@@ -3938,7 +3942,8 @@ const STORE = {
     }
     function makeRatio(point, level) {
       if (point.id === "g6-scale") {
-        if (Math.random() > 0.5) {
+        const variants = [
+          () => {
           const scale = pick([1000, 2000, 5000, 10000]);
           const mapCm = rand(2, 9);
           const answer = round1(mapCm * scale / 100);
@@ -3949,17 +3954,36 @@ const STORE = {
             explanation: `比例尺 1:${scale} 表示图上 1 cm 对应实际 ${scale} cm。先算厘米，再换成米。`,
             steps: [`实际厘米：${mapCm} × ${scale} = ${mapCm * scale} cm。`, `换成米：${mapCm * scale} ÷ 100 = ${formatAnswer(answer)} 米。`]
           });
-        }
-        const actualM = rand(120, 900);
-        const scale = pick([1000, 2000, 5000, 10000]);
-        const answer = round1(actualM * 100 / scale);
-        return baseQuestion(point, {
-          text: `实际距离 ${actualM} 米，比例尺 1:${scale}，图上距离是多少厘米？`,
-          answer,
-          word: true,
-          explanation: `先把实际距离换成厘米，再除以比例尺中的 ${scale}。`,
-          steps: [`${actualM} 米 = ${actualM * 100} cm。`, `图上距离：${actualM * 100} ÷ ${scale} = ${formatAnswer(answer)} cm。`]
-        });
+          },
+          () => {
+            const actualM = rand(120, 900);
+            const scale = pick([1000, 2000, 5000, 10000]);
+            const answer = round1(actualM * 100 / scale);
+            return baseQuestion(point, {
+              text: `实际距离 ${actualM} 米，比例尺 1:${scale}，图上距离是多少厘米？`,
+              answer,
+              word: true,
+              explanation: `先把实际距离换成厘米，再除以比例尺中的 ${scale}。`,
+              steps: [`${actualM} 米 = ${actualM * 100} cm。`, `图上距离：${actualM * 100} ÷ ${scale} = ${formatAnswer(answer)} cm。`]
+            });
+          },
+          () => {
+            const scale = pick([5000, 10000, 20000]);
+            const actualM = rand(200, 1200);
+            const mapCm = round1(actualM * 100 / scale);
+            const extraCm = pick([1, 2, 3]);
+            const answer = round1((mapCm + extraCm) * scale / 100);
+            return baseQuestion(point, {
+              text: `比例尺 1:${scale} 的图上，原来 ${formatAnswer(mapCm)} cm，又向前画 ${extraCm} cm，新的实际距离是多少米？`,
+              answer,
+              word: true,
+              explanation: `先求新的图上距离，再按比例尺换算实际距离。图上距离是 ${formatAnswer(mapCm)} + ${extraCm} = ${formatAnswer(round1(mapCm + extraCm))} cm。`,
+              steps: [`图上距离合计 ${formatAnswer(round1(mapCm + extraCm))} cm。`, `实际厘米：${formatAnswer(round1(mapCm + extraCm))} × ${scale}。`, `换成米是 ${formatAnswer(answer)} 米。`],
+              templateType: "比例尺两步"
+            });
+          }
+        ];
+        return pick(variants)();
       }
       const variants = [
         () => {

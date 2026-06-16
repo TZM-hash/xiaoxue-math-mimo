@@ -702,6 +702,9 @@ function runVerticalQuestionTests() {
 function runSpecialSetPurityTests() {
   const debug = context.mathCampDebug;
   const points = Object.values(debug.pointMap);
+  ["g1-number-order", "g2-length-measure", "g3-fraction-intro", "g5-average-stat", "g6-equation"].forEach((pointId) => {
+    assert(debug.pointMap[pointId], `${pointId} should exist in the expanded question bank`);
+  });
   points.forEach((point) => {
     debug.state.grade = point.grade;
     debug.state.pointId = point.id;
@@ -718,6 +721,21 @@ function runSpecialSetPurityTests() {
       assert.strictEqual(question.grade, point.grade, `${point.id} set question ${index + 1} should keep selected grade`);
       assert.strictEqual(issues.length, 0, `${point.id} set question ${index + 1} should not mix question type: ${issues.join("; ")}`);
     });
+  });
+  [
+    ["g2-table-div", /÷|平均分|每人|分成/],
+    ["g4-area", /面积|平方米|平方厘米/],
+    ["g5-decimal-add", /[+\-]/],
+    ["g6-scale", /比例尺|图上|实际距离/]
+  ].forEach(([pointId, pattern]) => {
+    const point = debug.pointMap[pointId];
+    assert(point, `${pointId} should exist for specialty purity checks`);
+    for (let index = 0; index < 24; index += 1) {
+      const question = debug.makeQuestion(point, { strict: true });
+      const display = [question.text, question.explanation, ...(Array.isArray(question.steps) ? question.steps : [])].join(" ");
+      assert.strictEqual(debug.questionRuleIssues(point, question, { strict: true }).length, 0, `${pointId} should not mix question type`);
+      assert(pattern.test(display), `${pointId} should keep specialty context: ${display}`);
+    }
   });
 }
 
