@@ -48,6 +48,7 @@
     saveSettings() {
       try {
         localStorage.setItem('mathcamp-effects-settings', JSON.stringify(this.settings));
+        window.MathCampSystemSettings?.markUpdated?.();
       } catch (e) {
         console.warn('[特效控制] 保存设置失败', e);
       }

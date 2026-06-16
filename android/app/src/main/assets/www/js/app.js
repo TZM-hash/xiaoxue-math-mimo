@@ -3,8 +3,21 @@ const STORE = {
       active: "mathcamp-active-profile-v4",
       music: "mathcamp-music-enabled-v4",
       sound: "mathcamp-sound-enabled-v4",
-      theme: "mathcamp-theme-v1"
+      theme: "mathcamp-theme-v1",
+      system: "mathcamp-system-settings-v1"
     };
+    const EFFECT_SETTING_KEYS = Object.freeze([
+      "cursorEffects",
+      "seasonEffects",
+      "themeBackgrounds",
+      "catInteraction",
+      "questionEnhancements",
+      "microInteractions",
+      "uiAnimations",
+      "rewardParticles",
+      "focusBlur",
+      "ambientAnimations"
+    ]);
     const THEME_REGISTRY = {
       classic: { label: "经典", icon: "🌿", metaColor: "#3aa47c", desc: "清爽稳定的默认主题。", initial: true },
       "eye-care": { label: "护眼", icon: "🍃", metaColor: "#6c9a57", desc: "柔和绿调，适合长时间练习。", initial: true },
@@ -569,6 +582,98 @@ const STORE = {
     function storageJSON(key, fallback) {
       return Storage.json(key, fallback);
     }
+    function normalizeEffectsSettings(settings = {}) {
+      const normalized = {};
+      EFFECT_SETTING_KEYS.forEach((key) => {
+        normalized[key] = settings?.[key] !== false;
+      });
+      return normalized;
+    }
+    function readEffectsSettings() {
+      try {
+        return normalizeEffectsSettings(JSON.parse(localStorage.getItem("mathcamp-effects-settings") || "{}"));
+      } catch (_) {
+        return normalizeEffectsSettings({});
+      }
+    }
+    function writeEffectsSettings(settings) {
+      try {
+        localStorage.setItem("mathcamp-effects-settings", JSON.stringify(normalizeEffectsSettings(settings)));
+      } catch (_) {}
+    }
+    function normalizeSystemSettings(settings = {}) {
+      return {
+        version: 1,
+        theme: safeThemeId(settings.theme || "classic"),
+        musicOn: Boolean(settings.musicOn),
+        soundOn: Boolean(settings.soundOn),
+        effects: normalizeEffectsSettings(settings.effects || {}),
+        syncCode: String(settings.syncCode || "").trim().slice(0, 80),
+        updatedAt: Math.max(0, Number(settings.updatedAt) || 0)
+      };
+    }
+    function readSystemSettingsSnapshot() {
+      return normalizeSystemSettings(storageJSON(STORE.system, {}));
+    }
+    function getCurrentSyncCode() {
+      if (window.MathCampCloudSync?.getSyncCode) return window.MathCampCloudSync.getSyncCode();
+      try {
+        return localStorage.getItem("mathcamp-sync-code") || "";
+      } catch (_) {
+        return "";
+      }
+    }
+    function collectSystemSettings() {
+      const snapshot = readSystemSettingsSnapshot();
+      return normalizeSystemSettings({
+        ...snapshot,
+        theme: state?.theme || snapshot.theme,
+        musicOn: Boolean(state?.musicOn),
+        soundOn: Boolean(state?.soundOn),
+        effects: readEffectsSettings(),
+        syncCode: getCurrentSyncCode()
+      });
+    }
+    function saveSystemSettingsSnapshot(settings = null, options = {}) {
+      const now = options.touch === false ? 0 : Date.now();
+      const base = settings ? normalizeSystemSettings(settings) : collectSystemSettings();
+      const previous = readSystemSettingsSnapshot();
+      const normalized = normalizeSystemSettings({
+        ...base,
+        updatedAt: Number(base.updatedAt) || Number(previous.updatedAt) || now
+      });
+      if (options.touch !== false) normalized.updatedAt = now;
+      storageSet(STORE.system, JSON.stringify(normalized));
+      if (options.sync !== false && window.MathCampCloudSync?.isSyncEnabled?.()) {
+        window.MathCampCloudSync.pushSettings(normalized);
+      }
+      return normalized;
+    }
+    function applySystemSettings(settings, options = {}) {
+      const normalized = normalizeSystemSettings(settings);
+      state.theme = safeThemeId(normalized.theme);
+      state.musicOn = Boolean(normalized.musicOn);
+      state.soundOn = Boolean(normalized.soundOn);
+      storageSet(STORE.music, String(state.musicOn));
+      storageSet(STORE.sound, String(state.soundOn));
+      writeEffectsSettings(normalized.effects);
+      if (window.MathCampEffectsControl) {
+        window.MathCampEffectsControl.settings = {
+          ...window.MathCampEffectsControl.settings,
+          ...normalized.effects
+        };
+        window.MathCampEffectsControl.applySettings?.();
+      }
+      if (window.MathCampCloudSync?.setSyncCode) window.MathCampCloudSync.setSyncCode(normalized.syncCode);
+      applyTheme(state.theme, { save: false, notify: false });
+      storageSet(STORE.theme, state.theme);
+      updateSoundButtons();
+      saveSystemSettingsSnapshot(normalized, {
+        touch: options.touch !== false,
+        sync: options.sync !== false
+      });
+      return normalized;
+    }
     function updateSaveStatus(ok = true, message = "") {
       if (!els.saveStatus) return;
       els.saveStatus.classList.toggle("bad", !ok);
@@ -609,6 +714,7 @@ const STORE = {
       syncCustomSelects();
       if (options.save !== false) {
         storageSet(STORE.theme, state.theme);
+        saveSystemSettingsSnapshot();
       }
     }
     function todayKey(offset = 0) {
@@ -1625,7 +1731,10 @@ const STORE = {
       if (savedConfig && savedConfig.url && savedConfig.anonKey) {
         var ok = await CloudSync.initSupabase(savedConfig);
         if (ok) {
-          var result = await CloudSync.fullSync(state.profiles, state.activeId);
+          var result = await CloudSync.fullSync(state.profiles, state.activeId, collectSystemSettings());
+          if (result.settingsChanged && result.systemSettings) {
+            applySystemSettings(result.systemSettings, { touch: false, sync: false });
+          }
           if (result.changed) {
             state.profiles = result.profiles;
             if (result.activeId) state.activeId = result.activeId;
@@ -4963,6 +5072,7 @@ const STORE = {
     async function toggleMusic() {
       state.musicOn = !state.musicOn;
       storageSet(STORE.music, String(state.musicOn));
+      saveSystemSettingsSnapshot();
       updateSoundButtons();
       if (state.musicOn) {
         resetBgmPlayerForRetry();
@@ -4974,6 +5084,7 @@ const STORE = {
     async function toggleSound() {
       state.soundOn = !state.soundOn;
       storageSet(STORE.sound, String(state.soundOn));
+      saveSystemSettingsSnapshot();
       updateSoundButtons();
       if (state.soundOn) {
         playSound("meow-happy");
@@ -9432,7 +9543,8 @@ const STORE = {
         compatibleWith: ["web", "android-webview", "ios-webview"],
         exportedAt: new Date().toISOString(),
         profiles: state.profiles.map(normalizeProfile).filter(Boolean),
-        activeId: state.activeId
+        activeId: state.activeId,
+        systemSettings: collectSystemSettings()
       };
     }
     function buildArchiveText() {
@@ -9474,6 +9586,9 @@ const STORE = {
       const profiles = uniquifyRecordIds(data.profiles.map(normalizeProfile).filter(Boolean), "student");
       if (!profiles.length) throw new Error("没有有效学生档案");
       const activeId = profiles.some((profile) => profile.id === data.activeId) ? data.activeId : profiles[0].id;
+      const systemSettings = (isPlainObject(data.systemSettings) || isPlainObject(data.settings))
+        ? normalizeSystemSettings(data.systemSettings || data.settings)
+        : collectSystemSettings();
       const wrongCount = profiles.reduce((sum, profile) => sum + profile.wrongbook.length, 0);
       const masteredCount = profiles.reduce((sum, profile) => sum + profile.masteredWrong.length, 0);
       const historyCount = profiles.reduce((sum, profile) => sum + profile.history.length, 0);
@@ -9483,7 +9598,7 @@ const STORE = {
       if (before.wrong !== wrongCount) repairNotes.push(`修复/丢弃 ${before.wrong - wrongCount} 条异常错题`);
       if (before.mastered !== masteredCount) repairNotes.push(`修复/丢弃 ${before.mastered - masteredCount} 条已掌握错题记录`);
       if (before.history !== historyCount) repairNotes.push(`修复/丢弃 ${before.history - historyCount} 条异常练习记录`);
-      return { raw, profiles, activeId, wrongCount, masteredCount, historyCount, petCount, repairNotes };
+      return { raw, profiles, activeId, systemSettings, wrongCount, masteredCount, historyCount, petCount, repairNotes };
     }
     async function importData() {
       try {
@@ -9507,13 +9622,16 @@ const STORE = {
         if (!confirmed) return;
         const beforeProfiles = [...state.profiles];
         const beforeActiveId = state.activeId;
+        const beforeSystemSettings = collectSystemSettings();
         const beforePending = state.pendingImport;
         state.profiles = pending.profiles;
         state.activeId = pending.activeId;
+        applySystemSettings(pending.systemSettings || {}, { touch: false });
         state.pendingImport = null;
         if (!saveProfiles()) {
           state.profiles = beforeProfiles;
           state.activeId = beforeActiveId;
+          applySystemSettings(beforeSystemSettings, { touch: false });
           state.pendingImport = beforePending || pending;
           saveProfiles();
           syncFromProfile();
@@ -10096,10 +10214,14 @@ const STORE = {
       var config = { url: url, anonKey: anonKey };
       window.MathCampCloudSync.saveConfig(config);
       window.MathCampCloudSync.setSyncCode(syncCode);
+      saveSystemSettingsSnapshot();
       var ok = await window.MathCampCloudSync.initSupabase(config);
       if (ok) {
         UI.notify("云端同步已启用。");
-        var result = await window.MathCampCloudSync.fullSync(state.profiles, state.activeId);
+        var result = await window.MathCampCloudSync.fullSync(state.profiles, state.activeId, collectSystemSettings());
+        if (result.settingsChanged && result.systemSettings) {
+          applySystemSettings(result.systemSettings, { touch: false, sync: false });
+        }
         if (result.changed) {
           state.profiles = result.profiles;
           if (result.activeId) state.activeId = result.activeId;
@@ -10118,7 +10240,10 @@ const STORE = {
         return;
       }
       UI.notify("正在同步…");
-      var result = await window.MathCampCloudSync.fullSync(state.profiles, state.activeId);
+      var result = await window.MathCampCloudSync.fullSync(state.profiles, state.activeId, collectSystemSettings());
+      if (result.settingsChanged && result.systemSettings) {
+        applySystemSettings(result.systemSettings, { touch: false, sync: false });
+      }
       if (result.changed) {
         state.profiles = result.profiles;
         if (result.activeId) state.activeId = result.activeId;
@@ -10129,6 +10254,12 @@ const STORE = {
         UI.notify("已是最新，无需同步。");
       }
     });
+
+    window.MathCampSystemSettings = {
+      collect: collectSystemSettings,
+      apply: applySystemSettings,
+      markUpdated: () => saveSystemSettingsSnapshot()
+    };
 
     applyTheme(state.theme, { save: false });
     document.body.classList.toggle("practice-view-active", state.view === "practice");
@@ -10164,6 +10295,10 @@ const STORE = {
         generatePrintSheet,
         buildArchiveData,
         parseImportBackup,
+        collectSystemSettings,
+        applySystemSettings,
+        saveSystemSettingsSnapshot,
+        normalizeSystemSettings,
         petState,
         petTaskState,
         petShopCatalog: PET_SHOP,

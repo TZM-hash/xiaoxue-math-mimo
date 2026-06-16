@@ -592,10 +592,27 @@ function runArchiveCloudCoverageTests() {
 
   debug.state.profiles = [profile];
   debug.state.activeId = profile.id;
+  debug.state.theme = "eye-care";
+  debug.state.musicOn = true;
+  debug.state.soundOn = false;
+  context.localStorage.setItem("mathcamp-effects-settings", JSON.stringify({
+    cursorEffects: false,
+    rewardParticles: false,
+    ambientAnimations: false
+  }));
+  context.MathCampCloudSync.setSyncCode("family-sync");
+  debug.saveSystemSettingsSnapshot({ updatedAt: 123456 }, { touch: false, sync: false });
 
   const archive = debug.buildArchiveData();
   const archivedProfile = archive.profiles.find((item) => item.id === profile.id);
   assert(archivedProfile, "archive should include the rich pet profile");
+  assert.strictEqual(archive.systemSettings.theme, "eye-care", "archive should include active system theme");
+  assert.strictEqual(archive.systemSettings.musicOn, true, "archive should include music setting");
+  assert.strictEqual(archive.systemSettings.soundOn, false, "archive should include sound setting");
+  assert.strictEqual(archive.systemSettings.effects.cursorEffects, false, "archive should include effect settings");
+  assert.strictEqual(archive.systemSettings.effects.rewardParticles, false, "archive should include reward particle setting");
+  assert.strictEqual(archive.systemSettings.syncCode, "family-sync", "archive should include sync code but not Supabase secrets");
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(archive.systemSettings, "supabaseAnonKey"), false, "archive should not export Supabase anon key");
   assert.strictEqual(archivedProfile.settings.pointId, point.id, "archive should include type settings");
   assert.strictEqual(archivedProfile.settings.dailyGoal, 33, "archive should include daily goal");
   assert.strictEqual(archivedProfile.history.length, 1, "archive should include practice history");
@@ -608,6 +625,8 @@ function runArchiveCloudCoverageTests() {
   const importedProfile = imported.profiles.find((item) => item.id === profile.id);
   assert(importedProfile, "import preview should include the rich pet profile");
   assert.strictEqual(importedProfile.settings.answerMode, "judge", "import should keep type settings");
+  assert.strictEqual(imported.systemSettings.theme, "eye-care", "import preview should keep system theme");
+  assert.strictEqual(imported.systemSettings.effects.ambientAnimations, false, "import preview should keep effect toggles");
   assertRichPet(importedProfile.rewards.pet, "import");
 
   const cloudProfile = JSON.parse(JSON.stringify(archivedProfile));
@@ -622,6 +641,19 @@ function runArchiveCloudCoverageTests() {
   assert.strictEqual(mergedPet.coins, 777, "cloud sync should prefer newer full pet data");
   assert.strictEqual(mergedPet.inventory.basicFood, 9, "cloud sync should keep newer bag inventory");
   assertRichPet({ ...mergedPet, coins: 321, inventory: { ...mergedPet.inventory, basicFood: 3 } }, "cloud");
+
+  const newerCloudSettings = context.MathCampCloudSync.mergeSettings(
+    { theme: "classic", musicOn: false, soundOn: true, effects: { cursorEffects: true }, syncCode: "local", updatedAt: 100 },
+    { theme: "eye-care", musicOn: true, soundOn: false, effects: { cursorEffects: false }, syncCode: "cloud", updatedAt: 200 }
+  );
+  assert.strictEqual(newerCloudSettings.changed, true, "cloud sync should report newer system settings");
+  assert.strictEqual(newerCloudSettings.settings.theme, "eye-care", "cloud sync should prefer newer system settings");
+  const newerLocalSettings = context.MathCampCloudSync.mergeSettings(
+    { theme: "anime", musicOn: true, soundOn: true, effects: { cursorEffects: true }, syncCode: "local", updatedAt: 300 },
+    { theme: "classic", updatedAt: 200 }
+  );
+  assert.strictEqual(newerLocalSettings.changed, false, "cloud sync should keep newer local system settings");
+  assert.strictEqual(newerLocalSettings.settings.theme, "anime", "newer local system settings should win");
 }
 
 function runInteractionBoundaryTests() {

@@ -256,6 +256,18 @@
     return latest;
   }
 
+  function getSettingsTime(settings) {
+    return Math.max(0, Number(settings?.updatedAt) || 0);
+  }
+
+  function mergeSettings(localSettings, cloudSettings) {
+    if (!cloudSettings) return { settings: localSettings || null, changed: false };
+    if (!localSettings || getSettingsTime(cloudSettings) > getSettingsTime(localSettings)) {
+      return { settings: cloudSettings, changed: true };
+    }
+    return { settings: localSettings, changed: false };
+  }
+
   function scheduleSync(profiles, activeId) {
     if (syncTimer) clearTimeout(syncTimer);
     syncTimer = setTimeout(function () {
@@ -272,15 +284,37 @@
     }, SYNC_RETRY_MS);
   }
 
-  async function fullSync(localProfiles, localActiveId) {
-    if (!syncEnabled) return { profiles: localProfiles, activeId: localActiveId, changed: false };
+  async function fullSync(localProfiles, localActiveId, localSettings) {
+    if (!syncEnabled) {
+      return {
+        profiles: localProfiles,
+        activeId: localActiveId,
+        systemSettings: localSettings || null,
+        changed: false,
+        settingsChanged: false
+      };
+    }
 
     setSyncStatus("syncing");
     var cloudRows = await pullAllProfiles();
+    var cloudSettings = await pullSettings();
+    var settingsMerge = mergeSettings(localSettings, cloudSettings);
+    var mergedSettings = settingsMerge.settings;
+    var settingsChanged = settingsMerge.changed;
+    if (!settingsChanged && localSettings) {
+      await pushSettings(localSettings);
+    }
 
     if (!cloudRows) {
       await pushProfiles(localProfiles, localActiveId);
-      return { profiles: localProfiles, activeId: localActiveId, changed: false };
+      if (localSettings) await pushSettings(localSettings);
+      return {
+        profiles: localProfiles,
+        activeId: localActiveId,
+        systemSettings: mergedSettings,
+        changed: false,
+        settingsChanged: settingsChanged
+      };
     }
 
     var merged = mergeProfiles(localProfiles, cloudRows);
@@ -290,11 +324,23 @@
 
     if (JSON.stringify(merged) !== JSON.stringify(localProfiles)) {
       await pushProfiles(merged, mergedActiveId);
-      return { profiles: merged, activeId: mergedActiveId, changed: true };
+      return {
+        profiles: merged,
+        activeId: mergedActiveId,
+        systemSettings: mergedSettings,
+        changed: true,
+        settingsChanged: settingsChanged
+      };
     }
 
     setSyncStatus("synced");
-    return { profiles: merged, activeId: mergedActiveId, changed: false };
+    return {
+      profiles: merged,
+      activeId: mergedActiveId,
+      systemSettings: mergedSettings,
+      changed: false,
+      settingsChanged: settingsChanged
+    };
   }
 
   function isSyncEnabled() {
@@ -323,6 +369,7 @@
     pullAllProfiles: pullAllProfiles,
     pushSettings: pushSettings,
     pullSettings: pullSettings,
+    mergeSettings: mergeSettings,
     mergeProfiles: mergeProfiles,
     scheduleSync: scheduleSync,
     fullSync: fullSync,
