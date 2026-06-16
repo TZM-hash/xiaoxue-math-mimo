@@ -251,8 +251,9 @@ function runUpgradeFeatureTests() {
   assert(pet.wish && pet.wish.date === debug.todayKey(), "新宠物应生成今日心愿");
   assert(pet.event && pet.event.date === debug.todayKey(), "新宠物应生成今日随机事件");
   assert(pet.memories && Array.isArray(pet.memories.log), "新宠物应包含成长日记");
-  assert.strictEqual(debug.petDailyTasks.length, 4, "每日宠物任务应包含限时小测任务");
+  assert.strictEqual(debug.petDailyTasks.length, 5, "每日宠物任务应包含 30 题目标和限时小测任务");
   assert(!debug.petDailyTasks.some((task) => task.id === "daily-special-5"), "每日任务不应包含专项练习");
+  assert(debug.petDailyTasks.some((task) => task.id === "daily-30"), "每日任务应包含 30 题目标");
   assert(debug.petDailyTasks.some((task) => task.id === "daily-quiz-1"), "每日任务应包含限时小测");
   assert.strictEqual(debug.petWeeklyTasks.length, 6, "每周宠物任务应包含闯关任务");
   assert(debug.petWeeklyTasks.some((task) => task.id === "weekly-challenge-2"), "每周任务应包含闯关通关目标");
@@ -284,7 +285,7 @@ function runPetRewardClaimTests() {
   const debug = context.mathCampDebug;
   const taskProfile = debug.normalizeProfile({ id: "claim-task", name: "Claim", grade: 2 });
   const today = debug.todayKey();
-  taskProfile.history = Array.from({ length: 20 }, (_, index) => ({
+  taskProfile.history = Array.from({ length: 30 }, (_, index) => ({
     date: today,
     time: index + 1,
     grade: 2,
@@ -296,14 +297,19 @@ function runPetRewardClaimTests() {
   debug.state.profiles = [taskProfile];
   debug.state.activeId = taskProfile.id;
   const daily20 = debug.petDailyTasks.find((task) => task.id === "daily-20");
+  const daily30 = debug.petDailyTasks.find((task) => task.id === "daily-30");
   assert.strictEqual(debug.petTaskState(taskProfile, daily20, "daily").complete, true, "20 题任务应可领取");
+  assert.strictEqual(debug.petTaskState(taskProfile, daily30, "daily").complete, true, "30 题任务应可领取");
   debug.claimPetTask("daily", "daily-20");
+  debug.claimPetTask("daily", "daily-30");
   const coinsAfterTask = debug.petState(taskProfile).coins;
   assert.strictEqual(debug.petTaskState(taskProfile, daily20, "daily").claimed, true, "领取后任务应立即变成已完成");
+  assert.strictEqual(debug.petTaskState(taskProfile, daily30, "daily").claimed, true, "30 题任务领取后应立即变成已完成");
   const reopenedTaskProfile = debug.normalizeProfile(JSON.parse(JSON.stringify(taskProfile)));
   debug.state.profiles = [reopenedTaskProfile];
   debug.state.activeId = reopenedTaskProfile.id;
   assert.strictEqual(debug.petTaskState(reopenedTaskProfile, daily20, "daily").claimed, true, "刷新后每日任务不应恢复领取按钮");
+  assert.strictEqual(debug.petTaskState(reopenedTaskProfile, daily30, "daily").claimed, true, "刷新后 30 题每日任务不应恢复领取按钮");
   debug.claimPetTask("daily", "daily-20");
   assert.strictEqual(debug.petState(reopenedTaskProfile).coins, coinsAfterTask, "重复打开任务页不应再次发放每日任务金币");
 
@@ -372,17 +378,20 @@ function runPetEconomyTests() {
   const shopById = Object.fromEntries(debug.petShopCatalog.map((item) => [item.id, item]));
   const dailyById = Object.fromEntries(debug.petDailyTasks.map((task) => [task.id, task]));
   const tiers = new Set(debug.petShopCatalog.map((item) => item.tier));
-  const twoDaysBasicCare = (shopById.basicFood.price + shopById.towel.price) * 2;
-  const expectedDaily20Income = 20 * 2 + dailyById["daily-10"].reward + dailyById["daily-20"].reward;
+  const twoDaysCompleteCare = shopById.basicFood.price + shopById.towel.price + shopById.yarnBall.price;
+  const expectedDaily30Income = 30 * 2 + dailyById["daily-10"].reward + dailyById["daily-20"].reward + dailyById["daily-30"].reward;
+  const expectedRoundBonus = Math.min(10, Math.ceil(30 / 2));
   const wrongReviewBoost = dailyById["daily-wrong-3"].reward;
 
   assert(tiers.has("basic") && tiers.has("advanced") && tiers.has("rare"), "宠物商店应按基础、进阶、长期目标分层");
-  assert.strictEqual(twoDaysBasicCare, 62, "两天基础照料成本应为 62 金币");
-  assert.strictEqual(expectedDaily20Income, 62, "20 题全对加基础每日任务约为 62 金币");
-  assert.strictEqual(expectedDaily20Income, twoDaysBasicCare, "20 题基础收益应刚好覆盖两天基础照料");
-  assert.strictEqual(expectedDaily20Income + wrongReviewBoost, 74, "复习错题后应有明确结余");
-  assert.strictEqual(shopById.renameCard.price, 100, "改名卡价格应稳定为 100 金币");
-  assert(shopById.fishToy.price > expectedDaily20Income, "高级玩具不应一天基础练习就轻易买到");
+  assert.strictEqual(twoDaysCompleteCare, 84, "两天完整基础照料成本应为 84 金币");
+  assert.strictEqual(expectedDaily30Income, 92, "30 题全对加基础每日任务约为 92 金币");
+  assert(expectedDaily30Income > twoDaysCompleteCare, "30 题基础收益应覆盖两天完整基础照料");
+  assert.strictEqual(expectedDaily30Income - twoDaysCompleteCare, 8, "30 题基础收益应留下少量结余");
+  assert.strictEqual(expectedDaily30Income + expectedRoundBonus - twoDaysCompleteCare, 18, "完成整轮后应有可攒装扮的结余");
+  assert.strictEqual(expectedDaily30Income + wrongReviewBoost - twoDaysCompleteCare, 20, "复习错题后应有明确结余");
+  assert.strictEqual(shopById.renameCard.price, 120, "改名卡价格应稳定为 120 金币");
+  assert(shopById.fishToy.price > expectedDaily30Income, "高级玩具不应一天基础练习就轻易买到");
 
   const rewardProfile = debug.normalizeProfile({ id: "reward-test", name: "Reward", grade: 2 });
   debug.state.profiles = [rewardProfile];

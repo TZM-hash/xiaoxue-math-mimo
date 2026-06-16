@@ -9,14 +9,14 @@ const STORE = {
       classic: { label: "经典", icon: "🌿", metaColor: "#3aa47c", desc: "清爽稳定的默认主题。", initial: true },
       "eye-care": { label: "护眼", icon: "🍃", metaColor: "#6c9a57", desc: "柔和绿调，适合长时间练习。", initial: true },
       anime: { label: "二次元", icon: "🌸", metaColor: "#d85ca6", desc: "轻快明亮的卡通配色。", initial: true },
-      purple: { label: "紫色", icon: "💜", metaColor: "#8b5cf6", desc: "梦幻紫色学习桌。", unlockLevel: 3, price: 60 },
-      rainbow: { label: "彩虹", icon: "🌈", metaColor: "#ff8a4c", desc: "多彩但不刺眼，适合低年级。", unlockLevel: 4, price: 80 },
-      forest: { label: "森林", icon: "🌳", metaColor: "#287a55", desc: "像在小森林里安静做题。", unlockLevel: 5, price: 90 },
-      ocean: { label: "海洋", icon: "🌊", metaColor: "#2f92c9", desc: "清亮蓝绿，像海边课堂。", unlockLevel: 7, price: 110 },
-      candy: { label: "糖果", icon: "🍬", metaColor: "#df5f8f", desc: "甜甜的儿童感配色。", unlockLevel: 8, price: 120 },
-      storybook: { label: "童话书", icon: "📖", metaColor: "#c97a38", desc: "温暖纸张和故事书色调。", unlockLevel: 10, price: 150 },
-      star: { label: "星空", icon: "🌙", metaColor: "#334eb8", desc: "明亮星空，不使用深色背景。", unlockLevel: 12, price: 180 },
-      playground: { label: "游乐场", icon: "🎈", metaColor: "#e45f6b", desc: "活泼红蓝黄，适合奖励阶段。", unlockLevel: 15, price: 220 }
+      purple: { label: "紫色", icon: "💜", metaColor: "#8b5cf6", desc: "梦幻紫色学习桌。", unlockLevel: 3, price: 70 },
+      rainbow: { label: "彩虹", icon: "🌈", metaColor: "#ff8a4c", desc: "多彩但不刺眼，适合低年级。", unlockLevel: 4, price: 95 },
+      forest: { label: "森林", icon: "🌳", metaColor: "#287a55", desc: "像在小森林里安静做题。", unlockLevel: 5, price: 120 },
+      ocean: { label: "海洋", icon: "🌊", metaColor: "#2f92c9", desc: "清亮蓝绿，像海边课堂。", unlockLevel: 7, price: 145 },
+      candy: { label: "糖果", icon: "🍬", metaColor: "#df5f8f", desc: "甜甜的儿童感配色。", unlockLevel: 8, price: 160 },
+      storybook: { label: "童话书", icon: "📖", metaColor: "#c97a38", desc: "温暖纸张和故事书色调。", unlockLevel: 10, price: 190 },
+      star: { label: "星空", icon: "🌙", metaColor: "#334eb8", desc: "明亮星空，不使用深色背景。", unlockLevel: 12, price: 230 },
+      playground: { label: "游乐场", icon: "🎈", metaColor: "#e45f6b", desc: "活泼红蓝黄，适合奖励阶段。", unlockLevel: 15, price: 280 }
     };
     const INITIAL_SYSTEM_THEME_IDS = Object.freeze(Object.keys(THEME_REGISTRY).filter((id) => THEME_REGISTRY[id].initial));
     const SYSTEM_THEME_IDS = Object.freeze(Object.keys(THEME_REGISTRY));
@@ -6764,7 +6764,7 @@ const STORE = {
       renderPetRunawayNotice(pet, profile);
       const tierLabels = { basic: "基础照料", advanced: "进阶用品", rare: "长期目标" };
       const tierCopy = {
-        basic: "20 题基础练习约能覆盖两天基础照料。",
+        basic: "30 题练习约能覆盖两天完整基础照料，并留下少量结余。",
         advanced: "完成额外练习后使用，主要补状态和亲密。",
         rare: "连续坚持几天后再购买，作为长期目标。"
       };
