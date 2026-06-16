@@ -10024,6 +10024,8 @@ const STORE = {
       const rippleContainer = document.getElementById('rippleContainer');
       if (!rippleContainer) return;
 
+      let lastTouchTime = 0;
+
       function createRipple(x, y) {
         // 创建主涟漪
         const mainRipple = document.createElement('div');
@@ -10075,16 +10077,19 @@ const STORE = {
         }, 900);
       }
 
-      // 监听点击和触摸事件
-      document.addEventListener('click', (e) => {
-        createRipple(e.clientX, e.clientY);
-      });
-
+      // 监听触摸和点击事件，防止移动端重复触发
       document.addEventListener('touchstart', (e) => {
         if (e.touches.length > 0) {
           const touch = e.touches[0];
           createRipple(touch.clientX, touch.clientY);
+          lastTouchTime = Date.now();
         }
+      }, { passive: true });
+
+      document.addEventListener('click', (e) => {
+        // 移动端touchstart已触发过则跳过click
+        if (Date.now() - lastTouchTime < 300) return;
+        createRipple(e.clientX, e.clientY);
       });
     })();
 
