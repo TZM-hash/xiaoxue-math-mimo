@@ -196,6 +196,52 @@
       cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Ccircle cx='12' cy='17' r='6' fill='%23f6c86f' stroke='%23533b1b' stroke-width='2'/%3E%3Ccircle cx='6' cy='10' r='3' fill='%23f6c86f' stroke='%23533b1b' stroke-width='1.6'/%3E%3Ccircle cx='12' cy='7' r='3' fill='%23f6c86f' stroke='%23533b1b' stroke-width='1.6'/%3E%3Ccircle cx='18' cy='10' r='3' fill='%23f6c86f' stroke='%23533b1b' stroke-width='1.6'/%3E%3C/svg%3E") 8 8, auto;
     }
 
+    #rippleContainer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 9999;
+      overflow: hidden;
+    }
+
+    .ripple-effect {
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .ripple-main {
+      width: 100px;
+      height: 100px;
+      background: radial-gradient(circle,
+        color-mix(in oklch, var(--accent), white 40%) 0%,
+        color-mix(in oklch, var(--accent-2), white 50%) 30%,
+        color-mix(in oklch, var(--sun), white 60%) 60%,
+        transparent 100%);
+      animation: ripple-expand 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      filter: blur(2px);
+    }
+
+    .ripple-wave {
+      width: 80px;
+      height: 80px;
+      border: 3px solid color-mix(in oklch, var(--accent), white 30%);
+      animation: ripple-wave 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+
+    .ripple-particle {
+      width: 12px;
+      height: 12px;
+      background: linear-gradient(135deg,
+        color-mix(in oklch, var(--sun), white 20%),
+        color-mix(in oklch, var(--accent), white 40%));
+      box-shadow: 0 0 8px color-mix(in oklch, var(--accent), white 40%);
+      animation: ripple-particle 0.7s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+    }
+
     button, input, select, textarea { font: inherit; }
     button {
       position: relative;
@@ -346,6 +392,39 @@
       0% { opacity: 0; transform: translate(-50%, 8px) scale(.72); }
       18% { opacity: 1; }
       100% { opacity: 0; transform: translate(-50%, -64px) scale(1.04); }
+    }
+    @keyframes ripple-expand {
+      0% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(0);
+      }
+      50% {
+        opacity: 0.5;
+      }
+      100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(2.5);
+      }
+    }
+    @keyframes ripple-particle {
+      0% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(0) rotate(0deg);
+      }
+      100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) translate(var(--particle-x), var(--particle-y)) scale(1) rotate(360deg);
+      }
+    }
+    @keyframes ripple-wave {
+      0% {
+        opacity: 0.8;
+        transform: translate(-50%, -50%) scale(0);
+      }
+      100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(3);
+      }
     }
     @keyframes pet-orbit { 0% { transform: rotate(0deg) translateX(48px) rotate(0deg); opacity: .34; } 50% { opacity: .78; } 100% { transform: rotate(360deg) translateX(48px) rotate(-360deg); opacity: .34; } }
     @keyframes pet-token-float { 0% { opacity: 0; transform: translate(-50%, 10px) scale(.78); } 20% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -74px) scale(1.04); } }
@@ -1221,9 +1300,11 @@
     .view.active.view-enter .report-card,
     .view.active.view-enter .data-card,
     .view.active.view-enter .print-controls,
-    .view.active.view-enter .home-dashboard,
     .view.active.view-enter .pet-room-card,
     .view.active.view-enter .task-home {
+      animation: card-soft-in .22s cubic-bezier(.2, .8, .2, 1) both;
+    }
+    .home-dashboard.view-enter {
       animation: card-soft-in .22s cubic-bezier(.2, .8, .2, 1) both;
     }
     .workspace, .print-layout, .data-layout {
@@ -3393,6 +3474,7 @@
       background: rgba(255,255,255,.88);
       color: color-mix(in oklch, var(--accent), black 12%);
       font: 950 12px/1 var(--font-display);
+      display: none;
     }
     .pet-room-cat::after {
       content: attr(data-outfit-icon);

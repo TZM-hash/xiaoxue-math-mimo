@@ -5275,10 +5275,22 @@ const STORE = {
       Object.entries(els.views).forEach(([key, element]) => {
         const active = key === view;
         element.classList.toggle("active", active);
-        if (active && previous !== view) {
+        // 确保所有视图切换都有动画效果，包括切回在线练习页
+        if (active && previous !== view && previous !== null) {
           element.classList.remove("view-enter");
           void element.offsetWidth;
           element.classList.add("view-enter");
+
+          // 移动端：为在线练习页的内部元素也添加动画
+          if (view === "practice" && window.matchMedia("(max-width: 1180px)").matches) {
+            // 移动端home-dashboard是#practiceView的兄弟节点，需要单独添加动画
+            const homeDashboard = document.querySelector(".home-dashboard");
+            if (homeDashboard) {
+              homeDashboard.classList.remove("view-enter");
+              void homeDashboard.offsetWidth;
+              homeDashboard.classList.add("view-enter");
+            }
+          }
         }
       });
       if (view !== "practice") setPracticeLayer("setup");
@@ -5309,6 +5321,14 @@ const STORE = {
     function closeTypeSettings() {
       setTypeSettingsOpen(false);
       showView("practice");
+      if (window.matchMedia("(max-width: 620px)").matches) {
+        const homeDashboard = document.querySelector(".home-dashboard");
+        if (homeDashboard) {
+          homeDashboard.classList.remove("view-enter");
+          void homeDashboard.offsetWidth;
+          homeDashboard.classList.add("view-enter");
+        }
+      }
     }
     function handleTopModeAction() {
       if (window.matchMedia("(max-width: 620px)").matches) openTypeSettings();
@@ -5325,8 +5345,22 @@ const STORE = {
     }
 
     function setPracticeLayer(layer) {
+      const previous = state.practiceLayer;
       state.practiceLayer = layer;
-      if (els.practiceWorkspace) els.practiceWorkspace.classList.toggle("focus-mode", layer === "focus");
+      if (els.practiceWorkspace) {
+        els.practiceWorkspace.classList.toggle("focus-mode", layer === "focus");
+        // 添加动画效果到panel和main-stack
+        if (previous !== layer && window.matchMedia("(max-width: 1180px)").matches) {
+          const animTarget = layer === "focus"
+            ? els.practiceWorkspace.querySelector(".main-stack")
+            : els.practiceWorkspace.querySelector(".panel");
+          if (animTarget) {
+            animTarget.classList.remove("view-enter");
+            void animTarget.offsetWidth;
+            animTarget.classList.add("view-enter");
+          }
+        }
+      }
       document.body.classList.toggle("practice-focus-mode", layer === "focus");
       document.body.classList.toggle("practice-return-visible", layer === "focus" && state.mode !== "normal");
       if (layer === "focus") setTypeSettingsOpen(false);
@@ -9984,5 +10018,78 @@ const STORE = {
         els
       };
     }
+
+    // 全局点击涟漪特效
+    (function initRippleEffect() {
+      const rippleContainer = document.getElementById('rippleContainer');
+      if (!rippleContainer) return;
+
+      function createRipple(x, y) {
+        // 在Android WebView中禁用涟漪效果以提高性能
+        if (isAndroidWebView()) return;
+
+        // 创建主涟漪
+        const mainRipple = document.createElement('div');
+        mainRipple.className = 'ripple-effect ripple-main';
+        mainRipple.style.left = x + 'px';
+        mainRipple.style.top = y + 'px';
+        rippleContainer.appendChild(mainRipple);
+
+        // 创建波纹环
+        const waveRipple = document.createElement('div');
+        waveRipple.className = 'ripple-effect ripple-wave';
+        waveRipple.style.left = x + 'px';
+        waveRipple.style.top = y + 'px';
+        rippleContainer.appendChild(waveRipple);
+
+        // 创建粒子效果（8个方向）
+        const particleCount = 8;
+        for (let i = 0; i < particleCount; i++) {
+          const angle = (i / particleCount) * Math.PI * 2;
+          const distance = 60 + Math.random() * 40;
+          const particleX = Math.cos(angle) * distance;
+          const particleY = Math.sin(angle) * distance;
+
+          const particle = document.createElement('div');
+          particle.className = 'ripple-effect ripple-particle';
+          particle.style.left = x + 'px';
+          particle.style.top = y + 'px';
+          particle.style.setProperty('--particle-x', particleX + 'px');
+          particle.style.setProperty('--particle-y', particleY + 'px');
+          particle.style.animationDelay = (i * 0.03) + 's';
+          rippleContainer.appendChild(particle);
+
+          // 清理粒子
+          setTimeout(() => {
+            if (particle.parentNode === rippleContainer) {
+              rippleContainer.removeChild(particle);
+            }
+          }, 700 + (i * 30));
+        }
+
+        // 清理主涟漪和波纹
+        setTimeout(() => {
+          if (mainRipple.parentNode === rippleContainer) {
+            rippleContainer.removeChild(mainRipple);
+          }
+          if (waveRipple.parentNode === rippleContainer) {
+            rippleContainer.removeChild(waveRipple);
+          }
+        }, 900);
+      }
+
+      // 监听点击和触摸事件
+      document.addEventListener('click', (e) => {
+        createRipple(e.clientX, e.clientY);
+      });
+
+      document.addEventListener('touchstart', (e) => {
+        if (e.touches.length > 0) {
+          const touch = e.touches[0];
+          createRipple(touch.clientX, touch.clientY);
+        }
+      });
+    })();
+
 
 
