@@ -37,6 +37,8 @@ assertContains(html, 'id="petShowcaseCard"', "pet space should include a visible
 assertContains(html, 'id="petShowcasePanelSlot"', "mobile pet plan menu should host the showcase card");
 assertContains(html, 'id="petShopAdvisor"', "pet shop should include a recommendation panel");
 assertContains(html, 'id="petDressupPreview"', "dressup modal should include a current display preview");
+assertContains(html, 'data-open-pet-modal="themes"', "pet plan menu should include the theme shop entry");
+assertContains(html, 'id="petThemeShopModal"', "pet plan should include a system theme shop modal");
 assertContains(html, 'id="petAchievementBoard"', "achievement modal should include grouped progress board");
 assertContains(html, 'data-open-learning-map', "learning modal should open knowledge map from a dedicated action");
 assertContains(html, '题库质量巡检', "data page should expose question bank quality audit");
@@ -72,6 +74,8 @@ assertContains(app, "openLearningKnowledgeMap", "learning map should be opened f
 assertContains(app, 'showView("knowledgeMap")', "learning map button should jump to the standalone page");
 assertContains(app, "renderPetShopAdvisor", "app should render pet shop recommendations");
 assertContains(app, "renderPetDressupPreview", "app should render current dressup preview");
+assertContains(app, "renderPetThemeShop", "app should render the system theme shop");
+assertContains(app, "systemThemeOwned", "app should lock non-initial system themes behind pet growth");
 assertContains(app, "renderPetAchievementBoard", "app should render grouped achievement progress");
 assertContains(app, "dueWrongbook", "app should support scheduled wrongbook review");
 assertContains(app, "startDueReviewPractice", "home review route should start due wrongbook practice");
@@ -109,6 +113,8 @@ assertContains(css, "#learningModal .hub-action-grid", "learning modal should su
 assertContains(css, "#knowledgeMapView.view.active", "knowledge map view should share report-style scrolling behavior");
 assertContains(css, ".pet-shop-advisor", "CSS should style the pet shop advisor");
 assertContains(css, ".pet-dressup-preview", "CSS should style the dressup preview");
+assertContains(css, ".pet-theme-shop-grid", "CSS should style the theme shop grid");
+assertContains(css, ".pet-theme-shop-board", "CSS should style the theme shop progress board");
 assertContains(css, ".pet-achievement-board", "CSS should style the achievement board");
 assertContains(css, "#petspaceView.active #petGrowthPanelModal .pet-stage-card", "mobile growth modal should reveal the moved pet stage card");
 assertNotContains(css, ".word-relation-panel", "CSS should not keep removed word relation panel styles");

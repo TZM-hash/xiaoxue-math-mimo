@@ -6,14 +6,20 @@ const STORE = {
       theme: "mathcamp-theme-v1"
     };
     const THEME_REGISTRY = {
-      classic: { label: "经典", metaColor: "#3aa47c" },
-      "eye-care": { label: "护眼", metaColor: "#6c9a57" },
-      anime: { label: "二次元", metaColor: "#d85ca6" },
-      purple: { label: "紫色", metaColor: "#8b5cf6" },
-      star: { label: "星空", metaColor: "#334eb8" },
-      forest: { label: "森林", metaColor: "#287a55" },
-      candy: { label: "糖果", metaColor: "#df5f8f" }
+      classic: { label: "经典", icon: "🌿", metaColor: "#3aa47c", desc: "清爽稳定的默认主题。", initial: true },
+      "eye-care": { label: "护眼", icon: "🍃", metaColor: "#6c9a57", desc: "柔和绿调，适合长时间练习。", initial: true },
+      anime: { label: "二次元", icon: "🌸", metaColor: "#d85ca6", desc: "轻快明亮的卡通配色。", initial: true },
+      purple: { label: "紫色", icon: "💜", metaColor: "#8b5cf6", desc: "梦幻紫色学习桌。", unlockLevel: 3, price: 60 },
+      rainbow: { label: "彩虹", icon: "🌈", metaColor: "#ff8a4c", desc: "多彩但不刺眼，适合低年级。", unlockLevel: 4, price: 80 },
+      forest: { label: "森林", icon: "🌳", metaColor: "#287a55", desc: "像在小森林里安静做题。", unlockLevel: 5, price: 90 },
+      ocean: { label: "海洋", icon: "🌊", metaColor: "#2f92c9", desc: "清亮蓝绿，像海边课堂。", unlockLevel: 7, price: 110 },
+      candy: { label: "糖果", icon: "🍬", metaColor: "#df5f8f", desc: "甜甜的儿童感配色。", unlockLevel: 8, price: 120 },
+      storybook: { label: "童话书", icon: "📖", metaColor: "#c97a38", desc: "温暖纸张和故事书色调。", unlockLevel: 10, price: 150 },
+      star: { label: "星空", icon: "🌙", metaColor: "#334eb8", desc: "明亮星空，不使用深色背景。", unlockLevel: 12, price: 180 },
+      playground: { label: "游乐场", icon: "🎈", metaColor: "#e45f6b", desc: "活泼红蓝黄，适合奖励阶段。", unlockLevel: 15, price: 220 }
     };
+    const INITIAL_SYSTEM_THEME_IDS = Object.freeze(Object.keys(THEME_REGISTRY).filter((id) => THEME_REGISTRY[id].initial));
+    const SYSTEM_THEME_IDS = Object.freeze(Object.keys(THEME_REGISTRY));
     const Storage = window.MathCampStorage;
     const PrintLayout = window.MathCampPrintLayout;
     const UI = window.MathCampUIFeedback;
@@ -317,12 +323,16 @@ const STORE = {
       petGrowthPanelModal: document.getElementById("petGrowthPanelModal"),
       petPlanMenuModal: document.getElementById("petPlanMenuModal"),
       petDressupModal: document.getElementById("petDressupModal"),
+      petThemeShopModal: document.getElementById("petThemeShopModal"),
       petAchievementModal: document.getElementById("petAchievementModal"),
       petShopGrid: document.getElementById("petShopGrid"),
       petBagList: document.getElementById("petBagList"),
       petDressupGrid: document.getElementById("petDressupGrid"),
+      petThemeShopGrid: document.getElementById("petThemeShopGrid"),
+      petThemeShopBoard: document.getElementById("petThemeShopBoard"),
       petAchievementList: document.getElementById("petAchievementList"),
       petDressupSummary: document.getElementById("petDressupSummary"),
+      petThemeShopSummary: document.getElementById("petThemeShopSummary"),
       petAchievementSummary: document.getElementById("petAchievementSummary"),
       petShopAdvisor: document.getElementById("petShopAdvisor"),
       petDressupPreview: document.getElementById("petDressupPreview"),
@@ -531,6 +541,25 @@ const STORE = {
     function safeThemeId(id) {
       return Object.prototype.hasOwnProperty.call(THEME_REGISTRY, id) ? id : "classic";
     }
+    function systemThemeOwned(id, profile = null) {
+      const themeId = safeThemeId(id);
+      if (INITIAL_SYSTEM_THEME_IDS.includes(themeId)) return true;
+      const targetProfile = profile || (typeof activeProfile === "function" ? activeProfile() : null);
+      const owned = targetProfile?.rewards?.pet?.systemThemes;
+      return Boolean(owned && owned[themeId]);
+    }
+    function grantSystemTheme(pet, id) {
+      const themeId = safeThemeId(id);
+      if (!THEME_REGISTRY[themeId]) return false;
+      pet.systemThemes = isPlainObject(pet.systemThemes) ? pet.systemThemes : {};
+      const had = Boolean(pet.systemThemes[themeId]);
+      pet.systemThemes[themeId] = true;
+      return !had;
+    }
+    function unlockedSystemThemeId(id, profile = null) {
+      const themeId = safeThemeId(id);
+      return systemThemeOwned(themeId, profile) ? themeId : "classic";
+    }
     function storageGet(key, fallback = "") {
       return Storage.get(key, fallback);
     }
@@ -549,6 +578,14 @@ const STORE = {
     }
     function updateThemeButtons() {
       els.themeSelects.forEach((select) => {
+        Array.from(select.options || []).forEach((option) => {
+          const themeId = safeThemeId(option.value);
+          const theme = THEME_REGISTRY[themeId];
+          if (!option.dataset.baseLabel) option.dataset.baseLabel = option.textContent.trim();
+          const owned = systemThemeOwned(themeId);
+          option.disabled = !owned;
+          option.textContent = owned ? option.dataset.baseLabel : `${theme.icon || ""} 🔒 ${theme.label}`;
+        });
         select.value = state.theme;
         select.title = `当前主题：${THEME_REGISTRY[state.theme].label}`;
       });
@@ -559,7 +596,12 @@ const STORE = {
       });
     }
     function applyTheme(id, options = {}) {
-      state.theme = safeThemeId(id);
+      const requested = safeThemeId(id);
+      const nextTheme = unlockedSystemThemeId(requested);
+      if (requested !== nextTheme && options.notify !== false) {
+        UI.notify("这个主题还没有解锁，可以去养成计划的主题商店查看。", { tone: "warn" });
+      }
+      state.theme = nextTheme;
       document.documentElement.dataset.theme = state.theme;
       const meta = document.querySelector("meta[name='theme-color']");
       if (meta) meta.setAttribute("content", THEME_REGISTRY[state.theme].metaColor);
@@ -755,6 +797,9 @@ const STORE = {
     function defaultPetInventory() {
       return Object.fromEntries(PET_SHOP.map((item) => [item.id, 0]));
     }
+    function defaultSystemThemes() {
+      return Object.fromEntries(INITIAL_SYSTEM_THEME_IDS.map((id) => [id, true]));
+    }
     function createDefaultPetState(options = {}) {
       const today = todayKey();
       return {
@@ -772,6 +817,7 @@ const STORE = {
         wish: { date: today, id: "", itemId: "", progress: 0, fulfilled: false },
         rewardsClaimed: {},
         decorations: {},
+        systemThemes: defaultSystemThemes(),
         roomTheme: "sunny",
         unlockedThemes: { sunny: true },
         ownedFurniture: {},
@@ -903,6 +949,8 @@ const STORE = {
         }
       });
       applyPetLevel(pet);
+      pet.systemThemes = normalizePetBooleanMap(pet.systemThemes, SYSTEM_THEME_IDS);
+      INITIAL_SYSTEM_THEME_IDS.forEach((id) => grantSystemTheme(pet, id));
       pet.unlockedThemes = normalizePetBooleanMap(pet.unlockedThemes, PET_ROOM_THEMES.map((item) => item.id));
       grantPetTheme(pet, "sunny");
       PET_ROOM_THEMES.forEach((theme) => {
@@ -5258,6 +5306,7 @@ const STORE = {
       if (els.printExportMode) els.printExportMode.value = profile.settings?.printOutputMode || "answers";
       syncAnswerModeAvailability();
       els.adaptiveToggle.checked = state.adaptive;
+      applyTheme(state.theme, { notify: false });
       renderChrome();
       renderGradeOptions();
       renderPointSelects();
@@ -6438,6 +6487,52 @@ const STORE = {
           <div class="pet-collection-grid">${PET_OUTFITS.map((item) => collectionCard("outfit", item, pet)).join("")}</div>
         </section>`;
     }
+    function systemThemeProgressText(theme, pet) {
+      if (systemThemeOwned(theme.id)) return "已拥有";
+      const minLevel = Number(theme.unlockLevel || 1);
+      const price = Math.max(0, Number(theme.price) || 0);
+      if (Number(pet.level || 1) < minLevel) return `还差 ${minLevel - Number(pet.level || 1)} 级`;
+      if (pet.coins < price) return `还差 ${price - pet.coins} 金币`;
+      return "可解锁";
+    }
+    function systemThemeCard(theme, pet) {
+      const owned = systemThemeOwned(theme.id);
+      const active = state.theme === theme.id;
+      const minLevel = Number(theme.unlockLevel || 1);
+      const price = Math.max(0, Number(theme.price) || 0);
+      const levelLocked = Number(pet.level || 1) < minLevel;
+      const canBuy = !owned && !levelLocked && pet.coins >= price;
+      const action = owned
+        ? `<button class="${active ? "secondary" : "primary"}" type="button" data-use-system-theme="${escapeAttr(theme.id)}" ${active ? "disabled" : ""}>${active ? "使用中" : "使用"}</button>`
+        : levelLocked
+          ? `<button class="secondary" type="button" disabled>Lv.${minLevel}</button>`
+          : `<button class="primary" type="button" data-buy-system-theme="${escapeAttr(theme.id)}" ${canBuy ? "" : "disabled"}>${price} 金币</button>`;
+      return `<article class="pet-collection-card pet-theme-card ${owned ? "owned" : ""} ${active ? "active" : ""} ${!owned ? "locked" : ""}">
+        <div class="pet-shop-icon" aria-hidden="true">${theme.icon || "✦"}</div>
+        <div>
+          <strong>${escapeHTML(theme.label)}</strong>
+          <span>${escapeHTML(theme.desc || "")}</span>
+          <small>${theme.initial ? "开局可用" : `Lv.${minLevel} · ${price} 金币`}</small>
+          <em class="pet-collection-source">${theme.initial ? "基础主题" : "养成计划主题商店"}</em>
+          <em class="pet-collection-progress">${escapeHTML(systemThemeProgressText(theme, pet))}</em>
+        </div>
+        ${action}
+      </article>`;
+    }
+    function renderPetThemeShop(profile = activeProfile()) {
+      if (!els.petThemeShopGrid) return;
+      const pet = petState(profile);
+      const themes = SYSTEM_THEME_IDS.map((id) => ({ id, ...THEME_REGISTRY[id] }));
+      const ownedCount = themes.filter((theme) => systemThemeOwned(theme.id, profile)).length;
+      const nextTheme = themes.find((theme) => !systemThemeOwned(theme.id, profile));
+      if (els.petThemeShopSummary) els.petThemeShopSummary.textContent = `已拥有 ${ownedCount}/${themes.length}`;
+      if (els.petThemeShopBoard) {
+        els.petThemeShopBoard.innerHTML = nextTheme
+          ? `<strong>下一个目标：${escapeHTML(nextTheme.label)}</strong><span>需要 Lv.${Number(nextTheme.unlockLevel || 1)}，${Math.max(0, Number(nextTheme.price) || 0)} 金币。当前 Lv.${Number(pet.level || 1)}，金币 ${Number(pet.coins || 0)}。</span>`
+          : `<strong>主题全部收集完成</strong><span>可以在系统设置里随时切换已拥有主题。</span>`;
+      }
+      els.petThemeShopGrid.innerHTML = themes.map((theme) => systemThemeCard(theme, pet)).join("");
+    }
     function shouldUsePetPanelModals() {
       return window.matchMedia("(max-width: 980px)").matches;
     }
@@ -6788,6 +6883,7 @@ const STORE = {
       if (kind === "growth") return els.petGrowthPanelModal;
       if (kind === "plan") return els.petPlanMenuModal;
       if (kind === "dressup") return els.petDressupModal;
+      if (kind === "themes") return els.petThemeShopModal;
       if (kind === "achievements") return els.petAchievementModal;
       return els.petShopModal;
     }
@@ -6809,6 +6905,7 @@ const STORE = {
       renderPetSpace(activeProfile());
       if (kind === "tasks") renderPetTasks();
       if (kind === "dressup") renderPetDressup();
+      if (kind === "themes") renderPetThemeShop();
       if (kind === "achievements") renderPetAchievements();
       if (options.returnToPlan && target !== els.petPlanMenuModal) target.dataset.returnPetPlan = "true";
       else delete target.dataset.returnPetPlan;
@@ -6825,7 +6922,7 @@ const STORE = {
 
     function closePetModals(options = {}) {
       const except = options.except || null;
-      const openModals = [els.petShopModal, els.petBagModal, els.petTaskModal, els.petCarePanelModal, els.petGrowthPanelModal, els.petPlanMenuModal, els.petDressupModal, els.petAchievementModal].filter((modal) => modal && modal !== except && !modal.hidden);
+      const openModals = [els.petShopModal, els.petBagModal, els.petTaskModal, els.petCarePanelModal, els.petGrowthPanelModal, els.petPlanMenuModal, els.petDressupModal, els.petThemeShopModal, els.petAchievementModal].filter((modal) => modal && modal !== except && !modal.hidden);
       openModals.forEach((modal, index) => {
         closeWithMotion(modal, index === openModals.length - 1 ? () => {
           if (!except || except.hidden) document.body.classList.remove("pet-modal-open");
@@ -7167,6 +7264,53 @@ const STORE = {
       renderPetSpace(profile);
       renderPetDressup(profile);
       updatePetStatus(`${petDisplayName(profile)}更新了${def.title}。`, kind === "outfit" ? "换装" : "装扮");
+    }
+    function buySystemTheme(id) {
+      const themeId = safeThemeId(id);
+      const def = THEME_REGISTRY[themeId];
+      if (!def) return;
+      const profile = activeProfile();
+      const pet = petState(profile);
+      if (systemThemeOwned(themeId, profile)) {
+        useSystemTheme(themeId);
+        return;
+      }
+      const minLevel = Number(def.unlockLevel || 1);
+      const price = Math.max(0, Number(def.price) || 0);
+      if (Number(pet.level || 1) < minLevel) {
+        UI.notify(`需要招财达到 Lv.${minLevel} 才能解锁。`, { tone: "warn" });
+        return;
+      }
+      if (pet.coins < price) {
+        UI.notify(`金币不足，还差 ${price - pet.coins} 金币。`, { tone: "bad" });
+        return;
+      }
+      const before = { coins: pet.coins, systemThemes: { ...(pet.systemThemes || {}) }, theme: state.theme };
+      pet.coins -= price;
+      grantSystemTheme(pet, themeId);
+      if (!saveProfiles()) {
+        pet.coins = before.coins;
+        pet.systemThemes = before.systemThemes;
+        state.theme = before.theme;
+        UI.notify("本地保存失败，主题没有解锁。请先导出备份。", { tone: "bad", duration: 4200 });
+        return;
+      }
+      applyTheme(themeId);
+      renderChrome();
+      renderPetThemeShop(profile);
+      updatePetStatus(`${petDisplayName(profile)}解锁了${def.label}主题。`, "新主题");
+    }
+    function useSystemTheme(id) {
+      const themeId = safeThemeId(id);
+      const profile = activeProfile();
+      if (!systemThemeOwned(themeId, profile)) {
+        UI.notify("这个主题还没有解锁。", { tone: "warn" });
+        renderPetThemeShop(profile);
+        return;
+      }
+      applyTheme(themeId);
+      renderPetThemeShop(profile);
+      UI.notify(`已切换到${THEME_REGISTRY[themeId].label}主题。`);
     }
     function claimPetAchievement(id) {
       const achievement = PET_ACHIEVEMENT_MAP[id];
@@ -9591,6 +9735,16 @@ const STORE = {
         equipPetCollection("outfit", equipOutfitBtn.dataset.petEquipOutfit);
         return;
       }
+      const buySystemThemeBtn = event.target.closest("[data-buy-system-theme]");
+      if (buySystemThemeBtn) {
+        buySystemTheme(buySystemThemeBtn.dataset.buySystemTheme);
+        return;
+      }
+      const useSystemThemeBtn = event.target.closest("[data-use-system-theme]");
+      if (useSystemThemeBtn) {
+        useSystemTheme(useSystemThemeBtn.dataset.useSystemTheme);
+        return;
+      }
       const eventUseBtn = event.target.closest("[data-pet-event-use]");
       if (eventUseBtn) {
         resolvePetEventWithItem(eventUseBtn.dataset.petEventUse);
@@ -9618,16 +9772,17 @@ const STORE = {
     els.petPlanMenuModal?.addEventListener("click", handlePetPanelAction);
     els.petShopModal?.addEventListener("click", handlePetPanelAction);
     els.petDressupModal?.addEventListener("click", handlePetPanelAction);
+    els.petThemeShopModal?.addEventListener("click", handlePetPanelAction);
     els.petAchievementModal?.addEventListener("click", handlePetPanelAction);
-    [els.petShopModal, els.petBagModal, els.petTaskModal, els.petCarePanelModal, els.petGrowthPanelModal, els.petPlanMenuModal, els.petDressupModal, els.petAchievementModal].forEach((modal) => {
+    [els.petShopModal, els.petBagModal, els.petTaskModal, els.petCarePanelModal, els.petGrowthPanelModal, els.petPlanMenuModal, els.petDressupModal, els.petThemeShopModal, els.petAchievementModal].forEach((modal) => {
       modal?.addEventListener("click", (event) => {
         if (event.target === modal || event.target.closest("[data-close-pet-modal]")) closePetModalWithReturn(modal);
         if (event.target.closest("[data-close-pet-detail]")) hidePetItemDetails();
       });
     });
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && (!els.petShopModal?.hidden || !els.petBagModal?.hidden || !els.petTaskModal?.hidden || !els.petCarePanelModal?.hidden || !els.petGrowthPanelModal?.hidden || !els.petPlanMenuModal?.hidden || !els.petDressupModal?.hidden || !els.petAchievementModal?.hidden)) {
-        const modal = [els.petShopModal, els.petBagModal, els.petTaskModal, els.petCarePanelModal, els.petGrowthPanelModal, els.petPlanMenuModal, els.petDressupModal, els.petAchievementModal].find((item) => item && !item.hidden);
+      if (event.key === "Escape" && (!els.petShopModal?.hidden || !els.petBagModal?.hidden || !els.petTaskModal?.hidden || !els.petCarePanelModal?.hidden || !els.petGrowthPanelModal?.hidden || !els.petPlanMenuModal?.hidden || !els.petDressupModal?.hidden || !els.petThemeShopModal?.hidden || !els.petAchievementModal?.hidden)) {
+        const modal = [els.petShopModal, els.petBagModal, els.petTaskModal, els.petCarePanelModal, els.petGrowthPanelModal, els.petPlanMenuModal, els.petDressupModal, els.petThemeShopModal, els.petAchievementModal].find((item) => item && !item.hidden);
         closePetModalWithReturn(modal);
       }
       if (event.key === "Escape" && (!els.learningModal?.hidden || !els.systemModal?.hidden)) closeHubModals();
@@ -10015,6 +10170,11 @@ const STORE = {
         claimPetAchievement,
         buyPetCollection,
         equipPetCollection,
+        buySystemTheme,
+        useSystemTheme,
+        systemThemeOwned,
+        grantSystemTheme,
+        renderPetThemeShop,
         petAchievementState,
         latestProfileActivityTime,
         awardQuestionReward,

@@ -112,6 +112,28 @@
       --cat-gold: oklch(78% 0.16 84);
       --cat-pink: oklch(76% 0.12 326);
     }
+    :root[data-theme="rainbow"] {
+      --bg: oklch(98% 0.018 58);
+      --surface: oklch(100% 0.006 70);
+      --soft: oklch(95% 0.04 78);
+      --fg: oklch(22% 0.034 250);
+      --muted: oklch(47% 0.035 242);
+      --border: oklch(88% 0.032 70);
+      --accent: oklch(61% 0.16 28);
+      --accent-2: oklch(62% 0.14 205);
+      --sun: oklch(86% 0.15 86);
+      --coral: oklch(67% 0.17 18);
+      --berry: oklch(62% 0.17 335);
+      --success: oklch(56% 0.13 150);
+      --danger: oklch(57% 0.18 25);
+      --warning: oklch(80% 0.16 82);
+      --shadow: 0 20px 46px rgba(151, 83, 42, .12);
+      --cat-white: oklch(100% 0.005 70);
+      --cat-cream: oklch(95% 0.026 92);
+      --cat-shadow: oklch(82% 0.032 250);
+      --cat-gold: oklch(79% 0.16 82);
+      --cat-pink: oklch(78% 0.12 350);
+    }
     :root[data-theme="star"] {
       --bg: oklch(96% 0.018 255);
       --surface: oklch(100% 0.004 255);
@@ -133,6 +155,28 @@
       --cat-shadow: oklch(80% 0.04 252);
       --cat-gold: oklch(80% 0.16 86);
       --cat-pink: oklch(76% 0.1 328);
+    }
+    :root[data-theme="ocean"] {
+      --bg: oklch(97% 0.018 205);
+      --surface: oklch(100% 0.006 205);
+      --soft: oklch(94% 0.035 198);
+      --fg: oklch(21% 0.035 225);
+      --muted: oklch(45% 0.035 215);
+      --border: oklch(86% 0.03 202);
+      --accent: oklch(54% 0.13 205);
+      --accent-2: oklch(61% 0.12 168);
+      --sun: oklch(84% 0.14 92);
+      --coral: oklch(66% 0.15 28);
+      --berry: oklch(58% 0.14 318);
+      --success: oklch(54% 0.13 155);
+      --danger: oklch(56% 0.17 24);
+      --warning: oklch(78% 0.15 84);
+      --shadow: 0 18px 44px rgba(32, 104, 132, .13);
+      --cat-white: oklch(100% 0.006 205);
+      --cat-cream: oklch(94% 0.022 96);
+      --cat-shadow: oklch(79% 0.038 206);
+      --cat-gold: oklch(78% 0.15 86);
+      --cat-pink: oklch(75% 0.09 335);
     }
     :root[data-theme="forest"] {
       --bg: oklch(96% 0.02 150);
@@ -176,6 +220,50 @@
       --cat-cream: oklch(96% 0.02 92);
       --cat-shadow: oklch(82% 0.035 340);
       --cat-gold: oklch(80% 0.16 82);
+      --cat-pink: oklch(78% 0.12 350);
+    }
+    :root[data-theme="storybook"] {
+      --bg: oklch(97% 0.022 72);
+      --surface: oklch(100% 0.008 80);
+      --soft: oklch(94% 0.035 76);
+      --fg: oklch(23% 0.035 62);
+      --muted: oklch(47% 0.035 70);
+      --border: oklch(86% 0.03 78);
+      --accent: oklch(55% 0.13 54);
+      --accent-2: oklch(58% 0.11 182);
+      --sun: oklch(83% 0.15 86);
+      --coral: oklch(64% 0.16 26);
+      --berry: oklch(58% 0.14 324);
+      --success: oklch(53% 0.13 142);
+      --danger: oklch(56% 0.17 24);
+      --warning: oklch(78% 0.15 82);
+      --shadow: 0 18px 44px rgba(120, 78, 38, .13);
+      --cat-white: oklch(100% 0.006 80);
+      --cat-cream: oklch(94% 0.026 82);
+      --cat-shadow: oklch(80% 0.034 76);
+      --cat-gold: oklch(77% 0.15 82);
+      --cat-pink: oklch(75% 0.09 24);
+    }
+    :root[data-theme="playground"] {
+      --bg: oklch(98% 0.018 20);
+      --surface: oklch(100% 0.006 20);
+      --soft: oklch(95% 0.035 28);
+      --fg: oklch(22% 0.034 250);
+      --muted: oklch(47% 0.035 245);
+      --border: oklch(88% 0.032 28);
+      --accent: oklch(61% 0.16 18);
+      --accent-2: oklch(58% 0.13 205);
+      --sun: oklch(86% 0.16 88);
+      --coral: oklch(67% 0.17 22);
+      --berry: oklch(60% 0.15 330);
+      --success: oklch(55% 0.13 150);
+      --danger: oklch(57% 0.18 24);
+      --warning: oklch(80% 0.16 84);
+      --shadow: 0 20px 46px rgba(142, 63, 62, .12);
+      --cat-white: oklch(100% 0.006 20);
+      --cat-cream: oklch(95% 0.024 88);
+      --cat-shadow: oklch(82% 0.034 246);
+      --cat-gold: oklch(80% 0.16 84);
       --cat-pink: oklch(78% 0.12 350);
     }
     * { box-sizing: border-box; }
@@ -4217,6 +4305,7 @@
     }
     .pet-shop-advisor,
     .pet-dressup-preview,
+    .pet-theme-shop-board,
     .pet-achievement-board {
       display: grid;
       gap: 10px;
@@ -4233,12 +4322,14 @@
     }
     .pet-shop-advisor strong,
     .pet-dressup-preview strong,
+    .pet-theme-shop-board strong,
     .pet-achievement-board strong {
       display: block;
       font: 950 14px/1.15 var(--font-display);
     }
     .pet-shop-advisor span,
     .pet-dressup-preview p,
+    .pet-theme-shop-board span,
     .pet-achievement-board span,
     .pet-achievement-board em {
       color: var(--muted);
@@ -4410,6 +4501,7 @@
       line-height: 1.5;
     }
     .pet-dressup-grid,
+    .pet-theme-shop-grid,
     .pet-achievement-list {
       display: grid;
       gap: 12px;
@@ -4419,6 +4511,12 @@
       overscroll-behavior: contain;
       padding: 2px 4px 4px 2px;
       scrollbar-width: thin;
+    }
+    .pet-theme-shop-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+    .pet-theme-card {
+      min-height: 188px;
     }
     .pet-collection-section {
       display: grid;
@@ -9225,6 +9323,7 @@
       #petShopModal .pet-shop-grid,
       #petBagModal .pet-bag-list,
       #petAchievementModal .pet-achievement-list,
+      #petThemeShopModal .pet-theme-shop-grid,
       #petDressupModal .pet-dressup-grid,
       #petTaskModal .pet-task-columns {
         min-height: 0;
@@ -9233,6 +9332,7 @@
         overscroll-behavior: contain;
       }
       #petAchievementModal .pet-achievement-list,
+      #petThemeShopModal .pet-theme-shop-grid,
       #petDressupModal .pet-dressup-grid {
         margin-top: 10px;
       }
@@ -9273,6 +9373,7 @@
       #petShopModal .pet-shop-card,
       #petBagModal .pet-bag-card,
       #petAchievementModal .pet-task-modal-panel,
+      #petThemeShopModal .pet-task-modal-panel,
       #petDressupModal .pet-task-modal-panel,
       #petTaskModal .pet-task-modal-panel,
       .pet-plan-menu-card {
@@ -9298,6 +9399,28 @@
       #petDressupModal .pet-collection-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 8px;
+      }
+      #petThemeShopModal .pet-theme-shop-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+      #petThemeShopModal .pet-theme-card {
+        grid-template-rows: auto minmax(132px, 1fr) auto;
+        gap: 8px;
+        padding: 10px 8px;
+      }
+      #petThemeShopModal .pet-theme-shop-board {
+        margin-top: 5px;
+        padding: 6px;
+        gap: 3px;
+        border-radius: 10px;
+      }
+      #petThemeShopModal .pet-theme-shop-board strong {
+        font-size: 12px;
+      }
+      #petThemeShopModal .pet-theme-shop-board span {
+        font-size: 10.5px;
+        line-height: 1.18;
       }
       #petDressupModal .pet-collection-card {
         grid-template-columns: 1fr;

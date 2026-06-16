@@ -431,7 +431,18 @@ function runPetEconomyTests() {
   assert.strictEqual(debug.safeThemeId("star"), "star", "星空主题应注册");
   assert.strictEqual(debug.safeThemeId("forest"), "forest", "森林主题应注册");
   assert.strictEqual(debug.safeThemeId("candy"), "candy", "糖果主题应注册");
-  assert(debug.themeRegistry.star && debug.themeRegistry.forest && debug.themeRegistry.candy, "新增主题应存在于主题注册表");
+  assert.strictEqual(debug.safeThemeId("rainbow"), "rainbow", "彩虹主题应注册");
+  assert.strictEqual(debug.safeThemeId("ocean"), "ocean", "海洋主题应注册");
+  assert.strictEqual(debug.safeThemeId("storybook"), "storybook", "童话书主题应注册");
+  assert.strictEqual(debug.safeThemeId("playground"), "playground", "游乐场主题应注册");
+  assert(debug.themeRegistry.star && debug.themeRegistry.forest && debug.themeRegistry.candy && debug.themeRegistry.rainbow, "新增主题应存在于主题注册表");
+  assert.strictEqual(debug.systemThemeOwned("classic", growthProfile), true, "经典主题应初始解锁");
+  assert.strictEqual(debug.systemThemeOwned("eye-care", growthProfile), true, "护眼主题应初始解锁");
+  assert.strictEqual(debug.systemThemeOwned("anime", growthProfile), true, "二次元主题应初始解锁");
+  assert.strictEqual(debug.systemThemeOwned("purple", growthProfile), false, "紫色主题开局应锁定");
+  assert.strictEqual(debug.systemThemeOwned("rainbow", growthProfile), false, "儿童新增主题开局应锁定");
+  debug.grantSystemTheme(debug.petState(growthProfile), "rainbow");
+  assert.strictEqual(debug.systemThemeOwned("rainbow", growthProfile), true, "主题商店购买后应记录拥有状态");
 }
 
 function runTypeSettingsPersistenceTests() {

@@ -441,6 +441,7 @@
             <button class="secondary" type="button" data-open-pet-modal="care"><span aria-hidden="true">🌱</span><strong>今日照料</strong></button>
             <button class="secondary" type="button" data-open-pet-modal="growth"><span aria-hidden="true">📔</span><strong>成长记录</strong></button>
             <button class="secondary" type="button" data-open-pet-modal="achievements"><span aria-hidden="true">🏅</span><strong>成就图鉴</strong></button>
+            <button class="secondary" type="button" data-open-pet-modal="themes"><span aria-hidden="true">🌈</span><strong>主题商店</strong></button>
             <button class="secondary" type="button" data-open-pet-modal="dressup"><span aria-hidden="true">🎨</span><strong>装扮馆</strong></button>
           </div>
         </article>
@@ -499,6 +500,21 @@
           </div>
           <section class="pet-dressup-preview" id="petDressupPreview" aria-live="polite"></section>
           <div class="pet-dressup-grid" id="petDressupGrid"></div>
+        </article>
+      </div>
+
+      <div class="pet-modal" id="petThemeShopModal" role="dialog" aria-modal="true" aria-labelledby="petThemeShopTitle" hidden>
+        <article class="pet-modal-panel pet-task-modal-panel pet-theme-shop-card">
+          <div class="item-top">
+            <div>
+              <h2 id="petThemeShopTitle">主题商店</h2>
+              <p class="muted">系统主题会跟着招财等级和金币逐步解锁，经典、护眼、二次元开局可用。</p>
+            </div>
+            <span class="tag" id="petThemeShopSummary">已拥有 3/0</span>
+            <button class="secondary icon-btn pet-modal-close" type="button" data-close-pet-modal aria-label="关闭主题商店">×</button>
+          </div>
+          <section class="pet-theme-shop-board" id="petThemeShopBoard" aria-live="polite"></section>
+          <div class="pet-theme-shop-grid" id="petThemeShopGrid"></div>
         </article>
       </div>
 
@@ -824,9 +840,13 @@
                   <option value="eye-care">🍃 护眼</option>
                   <option value="anime">🌸 二次元</option>
                   <option value="purple">💜 紫色</option>
+                  <option value="rainbow">🌈 彩虹</option>
                   <option value="star">🌙 星空</option>
                   <option value="forest">🌳 森林</option>
+                  <option value="ocean">🌊 海洋</option>
                   <option value="candy">🍬 糖果</option>
+                  <option value="storybook">📖 童话书</option>
+                  <option value="playground">🎈 游乐场</option>
                 </select>
               </div>
               <div class="theme-switch field" id="effectsSwitch" aria-label="特效设置">
