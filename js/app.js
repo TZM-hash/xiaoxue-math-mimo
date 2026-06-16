@@ -10244,6 +10244,10 @@ const STORE = {
       if (result.settingsChanged && result.systemSettings) {
         applySystemSettings(result.systemSettings, { touch: false, sync: false });
       }
+      if (!result.changed && result.settingsChanged) {
+        UI.notify("系统设置已同步。");
+        return;
+      }
       if (result.changed) {
         state.profiles = result.profiles;
         if (result.activeId) state.activeId = result.activeId;
