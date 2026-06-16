@@ -426,6 +426,7 @@
         transform: translate(-50%, -50%) scale(3);
       }
     }
+    @keyframes button-glint { from { inset-inline-start: -40%; } to { inset-inline-start: 140%; } }
     @keyframes pet-orbit { 0% { transform: rotate(0deg) translateX(48px) rotate(0deg); opacity: .34; } 50% { opacity: .78; } 100% { transform: rotate(360deg) translateX(48px) rotate(-360deg); opacity: .34; } }
     @keyframes pet-token-float { 0% { opacity: 0; transform: translate(-50%, 10px) scale(.78); } 20% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -74px) scale(1.04); } }
     @keyframes mobile-pet-hint-pop {
@@ -1739,6 +1740,24 @@
       position: relative;
       z-index: 1;
     }
+    .mobile-pet-hint-head button {
+      width: 30px;
+      min-height: 30px;
+      padding: 0;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.76);
+      background: rgba(255,255,255,.78);
+      color: color-mix(in oklch, var(--fg), white 8%);
+      font-size: 18px;
+      line-height: 1;
+      box-shadow: 0 7px 16px rgba(44, 86, 108, .14);
+      order: 1;
+      margin-left: auto;
+    }
+    #mobilePetHintClose {
+      order: 1;
+      margin-left: auto;
+    }
     .mobile-pet-hint-head strong {
       display: inline-flex;
       align-items: center;
@@ -2025,6 +2044,12 @@
       cursor: pointer;
       box-shadow: 0 7px 16px rgba(44, 86, 108, .14);
       flex-shrink: 0;
+      order: 1;
+      margin-left: auto;
+    }
+    #challengeResultClose {
+      order: 1;
+      margin-left: auto;
     }
     .crs-body {
       position: relative;
@@ -2298,6 +2323,7 @@
       grid-template-rows: auto auto minmax(0, 1fr) auto auto;
       gap: 14px;
       height: 100%;
+      overflow: hidden;
     }
     .companion-art {
       min-height: 128px;
@@ -2753,7 +2779,7 @@
       gap: 8px;
       margin-top: 10px;
     }
-    .pet-actions button { min-height: 38px; padding: 0 9px; font-size: 12px; }
+    .pet-actions button { min-height: 38px; padding: 4px 8px; font-size: 11px; overflow: visible; white-space: nowrap; }
     .pet-inventory {
       margin-top: 9px;
       padding: 7px 9px;
@@ -2767,6 +2793,12 @@
     }
     .pet-actions {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .pet-hint-full {
+      display: inline;
+    }
+    .pet-hint-compact {
+      display: none;
     }
     .pet-space-layout {
       display: grid;
@@ -3112,13 +3144,26 @@
     }
     .settings-inline {
       display: grid;
+      grid-template-columns: repeat(2, 1fr);
       gap: 12px;
+      align-items: center;
     }
     .settings-inline .theme-switch,
     .settings-inline .sound-controls {
       justify-content: flex-start;
-      width: fit-content;
+      width: 100%;
       max-width: 100%;
+    }
+    .settings-inline .sound-controls {
+      grid-column: 1 / -1;
+    }
+    #effectsSwitch .custom-select-button {
+      width: 100%;
+      text-align: left;
+      justify-content: center;
+    }
+    #effectsSwitch {
+      padding: 0;
     }
     .settings-profile-row {
       display: flex;
@@ -3145,12 +3190,23 @@
     .hub-modal-close {
       position: absolute;
       top: 14px;
+      left: auto;
       right: 14px;
       z-index: 3;
       flex: 0 0 auto;
       background: rgba(255,255,255,.72);
       border-color: rgba(255,255,255,.86);
       box-shadow: 0 8px 20px rgba(44, 86, 108, .12);
+    }
+    .pet-modal-panel > .item-top > .pet-modal-close,
+    .archive-modal-panel > .item-top > .archive-modal-close,
+    .hub-modal-panel > .item-top > .hub-modal-close,
+    .item-top > .pet-modal-close,
+    .item-top > .archive-modal-close,
+    .item-top > .hub-modal-close {
+      left: auto;
+      right: 14px;
+      top: 14px;
     }
     .pet-modal-panel > .item-top,
     .archive-modal-panel > .item-top,
@@ -3454,6 +3510,8 @@
       transition: transform .18s ease;
       z-index: 1;
     }
+    .pet-room-cat .cat-face { display: none; }
+    .pet-room-cat::before { display: none !important; }
     .pet-room-cat::before,
     .pet-room-cat::after {
       position: absolute;
@@ -3487,6 +3545,9 @@
       font-size: 24px;
     }
     .pet-room-cat[data-outfit-icon=""]::after {
+      display: none;
+    }
+    .pet-room-cat[data-expression-icon=""]::before {
       display: none;
     }
     .pet-room-stage[data-expression="hungry"] .pet-room-cat img,
@@ -4759,6 +4820,7 @@
       .practice-workspace input,
       .practice-workspace select {
         min-height: 40px;
+        padding: 10px 12px;
       }
       .practice-workspace .hint-box {
         margin-top: 10px;
@@ -4936,6 +4998,7 @@
     .review-item p, .wrong-item p, .report-item p { margin: 8px 0 0; color: color-mix(in oklch, var(--fg), white 15%); line-height: 1.65; }
     .step-list { margin: 10px 0 0; padding-left: 20px; color: color-mix(in oklch, var(--fg), white 10%); line-height: 1.7; }
     .wrong-top, .item-top {
+      position: relative;
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
       gap: 12px;
@@ -6216,9 +6279,17 @@
       .archive-modal-close,
       .hub-modal-close {
         top: 8px;
+        left: auto;
         right: 8px;
         width: 34px;
         min-height: 34px;
+      }
+      .item-top > .pet-modal-close,
+      .item-top > .archive-modal-close,
+      .item-top > .hub-modal-close {
+        left: auto;
+        right: 8px;
+        top: 8px;
       }
       .pet-modal-panel > .item-top,
       .archive-modal-panel > .item-top,
@@ -6302,6 +6373,21 @@
       .system-modal-panel .row-actions {
         gap: 6px;
         margin-bottom: 6px;
+      }
+      .system-modal-panel .settings-inline {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .system-modal-panel .settings-inline .sound-controls {
+        grid-column: 1 / -1;
+      }
+      .system-modal-panel #effectsSwitch {
+        order: 0;
+      }
+      .system-modal-panel .sound-controls {
+        order: 2;
+      }
+      .system-modal-panel #themeSwitch {
+        order: 0;
       }
       .system-modal-panel .field {
         gap: 3px;
@@ -7074,7 +7160,7 @@
       }
       .pet-actions {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1fr;
         gap: 6px;
       }
       .pet-actions button {
@@ -8020,28 +8106,43 @@
       .practice-focus-mode .pet-actions {
         grid-area: actions;
         display: flex !important;
+        align-items: center;
+        justify-content: flex-end;
+        min-width: 0;
         margin-top: 0;
       }
       .practice-focus-mode .pet-actions #petEncourageBtn {
         display: none !important;
       }
       .practice-focus-mode .pet-actions #petHintBtn {
-        display: inline-flex;
-        width: 48px;
+        display: inline-grid;
+        place-items: center;
+        width: 50px;
+        min-width: 50px;
+        height: 38px;
         min-height: 38px;
-        padding: 0 6px;
-        border-radius: 10px;
-        font-size: 0;
-        line-height: 1.1;
-        white-space: nowrap;
-        justify-content: center;
+        box-sizing: border-box;
+        padding: 0;
+        overflow: hidden;
+        border-radius: 11px;
+        font-size: 14px;
+        line-height: 1;
+        white-space: normal;
         text-align: center;
       }
-      .practice-focus-mode .pet-actions #petHintBtn::after {
-        content: "提示";
-        font-size: 14px;
+      .practice-focus-mode .pet-actions #petHintBtn .pet-hint-full {
+        display: none !important;
+      }
+      .practice-focus-mode .pet-actions #petHintBtn .pet-hint-compact {
+        display: block;
+        width: 100%;
+        max-width: 100%;
         font-weight: 950;
+        line-height: 1;
+        letter-spacing: 0;
         white-space: nowrap;
+        text-align: center;
+        transform: translateY(0);
       }
     }
 
@@ -8157,9 +8258,14 @@
         font-size: 9px;
       }
       .practice-focus-mode .pet-actions #petHintBtn {
-        width: 46px;
+        width: 48px;
+        min-width: 48px;
+        height: 36px;
         min-height: 36px;
-        padding: 0 4px;
+        padding: 0;
+      }
+      .practice-focus-mode .pet-actions #petHintBtn .pet-hint-compact {
+        font-size: 13px;
       }
     }
 
@@ -9678,4 +9784,64 @@
     html.android-webview .reward-ribbon {
       box-shadow: none;
       animation-duration: .9s !important;
+    }
+    /* Force all modal close buttons to top-right */
+    .pet-modal-panel .item-top > .pet-modal-close,
+    .archive-modal-panel .item-top > .archive-modal-close,
+    .hub-modal-panel .item-top > .hub-modal-close,
+    .item-top > .pet-modal-close,
+    .item-top > .archive-modal-close,
+    .item-top > .hub-modal-close {
+      position: absolute !important;
+      top: 14px !important;
+      right: 14px !important;
+      left: auto !important;
+    }
+    .pet-modal-panel .item-top,
+    .archive-modal-panel .item-top,
+    .hub-modal-panel .item-top {
+      padding-right: 52px !important;
+    }
+
+    html.effects-ui-animations-off .ripple,
+    html.effects-ui-animations-off .star-burst,
+    html.effects-ui-animations-off .rainbow-trail,
+    html.effects-ui-animations-off .achievement-badge {
+      display: none !important;
+      animation: none !important;
+    }
+
+    html.effects-reward-particles-off .star-burst,
+    html.effects-reward-particles-off .star-particle,
+    html.effects-reward-particles-off .coin-particle,
+    html.effects-reward-particles-off .rainbow-trail,
+    html.effects-reward-particles-off .confetti-piece,
+    html.effects-reward-particles-off .achievement-badge,
+    html.effects-reward-particles-off .burst-token,
+    html.effects-reward-particles-off .pet-token,
+    html.effects-reward-particles-off .reward-ribbon {
+      display: none !important;
+      animation: none !important;
+    }
+
+    html.effects-focus-blur-off #focusModeOverlay {
+      display: none !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+    }
+
+    html.effects-ambient-off .brand-mark,
+    html.effects-ambient-off .brand-mark::before,
+    html.effects-ambient-off .pet-orbit span,
+    html.effects-ambient-off .mini-cat,
+    html.effects-ambient-off .cat,
+    html.effects-ambient-off .pet-room-cat,
+    html.effects-ambient-off .pet-stage-floor,
+    html.effects-ambient-off .mobile-pet-hint-spark,
+    html.effects-ambient-off .practice-card::before,
+    html.effects-ambient-off .bar-fill,
+    html.effects-ambient-off .progress-fill,
+    html.effects-ambient-off .xp-fill {
+      animation: none !important;
+      transition-duration: 0.01ms !important;
     }

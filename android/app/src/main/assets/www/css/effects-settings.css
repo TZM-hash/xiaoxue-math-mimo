@@ -1,0 +1,310 @@
+/* ============================================
+   特效设置模态框样式增强
+   ============================================ */
+
+/* 模态框背景 */
+#effectsSettingsModal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  animation: modalBackdropIn 0.3s ease;
+}
+
+#effectsSettingsModal[hidden] {
+  display: none;
+}
+
+@keyframes modalBackdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 特效设置面板 */
+.effects-settings-panel {
+  background: var(--surface);
+  border-radius: 20px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.3);
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  animation: modalPanelIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* 顶部区域 */
+.effects-settings-panel .item-top {
+  position: relative;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.effects-settings-panel .item-top h2 {
+  margin: 0 0 4px 0;
+  font-size: 20px;
+  color: var(--fg);
+}
+
+.effects-settings-panel .item-top .muted {
+  margin: 0;
+  font-size: 13px;
+}
+
+/* 设置网格 - 紧凑布局 */
+.effects-settings-grid {
+  padding: 8px 16px 10px 16px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+/* 设置项 - 紧凑样式 */
+.effects-setting-item {
+  margin-bottom: 0;
+  padding: 6px 10px;
+  background: var(--soft);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  transition: all 0.2s ease;
+}
+
+.effects-setting-item:last-child {
+  margin-bottom: 0;
+}
+
+/* 设置头部 */
+.effects-setting-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+}
+
+.effects-setting-header h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+  white-space: nowrap;
+}
+
+.effects-setting-header .muted {
+  display: none;
+}
+
+/* ===== 开关按钮 - 高可见性 ===== */
+.effects-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  cursor: pointer;
+  user-select: none;
+}
+
+.effects-toggle input[type="checkbox"] {
+  position: absolute !important;
+  opacity: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  border: 0 !important;
+  pointer-events: none !important;
+}
+
+.effects-toggle-slider {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  background: #ccc;
+  border-radius: 24px;
+  transition: all 0.25s ease;
+  flex-shrink: 0;
+}
+
+.effects-toggle-slider::before {
+  content: "";
+  position: absolute;
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  top: 3px;
+  background: white;
+  border-radius: 50%;
+  transition: all 0.25s ease;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* ON 状态 */
+.effects-toggle input:checked + .effects-toggle-slider {
+  background: var(--success, #4caf50);
+  box-shadow: 0 0 8px color-mix(in oklch, var(--success, #4caf50), transparent 60%);
+}
+
+.effects-toggle input:checked + .effects-toggle-slider::before {
+  transform: translateX(20px);
+}
+
+/* ON/OFF 文字标签 */
+.effects-toggle-label {
+  font-size: 12px;
+  font-weight: 700;
+  min-width: 24px;
+  text-align: center;
+  transition: color 0.2s;
+}
+
+.effects-toggle input:not(:checked) ~ .effects-toggle-label {
+  color: #999;
+}
+
+.effects-toggle input:checked ~ .effects-toggle-label {
+  color: var(--success, #4caf50);
+}
+
+/* 悬停效果 */
+.effects-toggle:hover .effects-toggle-slider {
+  transform: scale(1.05);
+}
+
+/* 底部操作栏 */
+.effects-settings-footer {
+  padding: 14px 24px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  background: var(--soft);
+  border-radius: 0 0 20px 20px;
+}
+
+.effects-settings-footer button {
+  min-width: 100px;
+  font-size: 13px;
+}
+
+/* 关闭按钮 */
+.effects-settings-panel .hub-modal-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  line-height: 1;
+  padding: 0;
+  transition: all 0.2s;
+  position: absolute;
+  top: 14px;
+  left: auto;
+  right: 14px;
+  z-index: 3;
+}
+
+.effects-settings-panel .hub-modal-close:hover {
+  transform: rotate(90deg) scale(1.1);
+  background: var(--danger);
+  color: white;
+  border-color: var(--danger);
+}
+
+/* 滚动条样式 */
+.effects-settings-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.effects-settings-panel::-webkit-scrollbar-track {
+  background: var(--soft);
+  border-radius: 0 20px 20px 0;
+}
+
+.effects-settings-panel::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.effects-settings-panel::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  #effectsSettingsModal {
+    padding: 10px;
+  }
+
+  .effects-settings-panel {
+    max-height: 95vh;
+    border-radius: 16px;
+  }
+
+  .effects-settings-panel .item-top {
+    padding: 14px 16px;
+  }
+
+  .effects-settings-panel .item-top h2 {
+    font-size: 18px;
+  }
+
+  .effects-settings-grid {
+    padding: 8px 12px 10px 12px;
+    grid-template-columns: 1fr;
+  }
+
+  .effects-setting-item {
+    padding: 8px 12px;
+  }
+
+  .effects-settings-footer {
+    flex-direction: column;
+    padding: 12px 16px;
+  }
+
+  .effects-settings-footer button {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+/* 动画 */
+@keyframes modalPanelIn {
+  0% { opacity: 0; transform: translateY(30px) scale(0.9); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* 设置项悬停效果 */
+.effects-setting-item {
+  transition: all 0.2s ease;
+}
+
+.effects-setting-item:hover {
+  transform: translateX(2px);
+}
+
+/* 开启状态的设置项高亮 */
+.effects-setting-item:has(input:checked) {
+  background: color-mix(in oklch, var(--success, #4caf50), transparent 92%);
+  border-color: color-mix(in oklch, var(--success, #4caf50), transparent 70%);
+}
+
+.effects-setting-item:has(input:checked):hover {
+  background: color-mix(in oklch, var(--success, #4caf50), transparent 88%);
+}

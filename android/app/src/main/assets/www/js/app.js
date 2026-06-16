@@ -23,6 +23,14 @@ const STORE = {
     const { grades, gradeNames, causes, causeTagsByTopic, points, pointMap, allOption } = window.MathCampQuestionBank;
     const isAndroidWebView = () => document.documentElement.classList.contains("android-webview");
     const isLowMotionMode = () => isAndroidWebView();
+    function effectSettingEnabled(key) {
+      try {
+        const saved = JSON.parse(localStorage.getItem("mathcamp-effects-settings") || "{}");
+        return saved[key] !== false;
+      } catch (e) {
+        return true;
+      }
+    }
     const AUDIO_ASSETS = {
       bgm: "assets/audio/bgm-soft-loop.wav",
       effects: {
@@ -4919,6 +4927,7 @@ const STORE = {
       if (kind) playSound(kind);
     }
     function burst(kind) {
+      if (!effectSettingEnabled("rewardParticles")) return;
       if (isAndroidWebView()) {
         els.celebrationLayer.innerHTML = "";
         const token = document.createElement("span");
@@ -4961,7 +4970,7 @@ const STORE = {
       return null;
     }
     function showRewardRibbon(milestone) {
-      if (!milestone || !els.celebrationLayer) return;
+      if (!milestone || !els.celebrationLayer || !effectSettingEnabled("rewardParticles")) return;
       const ribbon = document.createElement("div");
       ribbon.className = "reward-ribbon";
       ribbon.innerHTML = `<strong>${escapeHTML(petCopy(milestone.title))}</strong><span>${escapeHTML(petCopy(milestone.copy))}</span>`;
@@ -5002,7 +5011,7 @@ const STORE = {
     }
 
     function sprinklePetTokens(kind) {
-      if (!els.companionArt || isLowMotionMode()) return;
+      if (!els.companionArt || isLowMotionMode() || !effectSettingEnabled("rewardParticles")) return;
       const labels = petTokenLabels(kind).slice(0, kind === "wrong" ? 2 : 3);
       labels.forEach((label, index) => {
         const token = document.createElement("span");
@@ -5998,7 +6007,21 @@ const STORE = {
         els.petCharacterBtn.querySelector("img")?.setAttribute("alt", petDisplayName(profile));
       }
       if (els.petEncourageBtn) els.petEncourageBtn.textContent = `🐾 摸摸${petDisplayName(profile)}`;
-      if (els.petHintBtn) els.petHintBtn.textContent = `💡 让${petDisplayName(profile)}提示`;
+      if (els.petHintBtn) {
+        const hintLabel = `让${petDisplayName(profile)}提示`;
+        const full = document.createElement("span");
+        const compact = document.createElement("span");
+        full.className = "pet-hint-full";
+        compact.className = "pet-hint-compact";
+        compact.setAttribute("aria-hidden", "true");
+        full.textContent = `💡 ${hintLabel}`;
+        compact.textContent = "提示";
+        els.petHintBtn.textContent = "";
+        els.petHintBtn.appendChild(full);
+        els.petHintBtn.appendChild(compact);
+        els.petHintBtn.title = hintLabel;
+        els.petHintBtn.setAttribute("aria-label", hintLabel);
+      }
       if (els.mobilePetHintTitle) els.mobilePetHintTitle.innerHTML = `<span aria-hidden="true">🐾</span> ${escapeHTML(petDisplayName(profile))}小提示`;
       if (els.mobilePetHintClose) els.mobilePetHintClose.setAttribute("aria-label", `关闭${petDisplayName(profile)}提示`);
       renderPetSpace(profile);
@@ -6598,7 +6621,7 @@ const STORE = {
         els.petRoomStage.dataset.decorBasket = String(Boolean(pet.equippedFurniture?.toyBasket));
         if (els.petRoomCatBtn) {
           els.petRoomCatBtn.dataset.outfitIcon = outfit?.icon || "";
-          els.petRoomCatBtn.dataset.expressionIcon = expression.icon;
+          els.petRoomCatBtn.dataset.expressionIcon = expression.key === "calm" ? "" : expression.icon;
         }
       }
       if (els.petRoomName) els.petRoomName.textContent = pet.runaway?.status === "lost"

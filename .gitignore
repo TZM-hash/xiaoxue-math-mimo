@@ -4,4 +4,6 @@ android/.gradle/
 android/app/build/
 android/local.properties
 *.apk
+*.apk.idsig
+*.keystore
 Python/_cache/

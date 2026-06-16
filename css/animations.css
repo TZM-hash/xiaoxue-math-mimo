@@ -1,0 +1,694 @@
+/* ============================================
+   喵喵数学 - 动画增强系统
+   ============================================ */
+
+/* === 1. 核心关键帧动画 === */
+
+/* 淡入放大 */
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 从下滑入 */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 从上滑入 */
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 从左滑入 */
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-32px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* 从右滑入 */
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(32px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* 弹跳进入 */
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 摇摆 */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-8px); }
+  20%, 40%, 60%, 80% { transform: translateX(8px); }
+}
+
+/* 脉冲 */
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+/* 呼吸发光 */
+@keyframes breatheGlow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(var(--accent-rgb), 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(var(--accent-rgb), 0.6);
+  }
+}
+
+/* 旋转 */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* 悬浮 */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-12px);
+  }
+}
+
+/* 闪烁星星 */
+@keyframes twinkle {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.8);
+  }
+}
+
+/* 进度条流光 */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* 涟漪扩散 */
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+/* 爆炸粒子 */
+@keyframes explode {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--tx), var(--ty)) scale(0);
+    opacity: 0;
+  }
+}
+
+/* 数字滚动 */
+@keyframes countUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* 彩虹渐变 */
+@keyframes rainbowShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* 心跳 */
+@keyframes heartbeat {
+  0%, 100% {
+    transform: scale(1);
+  }
+  10%, 30% {
+    transform: scale(1.1);
+  }
+  20%, 40% {
+    transform: scale(0.95);
+  }
+}
+
+
+/* === 2. 页面元素入场动画 === */
+
+/* 品牌标识动画 */
+.brand {
+  animation: slideInDown 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.brand-mark img {
+  animation: float 3s ease-in-out infinite;
+}
+
+.brand-spark {
+  display: inline-block;
+  animation: twinkle 1.5s ease-in-out infinite;
+}
+
+/* 导航标签页错落进入 */
+.tab-btn {
+  opacity: 0;
+  animation: slideInDown 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.tab-btn:nth-child(1) { animation-delay: 0.1s; }
+.tab-btn:nth-child(2) { animation-delay: 0.15s; }
+.tab-btn:nth-child(3) { animation-delay: 0.2s; }
+.tab-btn:nth-child(4) { animation-delay: 0.25s; }
+.tab-btn:nth-child(5) { animation-delay: 0.3s; }
+.tab-btn:nth-child(6) { animation-delay: 0.35s; }
+
+/* 标签页悬停效果 */
+.tab-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.tab-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* 快速统计卡片动画 */
+.quick-stats {
+  opacity: 0;
+  animation: slideInRight 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.4s forwards;
+}
+
+.pill {
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.pill:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+
+/* === 3. 卡片和面板动画 === */
+
+/* 主面板卡片 */
+.home-settings-card,
+.today-plan-card,
+.home-side-panel > * {
+  opacity: 0;
+  animation: fadeInScale 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.today-plan-card {
+  animation-delay: 0.1s;
+}
+
+.home-side-panel > *:nth-child(1) {
+  animation-delay: 0.2s;
+}
+
+.home-side-panel > *:nth-child(2) {
+  animation-delay: 0.3s;
+}
+
+.home-side-panel > *:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+/* 卡片悬停3D效果 */
+.home-mode-card,
+.challenge-panel,
+.home-pet-card {
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-style: preserve-3d;
+}
+
+.home-mode-card:hover,
+.challenge-panel:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+/* 卡片按压效果 */
+.home-mode-card:active {
+  transform: translateY(-2px) scale(0.98);
+}
+
+
+/* === 4. 按钮交互动画 === */
+
+/* 主按钮 */
+button.primary,
+button.secondary,
+button.soft-btn {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* 按钮悬停效果 */
+button.primary:hover,
+button.secondary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+button.primary:active,
+button.secondary:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* 按钮涟漪效果 */
+button::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+button:active::after {
+  width: 300px;
+  height: 300px;
+  opacity: 0;
+}
+
+/* 主按钮呼吸光晕 */
+button.primary {
+  box-shadow: 0 4px 12px rgba(58, 164, 124, 0.3);
+  animation: breatheGlow 3s ease-in-out infinite;
+}
+
+
+/* === 5. 宠物互动动画 === */
+
+/* 招财猫容器 */
+.cat {
+  position: relative;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.cat img {
+  animation: float 4s ease-in-out infinite;
+  transition: transform 0.3s ease;
+}
+
+.cat:hover img {
+  transform: scale(1.1);
+  animation-play-state: paused;
+}
+
+/* 宠物卡片 */
+.home-pet-card {
+  overflow: hidden;
+  position: relative;
+}
+
+.home-pet-card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.5s;
+}
+
+.home-pet-card:hover::before {
+  opacity: 1;
+  animation: spin 8s linear infinite;
+}
+
+
+/* === 6. 状态条和进度动画 === */
+
+/* 状态栏卡片 */
+.stat {
+  opacity: 0;
+  animation: bounceIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  transition: all 0.3s ease;
+}
+
+.stat:nth-child(1) { animation-delay: 0.1s; }
+.stat:nth-child(2) { animation-delay: 0.15s; }
+.stat:nth-child(3) { animation-delay: 0.2s; }
+.stat:nth-child(4) { animation-delay: 0.25s; }
+.stat:nth-child(5) { animation-delay: 0.3s; }
+
+.stat:hover {
+  transform: translateY(-4px) scale(1.05);
+}
+
+/* 数字变化动画 */
+.stat strong {
+  display: inline-block;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.stat.updated strong {
+  animation: pulse 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  color: var(--accent);
+}
+
+/* 进度条流光效果 */
+.progress-bar {
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-bar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.4) 50%,
+    transparent 100%
+  );
+  animation: shimmer 2s infinite;
+}
+
+
+/* === 7. 答题反馈动画 === */
+
+/* 正确答案庆祝 */
+@keyframes celebrate {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+  }
+  25% {
+    transform: scale(1.1) rotate(-5deg);
+  }
+  75% {
+    transform: scale(1.1) rotate(5deg);
+  }
+}
+
+.feedback-correct {
+  animation: celebrate 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* 错误答案抖动 */
+.feedback-wrong {
+  animation: shake 0.5s;
+}
+
+/* 成就解锁特效 */
+@keyframes achievementPop {
+  0% {
+    opacity: 0;
+    transform: scale(0) rotate(-180deg);
+  }
+  70% {
+    transform: scale(1.1) rotate(10deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.achievement-badge {
+  animation: achievementPop 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+
+/* === 8. 粒子效果系统 === */
+
+/* 金币飞入动画 */
+@keyframes coinFly {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--target-x), var(--target-y)) scale(0.3) rotate(720deg);
+  }
+}
+
+.coin-particle {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  animation: coinFly 1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* 星星爆炸 */
+.star-burst {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.star-particle {
+  position: absolute;
+  animation: explode 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* 彩虹轨迹 */
+@keyframes rainbowTrail {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2);
+  }
+}
+
+.rainbow-trail {
+  position: fixed;
+  pointer-events: none;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  animation: rainbowTrail 0.6s ease-out forwards;
+}
+
+
+/* === 9. 骨架屏加载动画 === */
+
+@keyframes skeletonLoading {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--soft) 25%,
+    var(--surface) 50%,
+    var(--soft) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeletonLoading 1.5s infinite;
+  border-radius: 8px;
+}
+
+
+/* === 10. 玻璃态效果 === */
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.glass-card:hover {
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15);
+}
+
+
+/* === 11. 装饰性背景动画 === */
+
+/* 浮动气泡 */
+@keyframes bubbleFloat {
+  0% {
+    transform: translateY(100vh) scale(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.6;
+  }
+  90% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(-100vh) scale(1);
+    opacity: 0;
+  }
+}
+
+.bubble {
+  position: fixed;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.2));
+  pointer-events: none;
+  z-index: 0;
+  animation: bubbleFloat linear infinite;
+}
+
+
+/* === 12. 响应式动画调整 === */
+
+/* 减少动画（用户偏好） */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+  /* 减少复杂动画 */
+  .brand-mark img,
+  .cat img {
+    animation: none;
+  }
+
+  /* 简化悬停效果 */
+  .home-mode-card:hover,
+  .challenge-panel:hover {
+    transform: none;
+  }
+
+  /* 保留点击反馈 */
+  .tab-btn:active,
+  button:active {
+    transform: scale(0.95);
+  }
+}
+
+
+/* === 13. 工具类动画 === */
+
+.fade-in {
+  animation: fadeInScale 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.slide-up {
+  animation: slideInUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.slide-down {
+  animation: slideInDown 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.slide-left {
+  animation: slideInLeft 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.slide-right {
+  animation: slideInRight 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.bounce-in {
+  animation: bounceIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.shake-it {
+  animation: shake 0.5s;
+}
+
+.pulse-it {
+  animation: pulse 0.6s;
+}
+
+.heartbeat-it {
+  animation: heartbeat 1s infinite;
+}

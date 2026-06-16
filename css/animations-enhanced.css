@@ -1,0 +1,546 @@
+/* ============================================
+   喵喵数学 - 增强动画样式扩展
+   直接追加到 themes.css 之后
+   ============================================ */
+
+/* === 增强的页面元素动画 === */
+
+/* 快速统计卡片增强 */
+.pill {
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  cursor: pointer;
+}
+
+.pill:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.pill:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* 品牌标识增强动画 */
+.brand {
+  animation: slideInDown 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.brand-mark {
+  transition: all 0.3s ease;
+}
+
+.brand-mark:hover {
+  transform: rotate(5deg) scale(1.1);
+  box-shadow: 0 12px 28px rgba(44, 86, 108, 0.2);
+}
+
+.brand-mark img {
+  animation: float 4s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.brand-spark {
+  animation: twinkle 1.5s ease-in-out infinite;
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.85); }
+}
+
+/* 标签页增强动画 */
+.tab-btn {
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+}
+
+.tab-btn::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%) scaleX(0);
+  width: 80%;
+  height: 3px;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: transform 0.3s ease;
+}
+
+.tab-btn[aria-selected="true"]::before {
+  transform: translateX(-50%) scaleX(1);
+}
+
+.tab-btn:hover {
+  transform: translateY(-2px);
+}
+
+.tab-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* 卡片3D倾斜效果 */
+.home-mode-card,
+.challenge-panel,
+.home-pet-card {
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-style: preserve-3d;
+}
+
+.home-mode-card:hover,
+.challenge-panel:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+}
+
+.home-mode-card:active {
+  transform: translateY(-2px) scale(0.98);
+}
+
+/* 宠物卡片特效 */
+.home-pet-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.home-pet-card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.15) 0%,
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity 0.5s;
+}
+
+.home-pet-card:hover::before {
+  opacity: 1;
+  animation: rotate-slow 10s linear infinite;
+}
+
+@keyframes rotate-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* 招财猫动画增强 */
+.cat {
+  position: relative;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.cat img {
+  transition: transform 0.3s ease;
+}
+
+.cat:hover img {
+  transform: scale(1.15);
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.2));
+}
+
+/* 状态条卡片 - 移除跳变动画 */
+.stat {
+  position: relative;
+  overflow: hidden;
+}
+
+.stat::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  transition: left 0.5s;
+}
+
+.stat:hover::after {
+  left: 100%;
+}
+
+/* 移除数字变化时的脉冲动画 */
+.stat.updated {
+  /* 不再有动画 */
+}
+
+.stat.updated strong {
+  /* 不再有动画 */
+}
+
+/* 按钮增强效果 - 保持原有大小 */
+button.primary,
+button.secondary,
+button.soft-btn {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* 不修改按钮大小，保持原有尺寸 */
+}
+
+button.primary:hover,
+button.secondary:hover,
+button.soft-btn:hover {
+  transform: translateY(-2px);
+  /* 不改变scale，保持原有大小 */
+}
+
+button.primary:active,
+button.secondary:active,
+button.soft-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* 主按钮呼吸光晕 */
+button.primary {
+  animation: button-breathe 3s ease-in-out infinite;
+}
+
+@keyframes button-breathe {
+  0%, 100% {
+    box-shadow: 0 12px 26px color-mix(in oklch, var(--accent), transparent 72%);
+  }
+  50% {
+    box-shadow: 0 16px 36px color-mix(in oklch, var(--accent), transparent 60%);
+  }
+}
+
+/* 输入框焦点动画 */
+input:focus,
+select:focus,
+textarea:focus {
+  animation: input-focus 0.3s ease;
+}
+
+@keyframes input-focus {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklch, var(--accent), transparent 82%);
+  }
+  100% {
+    box-shadow: 0 0 0 4px color-mix(in oklch, var(--accent), transparent 82%);
+  }
+}
+
+/* 进度条动画增强 */
+.progress-bar {
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-bar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.5) 50%,
+    transparent 100%
+  );
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(200%); }
+}
+
+/* 反馈动画类 */
+.feedback-correct {
+  animation: celebrate 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes celebrate {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+  }
+  25% {
+    transform: scale(1.15) rotate(-8deg);
+  }
+  75% {
+    transform: scale(1.15) rotate(8deg);
+  }
+}
+
+.feedback-wrong {
+  animation: shake-strong 0.5s;
+}
+
+@keyframes shake-strong {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-10px); }
+  20%, 40%, 60%, 80% { transform: translateX(10px); }
+}
+
+/* 成就徽章动画 */
+.achievement-badge {
+  animation: achievement-pop 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes achievement-pop {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) scale(0) rotate(-180deg);
+  }
+  70% {
+    transform: translateX(-50%) scale(1.1) rotate(10deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1) rotate(0deg);
+  }
+}
+
+/* 粒子效果 */
+.coin-particle {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  animation: coin-fly 1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes coin-fly {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--target-x), var(--target-y)) scale(0.3) rotate(720deg);
+  }
+}
+
+.star-burst {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.star-particle {
+  position: absolute;
+  animation: explode 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes explode {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--tx), var(--ty)) scale(0);
+    opacity: 0;
+  }
+}
+
+.rainbow-trail {
+  position: fixed;
+  pointer-events: none;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  animation: rainbow-expand 0.6s ease-out forwards;
+}
+
+@keyframes rainbow-expand {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.5);
+  }
+}
+
+/* 浮动气泡 */
+.bubble {
+  position: fixed;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 30% 30%,
+    rgba(255, 255, 255, 0.8),
+    rgba(255, 255, 255, 0.2)
+  );
+  pointer-events: none;
+  z-index: 0;
+  animation: bubble-float linear infinite;
+}
+
+@keyframes bubble-float {
+  0% {
+    transform: translateY(100vh) scale(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.6;
+  }
+  90% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(-100vh) scale(1);
+    opacity: 0;
+  }
+}
+
+/* 骨架屏加载 */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--soft) 25%,
+    var(--surface) 50%,
+    var(--soft) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+  border-radius: 8px;
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* 玻璃态卡片 */
+.glass-card {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.glass-card:hover {
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15);
+  transform: translateY(-4px);
+}
+
+/* 工具类动画 */
+.fade-in {
+  animation: fade-in-up 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.slide-up {
+  animation: slide-up-smooth 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes slide-up-smooth {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.bounce-in {
+  animation: bounce-in-elastic 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes bounce-in-elastic {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.shake-it {
+  animation: shake-strong 0.5s;
+}
+
+.pulse-it {
+  animation: pulse-once 0.6s;
+}
+
+@keyframes pulse-once {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+.heartbeat-it {
+  animation: heartbeat 1s infinite;
+}
+
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); }
+  10%, 30% { transform: scale(1.12); }
+  20%, 40% { transform: scale(0.95); }
+}
+
+/* 响应式优化 */
+@media (max-width: 768px) {
+  /* 简化移动端动画 */
+  .brand-mark img,
+  .cat img {
+    animation: none;
+  }
+
+  .home-mode-card:hover,
+  .challenge-panel:hover {
+    transform: none;
+  }
+
+  /* 保留点击反馈 */
+  .tab-btn:active,
+  button:active {
+    transform: scale(0.95);
+  }
+
+  .bubble {
+    display: none;
+  }
+}
+
+/* 减少动画偏好设置 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -25,6 +25,9 @@
     }
   </script>
   <link rel="stylesheet" href="css/themes.css" />
+  <link rel="stylesheet" href="css/animations.css" />
+  <link rel="stylesheet" href="css/animations-enhanced.css" />
+  <link rel="stylesheet" href="css/effects-settings.css" />
   <style id="printPageStyle"></style>
 </head>
 <body>
@@ -278,7 +281,7 @@
                 <div class="pet-inventory" id="petInventory" aria-label="招财用品">金币 0 · 背包 0 件</div>
                 <div class="pet-actions" aria-label="和招财互动">
                   <button class="soft-btn" type="button" id="petEncourageBtn">🐾 摸摸招财</button>
-                  <button class="secondary" type="button" id="petHintBtn">💡 让招财提示</button>
+                  <button class="secondary" type="button" id="petHintBtn" aria-label="让招财提示" title="让招财提示"><span class="pet-hint-full">💡 让招财提示</span><span class="pet-hint-compact" aria-hidden="true">提示</span></button>
                 </div>
                 <div class="dots" id="progressDots" aria-label="本轮答题记录"></div>
               </div>
@@ -826,6 +829,9 @@
                   <option value="candy">🍬 糖果</option>
                 </select>
               </div>
+              <div class="theme-switch field" id="effectsSwitch" aria-label="特效设置">
+                <button class="secondary custom-select-button" type="button" id="openEffectsSettingsBtn">✨ 特效设置</button>
+              </div>
               <div class="sound-controls" aria-label="声音设置">
                 <button class="sound-toggle" type="button" id="musicToggle" aria-pressed="false">背景音乐 关</button>
                 <button class="sound-toggle" type="button" id="soundToggle" aria-pressed="false">音效 关</button>
@@ -937,6 +943,155 @@ CREATE POLICY "allow_all_user_settings" ON user_settings FOR ALL USING (true) WI
         <div class="import-preview" id="importPreview" hidden></div>
       </article>
     </div>
+
+    <div class="hub-modal" id="effectsSettingsModal" role="dialog" aria-modal="true" aria-labelledby="effectsSettingsTitle" hidden>
+      <article class="hub-modal-panel effects-settings-panel">
+        <div class="item-top">
+          <div>
+            <h2 id="effectsSettingsTitle">✨ 特效设置</h2>
+            <p class="muted">开启或关闭各种视觉特效，设置会自动保存。</p>
+          </div>
+          <button class="secondary icon-btn hub-modal-close" type="button" data-close-effects aria-label="关闭特效设置">×</button>
+        </div>
+
+        <div class="effects-settings-grid">
+          <section class="effects-setting-item">
+            <div class="effects-setting-header">
+              <div>
+                <h3>🖱️ 光标特效</h3>
+              </div>
+              <label class="effects-toggle">
+                <input type="checkbox" id="cursorEffectsToggle" data-effect="cursorEffects" checked>
+                <span class="effects-toggle-slider"></span>
+                <span class="effects-toggle-label"></span>
+              </label>
+            </div>
+          </section>
+
+          <section class="effects-setting-item">
+            <div class="effects-setting-header">
+              <div>
+                <h3>🌸 季节效果</h3>
+              </div>
+              <label class="effects-toggle">
+                <input type="checkbox" id="seasonEffectsToggle" data-effect="seasonEffects" checked>
+                <span class="effects-toggle-slider"></span>
+                <span class="effects-toggle-label"></span>
+              </label>
+            </div>
+          </section>
+
+          <section class="effects-setting-item">
+            <div class="effects-setting-header">
+              <div>
+                <h3>🎨 主题背景</h3>
+              </div>
+              <label class="effects-toggle">
+                <input type="checkbox" id="themeBackgroundsToggle" data-effect="themeBackgrounds" checked>
+                <span class="effects-toggle-slider"></span>
+                <span class="effects-toggle-label"></span>
+              </label>
+            </div>
+          </section>
+
+          <section class="effects-setting-item">
+            <div class="effects-setting-header">
+              <div>
+                <h3>🐱 招财猫互动</h3>
+              </div>
+              <label class="effects-toggle">
+                <input type="checkbox" id="catInteractionToggle" data-effect="catInteraction" checked>
+                <span class="effects-toggle-slider"></span>
+                <span class="effects-toggle-label"></span>
+              </label>
+            </div>
+          </section>
+
+          <section class="effects-setting-item">
+            <div class="effects-setting-header">
+              <div>
+                <h3>📝 答题增强</h3>
+              </div>
+              <label class="effects-toggle">
+                <input type="checkbox" id="questionEnhancementsToggle" data-effect="questionEnhancements" checked>
+                <span class="effects-toggle-slider"></span>
+                <span class="effects-toggle-label"></span>
+              </label>
+            </div>
+          </section>
+
+          <section class="effects-setting-item">
+            <div class="effects-setting-header">
+              <div>
+                <h3>🎯 微交互</h3>
+              </div>
+              <label class="effects-toggle">
+                <input type="checkbox" id="microInteractionsToggle" data-effect="microInteractions" checked>
+                <span class="effects-toggle-slider"></span>
+                <span class="effects-toggle-label"></span>
+              </label>
+            </div>
+          </section>
+
+          <section class="effects-setting-item">
+            <div class="effects-setting-header">
+              <div>
+                <h3>✨ UI 动画</h3>
+              </div>
+              <label class="effects-toggle">
+                <input type="checkbox" id="uiAnimationsToggle" data-effect="uiAnimations" checked>
+                <span class="effects-toggle-slider"></span>
+                <span class="effects-toggle-label"></span>
+              </label>
+            </div>
+          </section>
+
+          <section class="effects-setting-item">
+            <div class="effects-setting-header">
+              <div>
+                <h3>🎉 奖励粒子</h3>
+              </div>
+              <label class="effects-toggle">
+                <input type="checkbox" id="rewardParticlesToggle" data-effect="rewardParticles" checked>
+                <span class="effects-toggle-slider"></span>
+                <span class="effects-toggle-label"></span>
+              </label>
+            </div>
+          </section>
+
+          <section class="effects-setting-item">
+            <div class="effects-setting-header">
+              <div>
+                <h3>🌫️ 聚焦模糊</h3>
+              </div>
+              <label class="effects-toggle">
+                <input type="checkbox" id="focusBlurToggle" data-effect="focusBlur" checked>
+                <span class="effects-toggle-slider"></span>
+                <span class="effects-toggle-label"></span>
+              </label>
+            </div>
+          </section>
+
+          <section class="effects-setting-item">
+            <div class="effects-setting-header">
+              <div>
+                <h3>♾️ 循环动效</h3>
+              </div>
+              <label class="effects-toggle">
+                <input type="checkbox" id="ambientAnimationsToggle" data-effect="ambientAnimations" checked>
+                <span class="effects-toggle-slider"></span>
+                <span class="effects-toggle-label"></span>
+              </label>
+            </div>
+          </section>
+        </div>
+
+        <div class="effects-settings-footer">
+          <button class="secondary" type="button" id="resetAllEffectsBtn">恢复默认设置</button>
+          <button class="primary" type="button" id="saveEffectsBtn">保存并关闭</button>
+        </div>
+      </article>
+    </div>
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -948,6 +1103,16 @@ CREATE POLICY "allow_all_user_settings" ON user_settings FOR ALL USING (true) WI
   <script src="js/pet-economy.js"></script>
   <script src="js/home-route.js"></script>
   <script src="js/pet-dressup-meta.js"></script>
+  <script src="js/ui-animations.js"></script>
+  <script src="js/animation-integration.js"></script>
+  <script src="js/timer-fix.js"></script>
+  <script src="js/cursor-effects.js"></script>
+  <script src="js/cat-interaction.js"></script>
+  <script src="js/season-effects.js"></script>
+  <script src="js/theme-backgrounds.js"></script>
+  <script src="js/question-enhancements.js"></script>
+  <script src="js/micro-interactions.js"></script>
+  <script src="js/effects-control-integrated.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
