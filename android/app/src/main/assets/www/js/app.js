@@ -5934,12 +5934,24 @@ const STORE = {
     function petImagePath(key = "idle") {
       return `${PET_IMAGE_BASE}/${PET_IMAGES[key] || PET_IMAGES.idle}`;
     }
+    function resolveAssetUrl(src = "") {
+      const text = String(src || "");
+      if (/^(?:[a-z]+:)?\/\//i.test(text) || /^(?:data|blob|file):/i.test(text)) return text;
+      if (typeof window.URL === "function") {
+        try { return new window.URL(text, window.location.href).href; } catch (_) {}
+      }
+      const base = String(window.location?.href || "");
+      const cleanBase = base.split(/[?#]/)[0];
+      const dir = cleanBase.includes("/") ? cleanBase.slice(0, cleanBase.lastIndexOf("/") + 1) : "";
+      return `${dir}${text.replace(/^\.\//, "")}`;
+    }
     function syncPetImage(key = "") {
       const profile = activeProfile();
       const pet = petState(profile);
       const imageKey = key || petStableImageKey(pet);
       const src = petImagePath(imageKey);
-      document.documentElement.style.setProperty("--cat-photo", `url("${src}")`);
+      const cssSrc = resolveAssetUrl(src);
+      document.documentElement.style.setProperty("--cat-photo", `url("${cssSrc}")`);
       document.querySelectorAll("[data-pet-image]").forEach((img) => {
         if (img.getAttribute("src") !== src) img.setAttribute("src", src);
         if (img.hasAttribute("alt") && img.getAttribute("alt")) img.setAttribute("alt", petDisplayName(profile));
@@ -6938,6 +6950,9 @@ const STORE = {
     function shouldUsePetPanelModals() {
       return window.matchMedia("(max-width: 980px)").matches;
     }
+    function shouldPlacePetBarsInRoomInfo() {
+      return window.matchMedia("(min-width: 981px)").matches;
+    }
     function movePetCard(card, slot, home) {
       if (!card || !slot || !home) return;
       const target = shouldUsePetPanelModals() ? slot : home;
@@ -6963,12 +6978,31 @@ const STORE = {
         if (els.petShowcaseCard.parentElement !== els.petShowcasePanelSlot) els.petShowcasePanelSlot.appendChild(els.petShowcaseCard);
         return;
       }
-      const bars = els.petSpaceBars;
       const dashboard = document.querySelector(".pet-care-dashboard");
-      if (!bars || !dashboard) return;
-      if (els.petShowcaseCard.parentElement !== bars.parentElement || els.petShowcaseCard.nextElementSibling !== dashboard) {
-        if (typeof bars.parentElement?.insertBefore === "function") bars.parentElement.insertBefore(els.petShowcaseCard, dashboard);
-        else if (els.petShowcaseCard.parentElement !== bars.parentElement) bars.parentElement.appendChild(els.petShowcaseCard);
+      const petRoomCard = dashboard?.closest(".pet-room-card");
+      if (!petRoomCard || !dashboard) return;
+      if (els.petShowcaseCard.parentElement !== petRoomCard || els.petShowcaseCard.nextElementSibling !== dashboard) {
+        if (typeof petRoomCard.insertBefore === "function") petRoomCard.insertBefore(els.petShowcaseCard, dashboard);
+        else if (els.petShowcaseCard.parentElement !== petRoomCard) petRoomCard.appendChild(els.petShowcaseCard);
+      }
+    }
+    function movePetSpaceBars() {
+      if (!els.petSpaceBars || !els.petRoomStage) return;
+      const petRoomInfo = document.querySelector(".pet-room-info");
+      const home = els.petRoomStage.parentElement;
+      if (!petRoomInfo || !home) return;
+      if (shouldPlacePetBarsInRoomInfo()) {
+        const anchor = els.petSkillStrip?.nextElementSibling || null;
+        if (els.petSpaceBars.parentElement !== petRoomInfo || els.petSpaceBars.previousElementSibling !== els.petSkillStrip) {
+          if (typeof petRoomInfo.insertBefore === "function") petRoomInfo.insertBefore(els.petSpaceBars, anchor);
+          else if (els.petSpaceBars.parentElement !== petRoomInfo) petRoomInfo.appendChild(els.petSpaceBars);
+        }
+        return;
+      }
+      if (els.petSpaceBars.parentElement !== home || els.petSpaceBars.previousElementSibling !== els.petRoomStage) {
+        const afterStage = els.petRoomStage.nextElementSibling;
+        if (typeof home.insertBefore === "function") home.insertBefore(els.petSpaceBars, afterStage);
+        else if (els.petSpaceBars.parentElement !== home) home.appendChild(els.petSpaceBars);
       }
     }
     function syncPetPanelLayout() {
@@ -6979,6 +7013,7 @@ const STORE = {
       movePetCard(carePlanCard, els.petCarePlanPanelSlot, dashboard);
       movePetCard(els.petEventCard, els.petEventPanelSlot, dashboard);
       movePetStageCard();
+      movePetSpaceBars();
       movePetShowcaseCard();
       movePetCard(els.petMemoryCard, els.petMemoryPanelSlot, dashboard);
       movePetCard(els.petLevelGiftCard, els.petLevelGiftPanelSlot, dashboard);

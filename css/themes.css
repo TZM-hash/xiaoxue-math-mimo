@@ -4211,65 +4211,68 @@
         padding: 8px 12px;
       }
       #petspaceView.active .pet-room-stage {
-        min-height: 320px;
+        min-height: clamp(420px, calc(100dvh - 590px), 660px);
         margin-top: 10px;
         gap: 12px;
       }
       #petspaceView.active .pet-room-scene {
-        min-height: 320px;
+        min-height: clamp(420px, calc(100dvh - 590px), 660px);
       }
       #petspaceView.active .pet-room-info {
-        padding: 12px;
-        gap: 8px;
+        padding: 18px;
+        gap: 14px;
         align-content: start;
       }
       #petspaceView.active .pet-room-info h3 {
-        font-size: 17px;
+        font-size: 20px;
+        line-height: 1.18;
       }
       #petspaceView.active .pet-room-info p,
       #petspaceView.active .pet-stage-card span {
         display: -webkit-box;
-        -webkit-line-clamp: 2;
+        -webkit-line-clamp: 3;
         -webkit-box-orient: vertical;
         overflow: hidden;
-        line-height: 1.32;
+        line-height: 1.52;
       }
       #petspaceView.active .pet-stage-card {
-        padding: 9px 10px;
-        gap: 4px;
+        min-height: 128px;
+        padding: 15px 16px;
+        gap: 9px;
       }
       #petspaceView.active .pet-stage-card strong {
-        font-size: 15px;
+        font-size: 17px;
       }
       #petspaceView.active .pet-space-progress {
-        gap: 7px;
+        gap: 10px;
       }
       #petspaceView.active .pet-space-progress div {
-        padding: 8px 10px;
+        min-height: 58px;
+        padding: 11px 13px;
       }
       #petspaceView.active .pet-space-progress strong {
-        margin-top: 2px;
-        font-size: 19px;
+        margin-top: 4px;
+        font-size: 22px;
       }
       #petspaceView.active .pet-skill-strip span {
-        min-height: 22px;
-        padding: 0 7px;
-        font-size: 10px;
-      }
-      #petspaceView.active .pet-space-bars {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 8px;
-        margin-top: 10px;
-      }
-      #petspaceView.active .pet-space-bar {
-        min-height: 42px;
-        padding: 8px 9px;
-        grid-template-columns: 46px minmax(0, 1fr) 28px;
-        gap: 7px;
+        min-height: 26px;
+        padding: 0 9px;
         font-size: 11px;
       }
+      #petspaceView.active .pet-space-bars {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 2px;
+      }
+      #petspaceView.active .pet-space-bar {
+        min-height: 52px;
+        padding: 10px 12px;
+        grid-template-columns: 52px minmax(0, 1fr) 34px;
+        gap: 9px;
+        font-size: 12px;
+      }
       #petspaceView.active .pet-space-bar .bar-track {
-        height: 7px;
+        height: 8px;
       }
       #petspaceView.active .pet-showcase-card {
         grid-template-columns: minmax(210px, .23fr) minmax(0, 1fr);
