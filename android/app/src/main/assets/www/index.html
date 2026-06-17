@@ -31,7 +31,6 @@
   <style id="printPageStyle"></style>
 </head>
 <body>
-  <div id="rippleContainer"></div>
   <main class="app">
     <header class="app-header">
       <div class="brand" aria-label="喵喵数学">
@@ -138,7 +137,7 @@
                 <option value="judge">判断对错</option>
                 <option value="step">分步作答</option>
               </select>
-              <div class="mobile-step-note">手机做题时不提供分步作答，默认改为直接输入、选择题或判断题。</div>
+              <div class="mobile-step-note">手机和平板做题时不提供分步作答，默认改为直接输入、选择题或判断题。</div>
             </div>
             <label class="inline-check">
               <input id="adaptiveToggle" type="checkbox" checked />
@@ -391,6 +390,7 @@
             <button class="secondary" type="button" id="openPetDressupBtn">🎨 装扮馆</button>
             <button class="secondary" type="button" id="openPetTaskBtn">✅ 每日 / 每周任务</button>
             <button class="secondary" type="button" id="openPetAchievementBtn">🏅 成就图鉴</button>
+            <button class="secondary pet-theme-shop-direct-btn" type="button" id="openPetThemeShopBtn">🌈 主题商店</button>
           </div>
         </article>
       </div>
@@ -441,7 +441,7 @@
             <button class="secondary" type="button" data-open-pet-modal="care"><span aria-hidden="true">🌱</span><strong>今日照料</strong></button>
             <button class="secondary" type="button" data-open-pet-modal="growth"><span aria-hidden="true">📔</span><strong>成长记录</strong></button>
             <button class="secondary" type="button" data-open-pet-modal="achievements"><span aria-hidden="true">🏅</span><strong>成就图鉴</strong></button>
-            <button class="secondary" type="button" data-open-pet-modal="themes"><span aria-hidden="true">🌈</span><strong>主题商店</strong></button>
+            <button class="secondary pet-theme-shop-menu-entry" type="button" data-open-pet-modal="themes"><span aria-hidden="true">🌈</span><strong>主题商店</strong></button>
             <button class="secondary" type="button" data-open-pet-modal="dressup"><span aria-hidden="true">🎨</span><strong>装扮馆</strong></button>
           </div>
         </article>

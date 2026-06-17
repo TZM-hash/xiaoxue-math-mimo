@@ -86,7 +86,7 @@
               <input type="checkbox" data-setting="cursorEffects" ${this.settings.cursorEffects ? 'checked' : ''}>
               <span>光标特效</span>
             </label>
-            <small>粒子尾迹、点击爆炸、磁吸效果</small>
+            <small>有效点击星星、磁吸效果</small>
           </div>
 
           <div class="control-item">

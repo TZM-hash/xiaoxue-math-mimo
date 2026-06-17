@@ -329,6 +329,7 @@ const STORE = {
       openPetPlanBtn: document.getElementById("openPetPlanBtn"),
       openPetDressupBtn: document.getElementById("openPetDressupBtn"),
       openPetAchievementBtn: document.getElementById("openPetAchievementBtn"),
+      openPetThemeShopBtn: document.getElementById("openPetThemeShopBtn"),
       petShopModal: document.getElementById("petShopModal"),
       petBagModal: document.getElementById("petBagModal"),
       petTaskModal: document.getElementById("petTaskModal"),
@@ -783,7 +784,7 @@ const STORE = {
       return isCompactPracticeViewport() || mode === "choice" || mode === "judge";
     }
     function normalizeAnswerModeForViewport(mode) {
-      return isMobilePracticeViewport() && mode === "step" ? "input" : mode;
+      return isCompactPracticeViewport() && mode === "step" ? "input" : mode;
     }
     function shouldUseCustomAnswerKeyboard(mode = "input") {
       return (mode === "input" || mode === "step") && isCompactPracticeViewport();
@@ -791,9 +792,10 @@ const STORE = {
     function syncAnswerModeAvailability() {
       const stepOption = els.answerModeSelect?.querySelector('option[value="step"]');
       if (!stepOption) return;
-      const mobile = isMobilePracticeViewport();
-      stepOption.disabled = mobile;
-      if (mobile && els.answerModeSelect.value === "step") {
+      const compact = isCompactPracticeViewport();
+      stepOption.disabled = compact;
+      stepOption.hidden = compact;
+      if (compact && els.answerModeSelect.value === "step") {
         els.answerModeSelect.value = "input";
         state.answerMode = "input";
       }
@@ -827,6 +829,7 @@ const STORE = {
       button.querySelector(".custom-select-value").textContent = customSelectLabel(select);
       menu.innerHTML = "";
       [...select.options].forEach((option) => {
+        if (option.hidden) return;
         const item = document.createElement("button");
         item.type = "button";
         item.className = "custom-select-option";
@@ -5555,7 +5558,7 @@ const STORE = {
         }
       }
       document.body.classList.toggle("practice-focus-mode", layer === "focus");
-      document.body.classList.toggle("practice-return-visible", layer === "focus" && state.mode !== "normal");
+      document.body.classList.toggle("practice-return-visible", layer === "focus");
       if (layer === "focus") setTypeSettingsOpen(false);
       if (layer !== "focus") closePetHintPopover();
     }
@@ -6662,11 +6665,29 @@ const STORE = {
       const nextTheme = themes.find((theme) => !systemThemeOwned(theme.id, profile));
       if (els.petThemeShopSummary) els.petThemeShopSummary.textContent = `已拥有 ${ownedCount}/${themes.length}`;
       if (els.petThemeShopBoard) {
+        const boardTheme = nextTheme || themes.find((theme) => state.theme === theme.id) || themes[0];
+        const boardColor = boardTheme?.metaColor || "#8fd3b4";
         els.petThemeShopBoard.innerHTML = nextTheme
-          ? `<strong>下一个目标：${escapeHTML(nextTheme.label)}</strong><span>需要 Lv.${Number(nextTheme.unlockLevel || 1)}，${Math.max(0, Number(nextTheme.price) || 0)} 金币。当前 Lv.${Number(pet.level || 1)}，金币 ${Number(pet.coins || 0)}。</span>`
-          : `<strong>主题全部收集完成</strong><span>可以在系统设置里随时切换已拥有主题。</span>`;
+          ? `<div class="pet-theme-shop-preview-swatch" style="--theme-preview:${escapeAttr(boardColor)}"><span>${escapeHTML(boardTheme.icon || "🌈")}</span></div><div><strong>下一个目标：${escapeHTML(nextTheme.label)}</strong><span>需要 Lv.${Number(nextTheme.unlockLevel || 1)}，${Math.max(0, Number(nextTheme.price) || 0)} 金币。当前 Lv.${Number(pet.level || 1)}，金币 ${Number(pet.coins || 0)}。</span></div>`
+          : `<div class="pet-theme-shop-preview-swatch" style="--theme-preview:${escapeAttr(boardColor)}"><span>${escapeHTML(boardTheme?.icon || "🌈")}</span></div><div><strong>主题全部收集完成</strong><span>可以在系统设置里随时切换已拥有主题。</span></div>`;
       }
-      els.petThemeShopGrid.innerHTML = themes.map((theme) => systemThemeCard(theme, pet)).join("");
+      const groups = [
+        {
+          title: "开局主题",
+          desc: "经典、护眼、二次元开局直接可用。",
+          items: themes.filter((theme) => theme.initial)
+        },
+        {
+          title: "养成解锁",
+          desc: "剩余主题跟随招财等级和金币逐步解锁。",
+          items: themes.filter((theme) => !theme.initial)
+        }
+      ].filter((group) => group.items.length);
+      els.petThemeShopGrid.innerHTML = groups.map((group) => `
+        <section class="pet-collection-section">
+          <div class="pet-shop-tier-head"><h3>${escapeHTML(group.title)}</h3><span>${escapeHTML(group.desc)}</span></div>
+          <div class="pet-collection-grid">${group.items.map((theme) => systemThemeCard(theme, pet)).join("")}</div>
+        </section>`).join("");
     }
     function shouldUsePetPanelModals() {
       return window.matchMedia("(max-width: 980px)").matches;
@@ -7738,7 +7759,8 @@ const STORE = {
       els.reviewPanel.hidden = true;
       resetRoundRuntime();
       renderPracticeQuestion();
-      if (options.focus) {
+      const shouldFocus = options.focus || (state.view === "practice" && window.matchMedia("(max-width: 1180px)").matches);
+      if (shouldFocus) {
         enterPracticeFocus();
         startRoundTimer();
       }
@@ -9809,6 +9831,7 @@ const STORE = {
     els.openPetPlanBtn?.addEventListener("click", () => openPetModal("plan"));
     els.openPetDressupBtn?.addEventListener("click", () => openPetModal("dressup"));
     els.openPetAchievementBtn?.addEventListener("click", () => openPetModal("achievements"));
+    els.openPetThemeShopBtn?.addEventListener("click", () => openPetModal("themes"));
     document.querySelectorAll("[data-open-pet-modal]").forEach((button) => {
       button.addEventListener("click", (event) => {
         event.stopPropagation();
@@ -10271,7 +10294,7 @@ const STORE = {
     updateSoundButtons();
     renderNumberPad();
     syncFromProfile();
-    startNewSet();
+    startNewSet({ focus: window.matchMedia("(max-width: 1180px)").matches });
     if (!isAndroidWebView()) generatePrintSheet();
     initCloudSync();
     if (state.musicOn) {
@@ -10364,80 +10387,5 @@ const STORE = {
         els
       };
     }
-
-    // 全局点击涟漪特效
-    (function initRippleEffect() {
-      const rippleContainer = document.getElementById('rippleContainer');
-      if (!rippleContainer) return;
-
-      let lastTouchTime = 0;
-
-      function createRipple(x, y) {
-        // 创建主涟漪
-        const mainRipple = document.createElement('div');
-        mainRipple.className = 'ripple-effect ripple-main';
-        mainRipple.style.left = x + 'px';
-        mainRipple.style.top = y + 'px';
-        rippleContainer.appendChild(mainRipple);
-
-        // 创建波纹环
-        const waveRipple = document.createElement('div');
-        waveRipple.className = 'ripple-effect ripple-wave';
-        waveRipple.style.left = x + 'px';
-        waveRipple.style.top = y + 'px';
-        rippleContainer.appendChild(waveRipple);
-
-        // 创建粒子效果（8个方向）
-        const particleCount = 8;
-        for (let i = 0; i < particleCount; i++) {
-          const angle = (i / particleCount) * Math.PI * 2;
-          const distance = 60 + Math.random() * 40;
-          const particleX = Math.cos(angle) * distance;
-          const particleY = Math.sin(angle) * distance;
-
-          const particle = document.createElement('div');
-          particle.className = 'ripple-effect ripple-particle';
-          particle.style.left = x + 'px';
-          particle.style.top = y + 'px';
-          particle.style.setProperty('--particle-x', particleX + 'px');
-          particle.style.setProperty('--particle-y', particleY + 'px');
-          particle.style.animationDelay = (i * 0.03) + 's';
-          rippleContainer.appendChild(particle);
-
-          // 清理粒子
-          setTimeout(() => {
-            if (particle.parentNode === rippleContainer) {
-              rippleContainer.removeChild(particle);
-            }
-          }, 700 + (i * 30));
-        }
-
-        // 清理主涟漪和波纹
-        setTimeout(() => {
-          if (mainRipple.parentNode === rippleContainer) {
-            rippleContainer.removeChild(mainRipple);
-          }
-          if (waveRipple.parentNode === rippleContainer) {
-            rippleContainer.removeChild(waveRipple);
-          }
-        }, 900);
-      }
-
-      // 监听触摸和点击事件，防止移动端重复触发
-      document.addEventListener('touchstart', (e) => {
-        if (e.touches.length > 0) {
-          const touch = e.touches[0];
-          createRipple(touch.clientX, touch.clientY);
-          lastTouchTime = Date.now();
-        }
-      }, { passive: true });
-
-      document.addEventListener('click', (e) => {
-        // 移动端touchstart已触发过则跳过click
-        if (Date.now() - lastTouchTime < 300) return;
-        createRipple(e.clientX, e.clientY);
-      });
-    })();
-
 
 

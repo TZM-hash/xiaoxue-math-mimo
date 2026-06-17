@@ -72,7 +72,16 @@
     setupFocusMode() {
       if (!effectSettingEnabled('focusBlur')) return;
       // 创建遮罩层
-      const overlay = document.createElement('div');
+      let overlay = document.getElementById('focusModeOverlay');
+      if (overlay) {
+        overlay.style.opacity = '0';
+        overlay.style.background = 'rgba(0, 0, 0, 0)';
+        overlay.style.backdropFilter = 'blur(0px)';
+        overlay.style.webkitBackdropFilter = 'blur(0px)';
+        overlay.style.pointerEvents = 'none';
+        return;
+      }
+      overlay = document.createElement('div');
       overlay.id = 'focusModeOverlay';
       overlay.style.cssText = `
         position: fixed;
@@ -91,14 +100,6 @@
       document.body.appendChild(overlay);
 
       // 监听答题开始
-      document.addEventListener('click', (e) => {
-        if (!this.enabled || !effectSettingEnabled('focusBlur')) return;
-        const isQuestionArea = e.target.closest('.practice-card, .question-card, #answerInput, #submitBtn');
-        if (isQuestionArea && !this.focusModeActive) {
-          this.enterFocusMode();
-        }
-      });
-
       // 监听答题完成
       document.addEventListener('correct-animation', () => this.exitFocusMode());
       document.addEventListener('wrong-animation', () => this.exitFocusMode());

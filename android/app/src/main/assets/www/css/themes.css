@@ -284,52 +284,6 @@
       cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Ccircle cx='12' cy='17' r='6' fill='%23f6c86f' stroke='%23533b1b' stroke-width='2'/%3E%3Ccircle cx='6' cy='10' r='3' fill='%23f6c86f' stroke='%23533b1b' stroke-width='1.6'/%3E%3Ccircle cx='12' cy='7' r='3' fill='%23f6c86f' stroke='%23533b1b' stroke-width='1.6'/%3E%3Ccircle cx='18' cy='10' r='3' fill='%23f6c86f' stroke='%23533b1b' stroke-width='1.6'/%3E%3C/svg%3E") 8 8, auto;
     }
 
-    #rippleContainer {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      z-index: 9999;
-      overflow: hidden;
-    }
-
-    .ripple-effect {
-      position: absolute;
-      border-radius: 50%;
-      pointer-events: none;
-    }
-
-    .ripple-main {
-      width: 100px;
-      height: 100px;
-      background: radial-gradient(circle,
-        color-mix(in oklch, var(--accent), white 40%) 0%,
-        color-mix(in oklch, var(--accent-2), white 50%) 30%,
-        color-mix(in oklch, var(--sun), white 60%) 60%,
-        transparent 100%);
-      animation: ripple-expand 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-      filter: blur(2px);
-    }
-
-    .ripple-wave {
-      width: 80px;
-      height: 80px;
-      border: 3px solid color-mix(in oklch, var(--accent), white 30%);
-      animation: ripple-wave 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-    }
-
-    .ripple-particle {
-      width: 12px;
-      height: 12px;
-      background: linear-gradient(135deg,
-        color-mix(in oklch, var(--sun), white 20%),
-        color-mix(in oklch, var(--accent), white 40%));
-      box-shadow: 0 0 8px color-mix(in oklch, var(--accent), white 40%);
-      animation: ripple-particle 0.7s cubic-bezier(0.4, 0, 0.6, 1) forwards;
-    }
-
     button, input, select, textarea { font: inherit; }
     button {
       position: relative;
@@ -480,39 +434,6 @@
       0% { opacity: 0; transform: translate(-50%, 8px) scale(.72); }
       18% { opacity: 1; }
       100% { opacity: 0; transform: translate(-50%, -64px) scale(1.04); }
-    }
-    @keyframes ripple-expand {
-      0% {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(0);
-      }
-      50% {
-        opacity: 0.5;
-      }
-      100% {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(2.5);
-      }
-    }
-    @keyframes ripple-particle {
-      0% {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(0) rotate(0deg);
-      }
-      100% {
-        opacity: 0;
-        transform: translate(-50%, -50%) translate(var(--particle-x), var(--particle-y)) scale(1) rotate(360deg);
-      }
-    }
-    @keyframes ripple-wave {
-      0% {
-        opacity: 0.8;
-        transform: translate(-50%, -50%) scale(0);
-      }
-      100% {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(3);
-      }
     }
     @keyframes button-glint { from { inset-inline-start: -40%; } to { inset-inline-start: 140%; } }
     @keyframes pet-orbit { 0% { transform: rotate(0deg) translateX(48px) rotate(0deg); opacity: .34; } 50% { opacity: .78; } 100% { transform: rotate(360deg) translateX(48px) rotate(-360deg); opacity: .34; } }
@@ -1380,6 +1301,10 @@
     .view.active { display: block; }
     .view.active.view-enter {
       animation: view-soft-enter .22s cubic-bezier(.2, .8, .2, 1) both;
+    }
+    body.pet-modal-open #petspaceView.view.active {
+      animation: none;
+      transform: none;
     }
     .view.active.view-enter .panel,
     .view.active.view-enter .card,
@@ -2911,6 +2836,9 @@
     .pet-space-actions button {
       min-width: min(220px, 100%);
     }
+    .pet-theme-shop-direct-btn {
+      min-width: min(140px, 100%);
+    }
     .pet-plan-mobile-btn {
       display: none;
     }
@@ -2974,6 +2902,14 @@
       margin: 0;
       max-width: none;
     }
+    .pet-dressup-card,
+    .pet-theme-shop-card {
+      width: min(980px, 100%);
+      height: min(720px, calc(100dvh - 44px));
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr);
+    }
     .pet-shop-card,
     .pet-bag-card {
       width: min(860px, 100%);
@@ -3011,6 +2947,9 @@
       padding: 10px;
       border-radius: 16px;
       text-align: center;
+    }
+    .pet-plan-menu-grid .pet-theme-shop-menu-entry {
+      display: none;
     }
     .pet-plan-menu-grid span {
       font-size: 22px;
@@ -4105,6 +4044,168 @@
       font-style: normal;
       color: color-mix(in oklch, var(--fg), var(--accent) 12%);
     }
+
+    @media (min-width: 981px) {
+      #petspaceView.active .pet-room-card {
+        padding-bottom: 18px;
+      }
+      #petspaceView.active .pet-showcase-card {
+        grid-template-columns: minmax(210px, .23fr) minmax(0, 1fr);
+        align-items: center;
+        gap: 10px;
+        margin-top: 12px;
+        padding: 9px 12px;
+      }
+      #petspaceView.active .pet-showcase-head {
+        align-items: center;
+        gap: 10px;
+      }
+      #petspaceView.active .pet-showcase-head > div {
+        min-width: 0;
+      }
+      #petspaceView.active .pet-showcase-head h3 {
+        font-size: 16px;
+      }
+      #petspaceView.active .pet-showcase-head p {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 11px;
+        line-height: 1.2;
+      }
+      #petspaceView.active .pet-showcase-grid {
+        gap: 8px;
+      }
+      #petspaceView.active .pet-showcase-grid span {
+        gap: 2px;
+        padding: 7px 9px;
+      }
+      #petspaceView.active .pet-showcase-grid b {
+        font-size: 15px;
+      }
+      #petspaceView.active .pet-showcase-grid strong {
+        font-size: 12px;
+      }
+      #petspaceView.active .pet-showcase-grid em,
+      #petspaceView.active .pet-showcase-strip i {
+        font-size: 10px;
+      }
+      #petspaceView.active .pet-showcase-strip {
+        grid-column: 1 / -1;
+        gap: 5px;
+      }
+      #petspaceView.active .pet-showcase-strip i {
+        padding: 3px 6px;
+      }
+      #petspaceView.active .pet-care-dashboard {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 12px;
+      }
+      #petspaceView.active .pet-wish-card,
+      #petspaceView.active .pet-level-gift-card,
+      #petspaceView.active .pet-care-plan-card,
+      #petspaceView.active .pet-event-card,
+      #petspaceView.active .pet-story-card,
+      #petspaceView.active .pet-memory-card {
+        min-height: 132px;
+        max-height: 132px;
+        padding: 10px;
+        gap: 6px;
+        overflow: hidden;
+      }
+      #petspaceView.active .pet-card-title,
+      #petspaceView.active .pet-care-plan-head {
+        gap: 8px;
+      }
+      #petspaceView.active .pet-card-title > span {
+        width: 28px;
+        height: 28px;
+        border-radius: 10px;
+        font-size: 15px;
+      }
+      #petspaceView.active .pet-wish-card h3,
+      #petspaceView.active .pet-level-gift-card h3,
+      #petspaceView.active .pet-care-plan-card h3,
+      #petspaceView.active .pet-event-card h3,
+      #petspaceView.active .pet-story-card h3,
+      #petspaceView.active .pet-memory-card h3 {
+        font-size: 15px;
+      }
+      #petspaceView.active .pet-wish-card p,
+      #petspaceView.active .pet-level-gift-card p,
+      #petspaceView.active .pet-event-card p,
+      #petspaceView.active .pet-story-card p,
+      #petspaceView.active .pet-memory-card p,
+      #petspaceView.active .pet-card-title p,
+      #petspaceView.active .pet-care-plan-head .muted {
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        font-size: 11px;
+        line-height: 1.25;
+      }
+      #petspaceView.active .pet-care-plan-head strong {
+        min-width: 38px;
+        padding: 5px 7px;
+        font-size: 12px;
+      }
+      #petspaceView.active .pet-mini-progress {
+        height: 6px;
+      }
+      #petspaceView.active .pet-card-actions {
+        gap: 6px;
+      }
+      #petspaceView.active .pet-card-actions button {
+        min-height: 30px;
+        padding: 0 9px;
+        font-size: 11px;
+      }
+      #petspaceView.active .pet-care-checklist {
+        gap: 4px;
+      }
+      #petspaceView.active .pet-care-checklist div {
+        grid-template-columns: 18px minmax(36px, auto) minmax(0, 1fr);
+        min-height: 21px;
+        padding: 3px 6px;
+        gap: 6px;
+        font-size: 10px;
+      }
+      #petspaceView.active .pet-care-checklist div:nth-child(n+4) {
+        display: none;
+      }
+      #petspaceView.active .pet-care-checklist span {
+        width: 18px;
+        height: 18px;
+      }
+      #petspaceView.active .pet-memory-list {
+        gap: 4px;
+      }
+      #petspaceView.active .pet-memory-list p {
+        padding: 5px 7px;
+        font-size: 11px;
+        line-height: 1.25;
+      }
+      #petspaceView.active .pet-memory-list p:nth-child(n+2) {
+        display: none;
+      }
+      #petspaceView.active .pet-memory-list p:nth-child(n+3) {
+        display: none;
+      }
+      #petspaceView.active .pet-space-actions {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 12px;
+      }
+      #petspaceView.active .pet-space-actions button {
+        min-width: 0;
+        width: 100%;
+        min-height: 44px;
+      }
+    }
+
     .pet-room-stage[data-decor-rug="true"] .pet-room-rug {
       background:
         repeating-linear-gradient(90deg, color-mix(in oklch, var(--sun), white 28%) 0 18px, color-mix(in oklch, var(--coral), white 62%) 19px 36px);
@@ -4342,6 +4443,31 @@
       grid-template-columns: 94px minmax(0, 1fr);
       align-items: center;
     }
+    .pet-theme-shop-board {
+      grid-template-columns: 94px minmax(0, 1fr);
+      align-items: center;
+    }
+    .pet-theme-shop-preview-swatch {
+      height: 84px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at 30% 22%, rgba(255,255,255,.76) 0 18px, transparent 19px),
+        linear-gradient(135deg, color-mix(in oklch, var(--theme-preview, var(--accent)), white 76%), color-mix(in oklch, var(--theme-preview, var(--accent-2)), white 46%));
+      border: 1px solid color-mix(in oklch, var(--theme-preview, var(--accent)), white 40%);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.5);
+    }
+    .pet-theme-shop-preview-swatch span {
+      width: 48px;
+      height: 48px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      background: rgba(255,255,255,.72);
+      font-size: 24px;
+      box-shadow: 0 8px 18px rgba(44,86,108,.12);
+    }
     .pet-dressup-preview-scene {
       height: 84px;
       border-radius: 16px;
@@ -4513,7 +4639,12 @@
       scrollbar-width: thin;
     }
     .pet-theme-shop-grid {
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: 1fr;
+    }
+    .pet-dressup-card .pet-dressup-grid,
+    .pet-theme-shop-card .pet-theme-shop-grid {
+      min-height: 0;
+      max-height: none;
     }
     .pet-theme-card {
       min-height: 188px;
@@ -5907,13 +6038,21 @@
         display: none;
       }
       body.practice-view-active:not(.practice-focus-mode) .practice-card {
-        height: clamp(460px, calc(100dvh - 320px), 620px);
+        height: auto;
         min-height: 0;
+        overflow: visible;
       }
       body.practice-view-active:not(.practice-focus-mode) .practice-card .answer-panel,
       body.practice-view-active:not(.practice-focus-mode) .practice-card .companion {
         min-height: 0;
-        overflow: auto;
+        overflow: visible;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-card .companion {
+        height: auto;
+        grid-template-rows: auto auto auto auto auto;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-card .companion-card {
+        overflow: visible;
       }
 
       .view.active:not(#practiceView) {
@@ -6139,6 +6278,12 @@
       }
       .pet-mobile-panel-actions button {
         min-width: 0;
+      }
+      .pet-space-actions .pet-plan-mobile-btn {
+        display: flex;
+      }
+      .pet-space-actions .pet-theme-shop-direct-btn {
+        display: none;
       }
       .pet-space-actions #openPetDressupBtn,
       .pet-space-actions #openPetAchievementBtn {
@@ -7109,10 +7254,162 @@
     }
 
     @media (min-width: 621px) and (max-width: 1180px) {
+      html:has(body.practice-view-active),
+      body.practice-view-active {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+      body.practice-view-active .app {
+        width: min(100% - 16px, 1320px);
+        height: 100dvh;
+        padding: 8px 0;
+        display: grid;
+        grid-template-rows: auto auto minmax(0, 1fr);
+        gap: 8px;
+        overflow: hidden;
+      }
+      body.practice-view-active #practiceView,
+      body.practice-view-active .practice-workspace,
+      body.practice-view-active .practice-workspace > .main-stack {
+        min-height: 0;
+        height: 100%;
+        overflow: hidden;
+      }
+      body.practice-view-active .practice-card {
+        min-height: 0;
+        height: 100%;
+        max-height: 100%;
+      }
+      body.practice-view-active:not(.type-settings-open) .home-dashboard {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
+        margin: 0;
+        padding: 8px;
+        align-items: stretch;
+        max-height: none;
+        overflow: hidden;
+      }
+      body.practice-view-active:not(.type-settings-open) .home-settings-card,
+      body.practice-view-active:not(.type-settings-open) .home-side-panel {
+        display: none;
+      }
+      body.practice-view-active:not(.type-settings-open) .today-plan-card {
+        display: grid;
+        grid-template-columns: minmax(166px, .23fr) minmax(150px, .2fr) minmax(0, 1fr);
+        grid-template-rows: auto auto auto;
+        gap: 8px;
+        align-items: stretch;
+        align-content: start;
+        min-height: 0;
+      }
+      body.practice-view-active:not(.type-settings-open) .today-plan-card > .eyebrow,
+      body.practice-view-active:not(.type-settings-open) .today-plan-card > h1,
+      body.practice-view-active:not(.type-settings-open) .today-plan-card > .lead {
+        grid-column: 2;
+      }
+      body.practice-view-active:not(.type-settings-open) .today-plan-card > .eyebrow {
+        grid-row: 1;
+        align-self: end;
+        font-size: 11px;
+      }
+      body.practice-view-active:not(.type-settings-open) .today-plan-card > h1 {
+        grid-row: 2;
+      }
+      body.practice-view-active:not(.type-settings-open) .today-plan-card > .lead {
+        grid-row: 3;
+      }
+      body.practice-view-active:not(.type-settings-open) .home-dashboard h1 {
+        margin: 1px 0 0;
+        font-size: clamp(17px, 2.2vw, 21px);
+        line-height: 1.05;
+      }
+      body.practice-view-active:not(.type-settings-open) .home-dashboard .lead {
+        max-width: none;
+        font-size: 10.5px;
+        line-height: 1.22;
+        -webkit-line-clamp: 1;
+      }
+      body.practice-view-active:not(.type-settings-open) .home-cockpit-meter {
+        grid-column: 1;
+        grid-row: 1 / span 3;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+        margin-top: 0;
+        align-self: stretch;
+      }
+      body.practice-view-active:not(.type-settings-open) .home-cockpit-meter span {
+        min-height: 52px;
+        padding: 6px;
+      }
+      body.practice-view-active:not(.type-settings-open) .home-route-list {
+        grid-column: 3;
+        grid-row: 1 / span 3;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 6px;
+        margin-top: 0;
+        align-self: stretch;
+      }
+      body.practice-view-active:not(.type-settings-open) .home-route-step {
+        min-height: 0;
+        padding: 7px;
+        gap: 4px;
+      }
+      body.practice-view-active:not(.type-settings-open) .home-route-step-head b {
+        width: 20px;
+        height: 20px;
+      }
+      body.practice-view-active:not(.type-settings-open) .home-route-step-head strong {
+        font-size: 12px;
+      }
+      body.practice-view-active:not(.type-settings-open) .home-route-step > span {
+        min-height: 18px;
+        font-size: 10px;
+        line-height: 1.2;
+        -webkit-line-clamp: 1;
+      }
+      body.practice-view-active:not(.type-settings-open) .home-route-step button {
+        min-height: 26px;
+        padding: 0 7px;
+        font-size: 10.5px;
+      }
+      body.practice-view-active:not(.type-settings-open) .weak-point-list,
+      body.practice-view-active:not(.type-settings-open) .home-dashboard .hero-actions {
+        display: none !important;
+      }
+      #petspaceView.active .pet-space-actions .pet-plan-mobile-btn {
+        display: flex;
+      }
+      #petspaceView.active .pet-space-actions .pet-theme-shop-direct-btn {
+        display: none;
+      }
+      #petspaceView.active .pet-space-actions #openPetDressupBtn,
+      #petspaceView.active .pet-space-actions #openPetAchievementBtn {
+        display: none;
+      }
+      #answerModeSelect option[value="step"] {
+        display: none;
+      }
+      .mobile-step-note {
+        display: block;
+      }
+      .practice-card[data-interaction="step"] .answer-mode-panel {
+        display: none !important;
+      }
       .practice-workspace.focus-mode > .main-stack {
+        height: 100%;
+        min-height: 0;
         grid-template-rows: auto minmax(0, 1fr) !important;
+        overflow: hidden;
       }
       .practice-focus-mode .mission-strip {
+        display: none !important;
+      }
+      .practice-focus-mode .companion-card,
+      .practice-focus-mode .method-card,
+      .practice-focus-mode .appendix-card,
+      .practice-focus-mode .paw-row {
         display: none !important;
       }
       .practice-workspace {
@@ -7194,10 +7491,12 @@
         grid-template-columns: minmax(0, 1fr) minmax(300px, 34%);
         gap: 14px;
         min-height: 0;
-        height: 100%;
+        height: calc(100% - 10px);
+        max-height: calc(100% - 10px);
       }
       .answer-panel {
         min-height: 0;
+        max-height: 100%;
         overflow: auto;
         padding-right: 2px;
       }
@@ -7208,9 +7507,11 @@
       }
       .companion {
         min-height: 240px;
+        max-height: 100%;
         grid-template-columns: 1fr;
         grid-template-rows: auto auto auto;
         align-content: start;
+        overflow: auto;
       }
       .companion-art {
         min-height: 92px;
@@ -7225,6 +7526,40 @@
       .pet-actions button,
       .number-pad button {
         min-height: 50px;
+      }
+      .pet-plan-menu-grid .pet-theme-shop-menu-entry {
+        display: grid;
+      }
+      #petBagModal .pet-bag-card {
+        grid-template-rows: auto minmax(0, 1fr) auto auto;
+      }
+      #petBagModal .pet-bag-list {
+        display: block;
+        min-height: 0;
+        overflow: hidden;
+      }
+      #petBagModal .pet-bag-grid {
+        height: 100%;
+        max-height: none;
+        min-height: 0;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-content: start;
+        gap: 10px;
+        overflow: auto;
+        overscroll-behavior: contain;
+        padding: 2px 4px 10px 2px;
+      }
+      #petBagModal .pet-bag-item {
+        grid-template-rows: 44px auto auto auto;
+        align-content: start;
+        min-height: 184px;
+        gap: 7px;
+      }
+      #petBagModal .pet-bag-item strong {
+        min-height: 0;
+      }
+      #petBagModal .pet-bag-item small {
+        min-height: 34px;
       }
     }
 
@@ -9565,6 +9900,7 @@
       #petShopModal .pet-shop-card,
       #petBagModal .pet-bag-card,
       #petAchievementModal .pet-task-modal-panel,
+      #petThemeShopModal .pet-task-modal-panel,
       #petDressupModal .pet-task-modal-panel,
       #petTaskModal .pet-task-modal-panel {
         width: min(760px, 100%);
@@ -9575,6 +9911,7 @@
       #petCarePanelModal .pet-task-modal-panel,
       #petGrowthPanelModal .pet-task-modal-panel,
       #petAchievementModal .pet-task-modal-panel,
+      #petThemeShopModal .pet-task-modal-panel,
       #petDressupModal .pet-task-modal-panel {
         grid-template-rows: auto minmax(0, 1fr);
       }
@@ -9586,6 +9923,7 @@
         grid-template-rows: auto auto minmax(0, 1fr) auto;
       }
       #petAchievementModal .pet-task-modal-panel,
+      #petThemeShopModal .pet-task-modal-panel,
       #petDressupModal .pet-task-modal-panel {
         grid-template-rows: auto auto minmax(0, 1fr);
       }
@@ -9667,6 +10005,9 @@
         min-height: 68px;
         border-radius: 14px;
       }
+      .pet-plan-menu-grid .pet-theme-shop-menu-entry {
+        display: grid;
+      }
       .pet-modal-panel > .item-top {
         padding-right: 42px;
       }
@@ -9678,20 +10019,31 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 8px;
       }
-      #petThemeShopModal .pet-theme-shop-grid {
+      #petThemeShopModal .pet-collection-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 8px;
       }
       #petThemeShopModal .pet-theme-card {
-        grid-template-rows: auto minmax(132px, 1fr) auto;
+        grid-template-rows: auto auto auto;
+        min-height: 0;
         gap: 8px;
         padding: 10px 8px;
       }
       #petThemeShopModal .pet-theme-shop-board {
+        grid-template-columns: 48px minmax(0, 1fr);
         margin-top: 5px;
         padding: 6px;
-        gap: 3px;
+        gap: 6px;
         border-radius: 10px;
+      }
+      #petThemeShopModal .pet-theme-shop-preview-swatch {
+        height: 46px;
+        border-radius: 10px;
+      }
+      #petThemeShopModal .pet-theme-shop-preview-swatch span {
+        width: 30px;
+        height: 30px;
+        font-size: 17px;
       }
       #petThemeShopModal .pet-theme-shop-board strong {
         font-size: 12px;
@@ -9812,27 +10164,34 @@
         border-radius: 7px;
         font-size: 9.5px;
       }
+      #petThemeShopModal .pet-theme-shop-grid,
       #petDressupModal .pet-dressup-grid {
         gap: 7px;
         margin-top: 6px;
       }
+      #petThemeShopModal .pet-collection-section,
       #petDressupModal .pet-collection-section {
         gap: 6px;
         padding: 7px;
         border-radius: 12px;
       }
+      #petThemeShopModal .pet-shop-tier-head,
       #petDressupModal .pet-shop-tier-head {
         gap: 2px;
       }
+      #petThemeShopModal .pet-shop-tier-head h3,
       #petDressupModal .pet-shop-tier-head h3 {
         font-size: 13px;
       }
+      #petThemeShopModal .pet-shop-tier-head span,
       #petDressupModal .pet-shop-tier-head span {
         display: none;
       }
+      #petThemeShopModal .pet-collection-grid,
       #petDressupModal .pet-collection-grid {
         gap: 6px;
       }
+      #petThemeShopModal .pet-collection-card,
       #petDressupModal .pet-collection-card {
         grid-template-columns: 1fr;
         grid-template-rows: auto auto auto;
@@ -9841,16 +10200,19 @@
         padding: 6px;
         border-radius: 10px;
       }
+      #petThemeShopModal .pet-collection-card .pet-shop-icon,
       #petDressupModal .pet-collection-card .pet-shop-icon {
         width: 28px;
         height: 28px;
         border-radius: 10px;
         font-size: 15px;
       }
+      #petThemeShopModal .pet-collection-card strong,
       #petDressupModal .pet-collection-card strong {
         font-size: 11.5px;
         line-height: 1.12;
       }
+      #petThemeShopModal .pet-collection-card span,
       #petDressupModal .pet-collection-card span {
         min-height: 0;
         margin-top: 2px;
@@ -9861,6 +10223,8 @@
         -webkit-box-orient: vertical;
         overflow: hidden;
       }
+      #petThemeShopModal .pet-collection-card small,
+      #petThemeShopModal .pet-collection-progress,
       #petDressupModal .pet-collection-card small,
       #petDressupModal .pet-collection-progress {
         margin-top: 2px;
@@ -9870,9 +10234,11 @@
         overflow: hidden;
         text-overflow: ellipsis;
       }
+      #petThemeShopModal .pet-collection-source,
       #petDressupModal .pet-collection-source {
         display: none;
       }
+      #petThemeShopModal .pet-collection-card button,
       #petDressupModal .pet-collection-card button {
         width: 100%;
         min-height: 26px;

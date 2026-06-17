@@ -30,7 +30,6 @@
       if (this.initialized) return;
       this.initialized = true;
 
-      this.setupParticleTrail();
       this.setupClickExplosion();
       this.setupCustomCursor();
       this.setupMagneticEffect();
@@ -103,7 +102,7 @@
       document.addEventListener('click', (e) => {
         if (!this.enabled) return;
         // 只在可交互元素上触发特效，排除模态框背景
-        const isInteractive = e.target.closest('button, a, input, select, textarea, .clickable, .card, .tab-btn, .home-mode-card, .home-mode-card-wrap');
+        const isInteractive = e.target.closest('button, a, input, select, textarea, [role="button"], [data-open-pet-modal], [data-open-learning-map], .clickable, .tab-btn, .home-mode-card, .home-mode-card-wrap');
         const isModalBackdrop = e.target.classList.contains('hub-modal') ||
                                  e.target.classList.contains('pet-modal') ||
                                  e.target.classList.contains('archive-modal');
@@ -127,26 +126,27 @@
 
     createClickExplosion(x, y) {
       if (!this.enabled) return;
-      const particleCount = 12;
-      const colors = ['#ffd700', '#ff6b6b', '#4ecdc4', '#45b7d1', '#f7b731'];
+      const particleCount = 9;
+      const colors = ['#ffd166', '#f7b731', '#6ddbd6', '#7cc7ff', '#ff9fb0'];
 
       for (let i = 0; i < particleCount; i++) {
-        const angle = (Math.PI * 2 * i) / particleCount;
-        const velocity = 50 + Math.random() * 50;
+        const angle = (Math.PI * 2 * i) / particleCount + (Math.random() - 0.5) * 0.18;
+        const velocity = 24 + Math.random() * 32;
         const vx = Math.cos(angle) * velocity;
         const vy = Math.sin(angle) * velocity;
 
         this.createExplosionParticle(x, y, vx, vy, colors[i % colors.length]);
       }
 
-      // 中心光环
-      this.createRipple(x, y);
     },
 
     createExplosionParticle(x, y, vx, vy, color) {
       if (!this.enabled) return;
       const particle = document.createElement('div');
-      const size = 6 + Math.random() * 6;
+      const size = 9 + Math.random() * 5;
+      const spin = 80 + Math.random() * 150;
+      particle.textContent = '★';
+      particle.setAttribute('aria-hidden', 'true');
 
       particle.style.cssText = `
         position: fixed;
@@ -154,41 +154,24 @@
         top: ${y}px;
         width: ${size}px;
         height: ${size}px;
-        background: ${color};
-        border-radius: 50%;
+        color: ${color};
+        display: grid;
+        place-items: center;
+        font: 900 ${size}px/1 var(--font-display, system-ui);
         pointer-events: none;
         z-index: 9999;
+        opacity: .82;
         transform: translate(-50%, -50%);
-        animation: cursorExplosion 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        animation: cursorExplosion 0.52s ease-out forwards;
         --vx: ${vx}px;
         --vy: ${vy}px;
-        box-shadow: 0 0 10px ${color};
+        --spin: ${spin}deg;
+        text-shadow: 0 0 5px ${color};
       `;
 
       document.body.appendChild(particle);
 
-      setTimeout(() => particle.remove(), 600);
-    },
-
-    createRipple(x, y) {
-      if (!this.enabled) return;
-      const ripple = document.createElement('div');
-      ripple.style.cssText = `
-        position: fixed;
-        left: ${x}px;
-        top: ${y}px;
-        width: 20px;
-        height: 20px;
-        border: 2px solid #ffd700;
-        border-radius: 50%;
-        pointer-events: none;
-        z-index: 9998;
-        transform: translate(-50%, -50%);
-        animation: cursorRipple 0.6s ease-out forwards;
-      `;
-
-      document.body.appendChild(ripple);
-      setTimeout(() => ripple.remove(), 600);
+      setTimeout(() => particle.remove(), 540);
     },
 
     /**
@@ -323,23 +306,16 @@
 
     @keyframes cursorExplosion {
       0% {
-        opacity: 1;
-        transform: translate(-50%, -50%) translate(0, 0) scale(1);
+        opacity: .82;
+        transform: translate(-50%, -50%) translate(0, 0) rotate(0deg) scale(.88);
+      }
+      58% {
+        opacity: .48;
+        transform: translate(-50%, -50%) translate(calc(var(--vx) * .62), calc(var(--vy) * .62)) rotate(calc(var(--spin) * .58)) scale(.45);
       }
       100% {
         opacity: 0;
-        transform: translate(-50%, -50%) translate(var(--vx), var(--vy)) scale(0.2);
-      }
-    }
-
-    @keyframes cursorRipple {
-      0% {
-        opacity: 0.8;
-        transform: translate(-50%, -50%) scale(1);
-      }
-      100% {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(4);
+        transform: translate(-50%, -50%) translate(var(--vx), var(--vy)) rotate(var(--spin)) scale(.08);
       }
     }
 

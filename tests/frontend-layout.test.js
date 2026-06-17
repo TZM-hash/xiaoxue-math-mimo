@@ -26,6 +26,8 @@ const css = read("css/themes.css");
 const app = read("js/app.js");
 const homeRoute = read("js/home-route.js");
 const dressupMeta = read("js/pet-dressup-meta.js");
+const questionEnhancements = read("js/question-enhancements.js");
+const cursorEffects = read("js/cursor-effects.js");
 
 assertContains(html, 'id="homeRouteList"', "首页应包含今日学习路线容器");
 assertContains(html, 'id="homeCockpitMeter"', "home should include a task cockpit meter");
@@ -37,7 +39,10 @@ assertContains(html, 'id="petShowcaseCard"', "pet space should include a visible
 assertContains(html, 'id="petShowcasePanelSlot"', "mobile pet plan menu should host the showcase card");
 assertContains(html, 'id="petShopAdvisor"', "pet shop should include a recommendation panel");
 assertContains(html, 'id="petDressupPreview"', "dressup modal should include a current display preview");
+assertNotContains(html, 'id="rippleContainer"', "global click ripple container should be removed");
 assertContains(html, 'data-open-pet-modal="themes"', "pet plan menu should include the theme shop entry");
+assertContains(html, 'pet-theme-shop-menu-entry', "theme shop menu entry should be targetable for mobile-only display");
+assertContains(html, 'id="openPetThemeShopBtn"', "desktop pet space should include a direct theme shop button");
 assertContains(html, 'id="petThemeShopModal"', "pet plan should include a system theme shop modal");
 assertContains(html, 'id="petAchievementBoard"', "achievement modal should include grouped progress board");
 assertContains(html, 'data-open-learning-map', "learning modal should open knowledge map from a dedicated action");
@@ -76,6 +81,15 @@ assertContains(app, "renderPetShopAdvisor", "app should render pet shop recommen
 assertContains(app, "renderPetDressupPreview", "app should render current dressup preview");
 assertContains(app, "renderPetThemeShop", "app should render the system theme shop");
 assertContains(app, "systemThemeOwned", "app should lock non-initial system themes behind pet growth");
+assertContains(app, "openPetThemeShopBtn", "desktop theme shop button should be wired to the theme shop modal");
+assertNotContains(app, "initRippleEffect", "app should not register a global click ripple effect");
+assertContains(app, 'startNewSet({ focus: window.matchMedia("(max-width: 1180px)").matches })', "mobile/tablet should enter the same focus layout on initial practice");
+assertContains(app, 'document.body.classList.toggle("practice-return-visible", layer === "focus")', "all focused practice modes should use the challenge-style return bar");
+assertContains(app, 'state.view === "practice" && window.matchMedia("(max-width: 1180px)").matches', "mobile/tablet practice rounds should default to focus layout");
+assertContains(app, 'isCompactPracticeViewport() && mode === "step"', "tablet practice should hide step answering like mobile");
+assertContains(app, "stepOption.hidden = compact", "custom answer mode picker should omit step answering on compact viewports");
+assertContains(app, "开局主题", "theme shop should group starter themes like the dressup collection layout");
+assertContains(app, "养成解锁", "theme shop should group unlockable themes like the dressup collection layout");
 assertContains(app, "renderPetAchievementBoard", "app should render grouped achievement progress");
 assertContains(app, "dueWrongbook", "app should support scheduled wrongbook review");
 assertContains(app, "startDueReviewPractice", "home review route should start due wrongbook practice");
@@ -96,6 +110,11 @@ assertContains(homeRoute, "reviewDue", "home route should include due review pro
 assertContains(dressupMeta, "window.MathCampPetDressupMeta", "装扮馆文案模块应暴露全局接口");
 assertContains(dressupMeta, "unlockSourceText", "装扮馆文案模块应导出来源函数");
 assertContains(dressupMeta, "unlockProgressText", "装扮馆文案模块应导出进度函数");
+assertNotContains(questionEnhancements, "const isQuestionArea = e.target.closest", "clicking the practice card should not leave a full-screen focus blur overlay");
+assertContains(cursorEffects, "particle.textContent = '★'", "valid click effect should use star burst particles");
+assertNotContains(cursorEffects, "createRipple(x, y)", "valid click effect should not include a center ripple");
+assertNotContains(cursorEffects, ".card, .tab-btn", "valid click effect should not treat ordinary cards as click targets");
+assertNotContains(cursorEffects, "this.setupParticleTrail();", "cursor effects should not leave mouse trail particles outside click targets");
 
 assertContains(css, ".home-route-list", "CSS 应包含首页路线网格");
 assertContains(css, ".home-cockpit-meter", "CSS should style the home task cockpit");
@@ -108,6 +127,13 @@ assertContains(css, "[data-room-theme=\"forest\"]", "pet room should visibly rea
 assertContains(css, "[data-decor-rug=\"true\"]", "pet room should visibly react to equipped furniture");
 assertContains(css, "[data-expression=\"proud\"]", "pet room should visibly react to learning quality expressions");
 assertContains(css, ".pet-showcase-card", "CSS should style the pet display showcase");
+assertContains(css, ".pet-space-actions", "CSS should style the direct pet action row");
+assertContains(css, "#petspaceView.active .pet-space-actions .pet-plan-mobile-btn", "mobile/tablet pet actions should keep the plan menu entry");
+assertContains(css, "#petspaceView.active .pet-space-actions", "desktop pet actions should support compact button grid");
+assertContains(css, ".pet-theme-shop-direct-btn", "desktop pet actions should expose a theme shop button");
+assertContains(css, ".pet-space-actions .pet-theme-shop-direct-btn", "tablet/mobile should hide the desktop theme shop action");
+assertContains(css, "#petspaceView.active .pet-care-dashboard", "desktop pet care dashboard should have compact layout rules");
+assertContains(css, "grid-template-columns: repeat(6, minmax(0, 1fr));", "desktop pet care dashboard should compress cards into one row");
 assertContains(css, "#petShowcasePanelSlot:empty", "empty mobile pet plan showcase slot should collapse");
 assertContains(css, "#learningModal .hub-action-grid", "learning modal should support the knowledge map action");
 assertContains(css, "#knowledgeMapView.view.active", "knowledge map view should share report-style scrolling behavior");
@@ -115,6 +141,10 @@ assertContains(css, ".pet-shop-advisor", "CSS should style the pet shop advisor"
 assertContains(css, ".pet-dressup-preview", "CSS should style the dressup preview");
 assertContains(css, ".pet-theme-shop-grid", "CSS should style the theme shop grid");
 assertContains(css, ".pet-theme-shop-board", "CSS should style the theme shop progress board");
+assertContains(css, ".pet-plan-menu-grid .pet-theme-shop-menu-entry", "desktop/tablet pet plan menu should be able to hide the theme shop entry");
+assertContains(css, "#petThemeShopModal .pet-collection-grid", "theme shop should share the dressup collection grid on mobile");
+assertContains(css, ".pet-theme-shop-preview-swatch", "theme shop should include a dressup-style preview swatch");
+assertContains(css, "body.pet-modal-open #petspaceView.view.active", "pet modals should not inherit view animation transforms");
 assertContains(css, ".pet-achievement-board", "CSS should style the achievement board");
 assertContains(css, "#petspaceView.active #petGrowthPanelModal .pet-stage-card", "mobile growth modal should reveal the moved pet stage card");
 assertNotContains(css, ".word-relation-panel", "CSS should not keep removed word relation panel styles");
@@ -126,6 +156,11 @@ assertContains(css, ".home-mode-grid", "CSS should include mobile home mode card
 assertContains(css, ".tab-btn[data-top-mode-action] .nav-label-mobile", "mobile top mode action should reveal type settings label");
 assertContains(css, "body.practice-view-active:not(.practice-focus-mode):not(.type-settings-open) #practiceView", "mobile home should hide the setup page until type settings opens");
 assertContains(css, "body.practice-view-active.type-settings-open:not(.practice-focus-mode) .practice-workspace > .panel .setup-step-primary .field:first-child", "type settings page should show grade settings");
+assertContains(css, ".practice-focus-mode .appendix-card", "tablet focus layout should hide appendix challenge card like challenge mode");
+assertContains(css, "body.practice-view-active:not(.practice-focus-mode) .practice-card .companion-card", "desktop practice companion cards should expand instead of creating nested scrollbars");
+assertContains(css, "@media (min-width: 621px) and (max-width: 1180px)", "tablet-specific layout rules should be present");
+assertContains(css, "#petBagModal .pet-bag-grid", "tablet bag grid should avoid item overlap");
+assertContains(css, "grid-template-columns: repeat(2, minmax(0, 1fr));", "tablet bag should use a stable two-column grid");
 assertContains(css, ".pet-collection-source", "CSS 应包含装扮馆来源文案样式");
 assertContains(css, ".pet-collection-progress", "CSS 应包含装扮馆进度文案样式");
 assertContains(css, "#petDressupModal .pet-collection-grid", "移动端装扮馆应保留网格布局覆盖");
@@ -140,7 +175,9 @@ assertContains(css, "min-height: 0;", "滚动区应允许底部详情显示");
   "manifest.webmanifest",
   "css/themes.css",
   "js/app.js",
+  "js/cursor-effects.js",
   "js/home-route.js",
+  "js/question-enhancements.js",
   "js/pet-dressup-meta.js",
   "js/pet-economy.js",
   "js/question-bank.js"
