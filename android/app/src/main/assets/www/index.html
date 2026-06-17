@@ -164,7 +164,7 @@
                 <span>完成当前年级的小关卡，稳定后自动提高挑战等级。</span>
               </div>
               <div class="challenge-actions">
-                <button class="soft-btn" type="button" id="startChallengeBtn">开始闯关</button>
+                <button class="soft-btn" type="button" id="startChallengeBtn" data-start-challenge>开始闯关</button>
                 <button class="secondary" type="button" id="startTimedQuizBtn">限时小测</button>
               </div>
             </div>
@@ -205,6 +205,105 @@
               <strong id="missionNext">先完成一轮小练习</strong>
             </div>
           </div>
+          <section class="desktop-practice-overview" id="desktopPracticeOverview" aria-label="练习总览">
+            <article class="desktop-overview-card overview-student">
+              <div class="overview-card-head">
+                <span>学生概览</span>
+                <b id="desktopOverviewLevel">Lv.1</b>
+              </div>
+              <strong id="desktopOverviewStudent">小学员 · 一年级</strong>
+              <p id="desktopOverviewPlan">今天先完成一轮短练习，再根据错题安排复习。</p>
+              <div class="overview-progress-card">
+                <div><span>今日完成率</span><b id="desktopOverviewGoalPercent">0%</b></div>
+                <i id="desktopOverviewGoalBar" style="--value:0%"></i>
+              </div>
+              <div class="overview-insight-grid" id="desktopOverviewLearningBoard"></div>
+              <div class="overview-stat-grid">
+                <span><b id="desktopOverviewDone">0/20</b><em>今日目标</em></span>
+                <span><b id="desktopOverviewAccuracy">--%</b><em>今日正确率</em></span>
+                <span><b id="desktopOverviewSetSize">10题</b><em>每轮题量</em></span>
+                <span><b id="desktopOverviewDays">0天</b><em>连续学习</em></span>
+              </div>
+              <div class="overview-mini-list" id="desktopOverviewStudyList"></div>
+            </article>
+            <article class="desktop-overview-card overview-challenge">
+              <div class="overview-card-head">
+                <span>闯关信息</span>
+                <b id="desktopOverviewChallengeBadge">第 1 关</b>
+              </div>
+              <strong id="desktopOverviewChallenge">今天可继续挑战</strong>
+              <p id="desktopOverviewChallengeDetail">80% 以上即可过关，系统会自动保存进度。</p>
+              <div class="overview-micro-grid">
+                <span><b id="desktopOverviewChallengeToday">0次</b><em>今日闯关</em></span>
+                <span><b id="desktopOverviewChallengeBest">未开始</b><em>今日最高</em></span>
+              </div>
+              <div class="overview-mini-list" id="desktopOverviewChallengeList"></div>
+              <button class="soft-btn" type="button" data-start-challenge>继续闯关</button>
+            </article>
+            <article class="desktop-overview-card overview-wrong">
+              <div class="overview-card-head">
+                <span>错题与复习</span>
+                <b id="desktopOverviewWrongBadge">0题</b>
+              </div>
+              <strong id="desktopOverviewParent">错题压力较轻</strong>
+              <p id="desktopOverviewParentDetail">建议先按今日路线复习到期错题，再开始新一轮练习。</p>
+              <div class="overview-micro-grid">
+                <span><b id="desktopOverviewDueWrong">0题</b><em>到期复习</em></span>
+                <span><b id="desktopOverviewWrongRate">--</b><em>错题占比</em></span>
+              </div>
+              <div class="overview-mini-list" id="desktopOverviewWrongList"></div>
+              <button class="secondary" type="button" data-jump="wrongbook">查看错题本</button>
+            </article>
+            <article class="desktop-overview-card overview-weak">
+              <div class="overview-card-head">
+                <span>薄弱点</span>
+                <b id="desktopOverviewWeakCount">2项</b>
+              </div>
+              <strong>优先练这些</strong>
+              <div class="overview-chip-list" id="desktopOverviewWeakList"></div>
+              <div class="overview-mini-list" id="desktopOverviewWeakTips"></div>
+              <div class="overview-insight-grid overview-insight-grid-compact" id="desktopOverviewWeakBoard"></div>
+            </article>
+            <article class="desktop-overview-card overview-pet">
+              <div class="overview-card-head">
+                <span>招财状态</span>
+                <b id="desktopOverviewPetBadge">稳定</b>
+              </div>
+              <strong id="desktopOverviewPet">招财状态稳定</strong>
+              <p id="desktopOverviewPetDetail">完成练习会获得金币、经验和亲密度。</p>
+              <div class="overview-micro-grid">
+                <span><b id="desktopOverviewPetCoins">0</b><em>金币</em></span>
+                <span><b id="desktopOverviewPetMood">70</b><em>心情</em></span>
+                <span><b id="desktopOverviewPetItems">0件</b><em>背包</em></span>
+                <span><b id="desktopOverviewPetBond">0</b><em>亲密</em></span>
+              </div>
+              <div class="overview-mini-list" id="desktopOverviewPetList"></div>
+            </article>
+            <article class="desktop-overview-card overview-report">
+              <div class="overview-card-head">
+                <span>学习报告</span>
+                <b id="desktopOverviewReportBadge">本周</b>
+              </div>
+              <strong id="desktopOverviewReport">暂无本周记录</strong>
+              <p id="desktopOverviewReportDetail">完成练习后会汇总题量、正确率和掌握情况。</p>
+              <div class="overview-micro-grid">
+                <span><b id="desktopOverviewWeekCount">0题</b><em>本周题量</em></span>
+                <span><b id="desktopOverviewMastered">0个</b><em>已掌握</em></span>
+              </div>
+              <div class="overview-mini-list" id="desktopOverviewReportList"></div>
+              <div class="overview-action-row">
+                <button class="secondary" type="button" data-jump="report">学习报告</button>
+                <button class="secondary" type="button" data-open-learning-map>知识地图</button>
+              </div>
+            </article>
+            <article class="desktop-overview-card overview-actions">
+              <span>开始前确认</span>
+              <strong id="desktopOverviewNext">准备生成新一轮练习</strong>
+              <p id="desktopOverviewNextDetail">左侧可以调整年级、知识点、题量和每日目标；进入练习后这里会切换为做题区。</p>
+              <div class="overview-mini-list" id="desktopOverviewNextList"></div>
+              <button class="primary" type="button" id="desktopOverviewStartBtn">生成新一轮练习</button>
+            </article>
+          </section>
           <article class="practice-card card" id="practiceCard">
             <div class="celebration-layer" id="celebrationLayer" aria-hidden="true"></div>
             <div class="answer-panel">

@@ -291,6 +291,8 @@
      * 倒计时视觉化增强
      */
     enhanceTimer() {
+      document.querySelectorAll('.timer-progress-ring').forEach((element) => element.remove());
+      return;
       if (!this.enabled) return;
       const timerElement = document.getElementById('timerStat');
       if (!timerElement) return;

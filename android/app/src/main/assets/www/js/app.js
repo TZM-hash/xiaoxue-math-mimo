@@ -233,6 +233,51 @@ const STORE = {
       missionGoal: document.getElementById("missionGoal"),
       missionStreak: document.getElementById("missionStreak"),
       missionNext: document.getElementById("missionNext"),
+      desktopOverviewLevel: document.getElementById("desktopOverviewLevel"),
+      desktopOverviewStudent: document.getElementById("desktopOverviewStudent"),
+      desktopOverviewPlan: document.getElementById("desktopOverviewPlan"),
+      desktopOverviewDone: document.getElementById("desktopOverviewDone"),
+      desktopOverviewAccuracy: document.getElementById("desktopOverviewAccuracy"),
+      desktopOverviewSetSize: document.getElementById("desktopOverviewSetSize"),
+      desktopOverviewDays: document.getElementById("desktopOverviewDays"),
+      desktopOverviewChallengeBadge: document.getElementById("desktopOverviewChallengeBadge"),
+      desktopOverviewChallenge: document.getElementById("desktopOverviewChallenge"),
+      desktopOverviewChallengeDetail: document.getElementById("desktopOverviewChallengeDetail"),
+      desktopOverviewWrongBadge: document.getElementById("desktopOverviewWrongBadge"),
+      desktopOverviewWeakCount: document.getElementById("desktopOverviewWeakCount"),
+      desktopOverviewWeakList: document.getElementById("desktopOverviewWeakList"),
+      desktopOverviewPetBadge: document.getElementById("desktopOverviewPetBadge"),
+      desktopOverviewPet: document.getElementById("desktopOverviewPet"),
+      desktopOverviewPetDetail: document.getElementById("desktopOverviewPetDetail"),
+      desktopOverviewParent: document.getElementById("desktopOverviewParent"),
+      desktopOverviewParentDetail: document.getElementById("desktopOverviewParentDetail"),
+      desktopOverviewReportBadge: document.getElementById("desktopOverviewReportBadge"),
+      desktopOverviewReport: document.getElementById("desktopOverviewReport"),
+      desktopOverviewReportDetail: document.getElementById("desktopOverviewReportDetail"),
+      desktopOverviewNext: document.getElementById("desktopOverviewNext"),
+      desktopOverviewNextDetail: document.getElementById("desktopOverviewNextDetail"),
+      desktopOverviewStartBtn: document.getElementById("desktopOverviewStartBtn"),
+      desktopOverviewGoalPercent: document.getElementById("desktopOverviewGoalPercent"),
+      desktopOverviewGoalBar: document.getElementById("desktopOverviewGoalBar"),
+      desktopOverviewLearningBoard: document.getElementById("desktopOverviewLearningBoard"),
+      desktopOverviewStudyList: document.getElementById("desktopOverviewStudyList"),
+      desktopOverviewChallengeToday: document.getElementById("desktopOverviewChallengeToday"),
+      desktopOverviewChallengeBest: document.getElementById("desktopOverviewChallengeBest"),
+      desktopOverviewChallengeList: document.getElementById("desktopOverviewChallengeList"),
+      desktopOverviewDueWrong: document.getElementById("desktopOverviewDueWrong"),
+      desktopOverviewWrongRate: document.getElementById("desktopOverviewWrongRate"),
+      desktopOverviewWrongList: document.getElementById("desktopOverviewWrongList"),
+      desktopOverviewWeakTips: document.getElementById("desktopOverviewWeakTips"),
+      desktopOverviewWeakBoard: document.getElementById("desktopOverviewWeakBoard"),
+      desktopOverviewPetCoins: document.getElementById("desktopOverviewPetCoins"),
+      desktopOverviewPetMood: document.getElementById("desktopOverviewPetMood"),
+      desktopOverviewPetItems: document.getElementById("desktopOverviewPetItems"),
+      desktopOverviewPetBond: document.getElementById("desktopOverviewPetBond"),
+      desktopOverviewPetList: document.getElementById("desktopOverviewPetList"),
+      desktopOverviewWeekCount: document.getElementById("desktopOverviewWeekCount"),
+      desktopOverviewMastered: document.getElementById("desktopOverviewMastered"),
+      desktopOverviewReportList: document.getElementById("desktopOverviewReportList"),
+      desktopOverviewNextList: document.getElementById("desktopOverviewNextList"),
       gradeTag: document.getElementById("gradeTag"),
       pointTag: document.getElementById("pointTag"),
       modeTag: document.getElementById("modeTag"),
@@ -1315,6 +1360,7 @@ const STORE = {
       printSignature: "",
       pendingImport: null,
       practiceLayer: "setup",
+      practiceReturnState: { layer: "setup", typeSettingsOpen: false },
       stepHintOpen: false,
       setStartedAt: 0,
       setElapsedMs: 0,
@@ -1375,6 +1421,169 @@ const STORE = {
     function unlockedBadges(profile = activeProfile()) {
       return badgeCatalog.filter((badge) => badge.test(profile));
     }
+    function renderDesktopPracticeOverview(profile = activeProfile()) {
+      if (!els.desktopOverviewStudent) return;
+      const grade = clamp(Number(profile.grade || state.grade) || 1, 1, 6);
+      const gradeName = gradeNames[grade - 1] || `${grade}年级`;
+      const today = todayItems(profile);
+      const done = today.length;
+      const goal = dailyGoal(profile);
+      const accuracy = accuracyOf(today);
+      const pet = petState(profile);
+      const weakPoints = weakestPoints(4);
+      const weak = weakPoints.map((point) => pointLabel(point.id));
+      const challenge = challengeProgress(profile, grade);
+      const due = dueWrongbook(profile, grade);
+      const week = currentWeekItems(profile);
+      const weekAccuracy = accuracyOf(week);
+      const masteredCount = Object.values(profile.mastery || {})
+        .filter((item) => Number(item.attempts) >= 3 && Number(item.correct) / Math.max(1, Number(item.attempts)) >= 0.85)
+        .length;
+      const setSize = state.setSize || Number(profile.settings?.setSize) || 10;
+      const days = learningDaysFor(profile);
+      const level = learnerLevel(profile);
+      const goalPct = Math.min(100, Math.round(done / Math.max(1, goal) * 100));
+      const wrongCount = profile.wrongbook.length;
+      const totalAttempts = profile.history.length;
+      const wrongRate = totalAttempts ? `${Math.round(wrongCount / Math.max(1, totalAttempts) * 100)}%` : "--";
+      const petItems = petInventoryCount(pet);
+      const listHTML = (items) => items
+        .map((item) => `<span>${escapeHTML(item)}</span>`)
+        .join("");
+      const tileHTML = (items) => items
+        .map((item) => `<span><b>${escapeHTML(item.value)}</b><strong>${escapeHTML(item.label)}</strong><em>${escapeHTML(item.detail)}</em></span>`)
+        .join("");
+      const lastTime = latestProfileActivityTime(profile);
+      const lastPracticeCopy = lastTime ? new Date(lastTime).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "暂无记录";
+      const weekDoneDays = new Set(week.map((item) => item.date)).size;
+      const remainingToday = Math.max(0, goal - done);
+      const dailyPace = remainingToday <= 0 ? "今日已达标" : remainingToday <= setSize ? "再做一轮可达标" : `还需约 ${Math.ceil(remainingToday / Math.max(1, setSize))} 轮`;
+      const lowCare = ["hunger", "clean", "mood"]
+        .map((key) => ({ key, value: Number(pet[key]) || 0 }))
+        .sort((a, b) => a.value - b.value)[0];
+      const lowCareLabel = { hunger: "饱腹", clean: "清洁", mood: "心情" }[lowCare?.key] || "状态";
+      const estimatedCareDays = Math.max(0, Math.floor((Number(pet.coins) || 0) / 30));
+      const weakMasteries = (weakPoints.length ? weakPoints : availablePoints(grade).slice(0, 4)).slice(0, 4).map((point) => {
+        const mastery = profile.mastery?.[point.id] || {};
+        const attempts = Number(mastery.attempts) || 0;
+        const correct = Number(mastery.correct) || 0;
+        const rate = attempts ? Math.round(correct / attempts * 100) : 0;
+        return { label: pointLabel(point.id), attempts, rate };
+      });
+      const challengeCount = challenge?.draft?.count || setSize;
+      const challengeCopy = challenge?.draft
+        ? `已保存到第 ${challenge.draft.index + 1}/${challenge.draft.count} 题`
+        : `本关 ${challengeCount} 题，80% 以上过关`;
+      els.desktopOverviewStudent.textContent = `${profile.name || "小学员"} · ${gradeName}`;
+      if (els.desktopOverviewLevel) els.desktopOverviewLevel.textContent = `Lv.${level}`;
+      els.desktopOverviewPlan.textContent = `今日路线建议：先复习到期错题，再练 ${weak.slice(0, 2).join("、") || "按年级混合"}。`;
+      if (els.desktopOverviewDone) els.desktopOverviewDone.textContent = `${done}/${goal}`;
+      if (els.desktopOverviewAccuracy) els.desktopOverviewAccuracy.textContent = today.length ? `${accuracy}%` : "--";
+      if (els.desktopOverviewSetSize) els.desktopOverviewSetSize.textContent = `${setSize}题`;
+      if (els.desktopOverviewDays) els.desktopOverviewDays.textContent = `${days}天`;
+      if (els.desktopOverviewGoalPercent) els.desktopOverviewGoalPercent.textContent = `${goalPct}%`;
+      if (els.desktopOverviewGoalBar) els.desktopOverviewGoalBar.style.setProperty("--value", `${goalPct}%`);
+      if (els.desktopOverviewLearningBoard) {
+        els.desktopOverviewLearningBoard.innerHTML = tileHTML([
+          { label: "今日节奏", value: dailyPace, detail: `还差 ${remainingToday} 题` },
+          { label: "最近练习", value: lastPracticeCopy, detail: week.length ? `本周已练 ${week.length} 题` : "本周等待开始" },
+          { label: "推荐安排", value: weak[0] || "混合练习", detail: `${setSize} 题一轮更稳` }
+        ]);
+      }
+      if (els.desktopOverviewChallengeBadge) els.desktopOverviewChallengeBadge.textContent = `第 ${challenge.level || 1} 关`;
+      if (els.desktopOverviewChallenge) els.desktopOverviewChallenge.textContent = challenge?.draft ? "继续保存的闯关" : "今天可继续挑战";
+      if (els.desktopOverviewChallengeDetail) {
+        els.desktopOverviewChallengeDetail.textContent = `${challengeCopy}，今日 ${challenge.todayPlays || 0} 次，最高第 ${challenge.todayBestLevel || 0} 关。`;
+      }
+      if (els.desktopOverviewChallengeToday) els.desktopOverviewChallengeToday.textContent = `${challenge.todayPlays || 0}次`;
+      if (els.desktopOverviewChallengeBest) els.desktopOverviewChallengeBest.textContent = challenge.todayBestLevel ? `第${challenge.todayBestLevel}关` : "未开始";
+      if (els.desktopOverviewChallengeList) {
+        els.desktopOverviewChallengeList.innerHTML = listHTML([
+          challenge?.draft ? `已保存到第 ${challenge.draft.index + 1} 题，适合直接继续` : `本关 ${challengeCount} 题，建议一次完成`,
+          challenge.todayPlays ? `今日已挑战 ${challenge.todayPlays} 次，注意保持节奏` : "过关条件：正确率达到 80%"
+        ]);
+      }
+      if (els.desktopOverviewWrongBadge) els.desktopOverviewWrongBadge.textContent = `${wrongCount}题`;
+      els.desktopOverviewPet.textContent = `${pet.name || "招财"} · ${petStatusLabel(pet)}`;
+      if (els.desktopOverviewPetBadge) els.desktopOverviewPetBadge.textContent = `亲密 ${pet.bond}`;
+      els.desktopOverviewPetDetail.textContent = `金币 ${pet.coins}，背包 ${petItems} 件，心情 ${pet.mood}，完成练习会继续成长。`;
+      els.desktopOverviewParent.textContent = due.length ? `到期复习 ${due.length} 题` : "错题压力较轻";
+      els.desktopOverviewParentDetail.textContent = wrongCount
+        ? `错题本共 ${wrongCount} 题，建议先处理到期错题，再开始新题。`
+        : "当前错题本为空，可以保持短时高频练习。";
+      if (els.desktopOverviewDueWrong) els.desktopOverviewDueWrong.textContent = `${due.length}题`;
+      if (els.desktopOverviewWrongRate) els.desktopOverviewWrongRate.textContent = wrongRate;
+      if (els.desktopOverviewWrongList) {
+        els.desktopOverviewWrongList.innerHTML = listHTML([
+          due.length ? `先处理到期 ${due.length} 题，再做新题` : "错题未到期，先按今日路线走",
+          accuracy < 80 && today.length ? "今日正确率偏低，下一轮建议降一点速度" : "当前节奏稳定，继续累积正确率"
+        ]);
+      }
+      if (els.desktopOverviewWeakCount) els.desktopOverviewWeakCount.textContent = `${weak.length || 0}项`;
+      if (els.desktopOverviewWeakList) {
+        els.desktopOverviewWeakList.innerHTML = (weak.length ? weak : ["按年级混合", "每日路线"]).slice(0, 4)
+          .map((label, index) => `<span class="${index === 0 ? "active" : ""}">${escapeHTML(label)}</span>`)
+          .join("");
+      }
+      if (els.desktopOverviewStudyList) {
+        els.desktopOverviewStudyList.innerHTML = listHTML([
+          `今日还差 ${Math.max(0, goal - done)} 题达标`,
+          today.length ? `今天已练 ${today.length} 题，正确率 ${accuracy}%` : "今天尚未开始，适合先做一轮短练习"
+        ]);
+      }
+      if (els.desktopOverviewWeakTips) {
+        els.desktopOverviewWeakTips.innerHTML = listHTML([
+          weak.length ? `先练 ${weak[0]}，再穿插混合题` : "暂无明显薄弱点，按今日路线推进",
+          due.length ? `错题到期 ${due.length} 题，建议本轮前复习` : "错题复习压力低，可以开始新题",
+          `知识点掌握 ${masteredCount} 个，继续积累稳定度`
+        ]);
+      }
+      if (els.desktopOverviewWeakBoard) {
+        els.desktopOverviewWeakBoard.innerHTML = tileHTML(weakMasteries.slice(0, 4).map((item) => ({
+          label: item.label,
+          value: item.attempts ? `${item.rate}%` : "待练",
+          detail: item.attempts ? `${item.attempts} 次记录` : "还没有稳定记录"
+        })));
+      }
+      if (els.desktopOverviewReportBadge) els.desktopOverviewReportBadge.textContent = week.length ? `${week.length}题` : "本周";
+      if (els.desktopOverviewReport) els.desktopOverviewReport.textContent = week.length ? `本周正确率 ${weekAccuracy}%` : "暂无本周记录";
+      if (els.desktopOverviewReportDetail) {
+        els.desktopOverviewReportDetail.textContent = `已掌握 ${masteredCount} 个知识点，今日目标完成 ${goalPct}%。可打开报告或知识地图查看细节。`;
+      }
+      if (els.desktopOverviewPetCoins) els.desktopOverviewPetCoins.textContent = `${pet.coins}`;
+      if (els.desktopOverviewPetMood) els.desktopOverviewPetMood.textContent = `${pet.mood}`;
+      if (els.desktopOverviewPetItems) els.desktopOverviewPetItems.textContent = `${petItems}件`;
+      if (els.desktopOverviewPetBond) els.desktopOverviewPetBond.textContent = `${pet.bond}`;
+      if (els.desktopOverviewPetList) {
+        els.desktopOverviewPetList.innerHTML = listHTML([
+          `${lowCareLabel}最低 ${lowCare?.value ?? 0}，优先照顾这一项`,
+          `金币约可支撑 ${estimatedCareDays} 天基础消耗`,
+          `下一等级还差 ${Math.max(0, pet.level * PET_XP_PER_LEVEL - pet.xp)} 经验`
+        ]);
+      }
+      if (els.desktopOverviewWeekCount) els.desktopOverviewWeekCount.textContent = `${week.length}题`;
+      if (els.desktopOverviewMastered) els.desktopOverviewMastered.textContent = `${masteredCount}个`;
+      if (els.desktopOverviewReportList) {
+        els.desktopOverviewReportList.innerHTML = listHTML([
+          week.length ? `本周练习 ${week.length} 题，覆盖 ${weekDoneDays} 天` : "本周还没有形成报告数据",
+          `知识地图已掌握 ${masteredCount} 个点，薄弱点 ${weak.length || 0} 项`
+        ]);
+      }
+      els.desktopOverviewNext.textContent = challenge?.draft
+        ? `已保存闯关进度：第 ${challenge.level || 1} 关`
+        : `准备开始 ${setSize} 题练习`;
+      if (els.desktopOverviewNextDetail) {
+        els.desktopOverviewNextDetail.textContent = `左侧可调整年级、知识点、题量和每日目标；推荐优先完成今日路线，再处理错题本。`;
+      }
+      if (els.desktopOverviewNextList) {
+        els.desktopOverviewNextList.innerHTML = listHTML([
+          `当前年级：${gradeName}`,
+          weak.length ? `推荐知识点：${weak[0]}` : "推荐知识点：按年级混合",
+          `本轮题量：${setSize} 题，每日目标：${goal} 题`,
+          challenge?.draft ? "可继续上次闯关，也可生成新练习" : "生成后会进入桌面专注做题布局"
+        ]);
+      }
+    }
     function renderDailyGoal() {
       const profile = activeProfile();
       const done = todayItems(profile).length;
@@ -1384,6 +1593,7 @@ const STORE = {
       renderMissionStrip(profile);
       renderChallengePanel(profile);
       renderHomeDashboard(profile);
+      renderDesktopPracticeOverview(profile);
     }
     function nextMilestoneCopy(streak = state.streak) {
       if (streak >= 10) return "连对 10+，保持节奏";
@@ -5462,8 +5672,29 @@ const STORE = {
       if (state.view === "report") renderReport();
       if (state.view === "knowledgeMap") renderLearningKnowledgeMap();
     }
+    function rememberPracticeViewState() {
+      state.practiceReturnState = {
+        layer: state.practiceLayer || "setup",
+        typeSettingsOpen: document.body.classList.contains("type-settings-open")
+      };
+    }
+
+    function restorePracticeViewState() {
+      const saved = state.practiceReturnState || { layer: "setup", typeSettingsOpen: false };
+      if (saved.typeSettingsOpen) {
+        setPracticeLayer("setup");
+        setTypeSettingsOpen(true);
+      } else if (saved.layer === "focus") {
+        enterPracticeFocus();
+      } else {
+        setPracticeLayer("setup");
+        setTypeSettingsOpen(false);
+      }
+    }
+
     function showView(view) {
       const previous = state.view;
+      if (previous === "practice" && view !== "practice") rememberPracticeViewState();
       state.view = view;
       document.body.classList.toggle("practice-view-active", view === "practice");
       if (view !== "practice") setTypeSettingsOpen(false);
@@ -5478,7 +5709,7 @@ const STORE = {
           element.classList.add("view-enter");
 
           // 移动端：为在线练习页的内部元素也添加动画
-          if (view === "practice" && window.matchMedia("(max-width: 1180px)").matches) {
+          if (view === "practice" && isCompactPracticeViewport()) {
             // 移动端home-dashboard是#practiceView的兄弟节点，需要单独添加动画
             const homeDashboard = document.querySelector(".home-dashboard");
             if (homeDashboard) {
@@ -5489,8 +5720,11 @@ const STORE = {
           }
         }
       });
-      if (view !== "practice") setPracticeLayer("setup");
-      if (view === "practice" && state.practiceLayer !== "focus") {
+      if (view !== "practice") {
+        setPracticeLayer("setup");
+      } else if (previous !== "practice") {
+        restorePracticeViewState();
+      } else if (state.practiceLayer !== "focus") {
         setPracticeLayer("setup");
       }
       if (view === "wrongbook") renderWrongbook();
@@ -5508,6 +5742,12 @@ const STORE = {
     }
     function setTypeSettingsOpen(open) {
       document.body.classList.toggle("type-settings-open", Boolean(open));
+      if (state.view === "practice") {
+        state.practiceReturnState = {
+          layer: state.practiceLayer || "setup",
+          typeSettingsOpen: Boolean(open)
+        };
+      }
     }
     function openTypeSettings() {
       showView("practice");
@@ -5517,7 +5757,10 @@ const STORE = {
     function closeTypeSettings() {
       setTypeSettingsOpen(false);
       showView("practice");
-      if (window.matchMedia("(max-width: 620px)").matches) {
+      setPracticeLayer("setup");
+      rememberPracticeViewState();
+      window.scrollTo(0, 0);
+      if (isMobilePracticeViewport()) {
         const homeDashboard = document.querySelector(".home-dashboard");
         if (homeDashboard) {
           homeDashboard.classList.remove("view-enter");
@@ -5527,7 +5770,7 @@ const STORE = {
       }
     }
     function handleTopModeAction() {
-      if (window.matchMedia("(max-width: 620px)").matches) openTypeSettings();
+      if (isMobilePracticeViewport()) openTypeSettings();
       else startChallengeSet();
     }
     function syncCompactOnlyFeatures() {
@@ -5546,7 +5789,7 @@ const STORE = {
       if (els.practiceWorkspace) {
         els.practiceWorkspace.classList.toggle("focus-mode", layer === "focus");
         // 添加动画效果到panel和main-stack
-        if (previous !== layer && window.matchMedia("(max-width: 1180px)").matches) {
+        if (previous !== layer && isCompactPracticeViewport()) {
           const animTarget = layer === "focus"
             ? els.practiceWorkspace.querySelector(".main-stack")
             : els.practiceWorkspace.querySelector(".panel");
@@ -5565,16 +5808,18 @@ const STORE = {
 
     function enterPracticeFocus() {
       setPracticeLayer("focus");
-      if (window.matchMedia("(max-width: 1180px)").matches) {
-        const stack = els.practiceWorkspace?.querySelector(".main-stack");
-        if (stack) stack.scrollTop = 0;
-      }
+      rememberPracticeViewState();
+      window.scrollTo(0, 0);
+      const stack = els.practiceWorkspace?.querySelector(".main-stack");
+      if (stack) stack.scrollTop = 0;
     }
 
     function returnToPracticeSetup() {
       els.mobileChallengeResult.hidden = true;
+      setTypeSettingsOpen(false);
       setPracticeLayer("setup");
-      setTypeSettingsOpen(true);
+      rememberPracticeViewState();
+      window.scrollTo(0, 0);
     }
 
     function formatDuration(ms = 0) {
@@ -5992,6 +6237,7 @@ const STORE = {
         els.petInventory.textContent = `金币 ${pet.coins} · 背包 ${petInventoryCount(pet)} 件 · ${petStatusLabel(pet)}`;
       }
       if (els.petCoinPill) els.petCoinPill.textContent = `金币 ${pet.coins}`;
+      renderDesktopPracticeOverview(profile);
       return pet;
     }
 
@@ -7570,9 +7816,20 @@ const STORE = {
         UI.notify("名字支持 1-6 个中文字符，或 1-12 个英文/数字字符。", { tone: "bad" });
         return;
       }
+      const before = {
+        renameCard: pet.inventory.renameCard,
+        name: pet.name
+      };
       pet.inventory.renameCard -= 1;
       pet.name = nextName;
-      if (!saveProfiles()) return;
+      if (!saveProfiles()) {
+        pet.inventory.renameCard = before.renameCard;
+        pet.name = before.name;
+        saveProfiles();
+        renderPetSpace(profile);
+        UI.notify("本地保存失败，改名卡没有使用。请先导出备份。", { tone: "bad", duration: 4200 });
+        return;
+      }
       if (els.petRenameCard) els.petRenameCard.hidden = true;
       renderPetSpace(profile);
       updatePetStatus(`${nextName}记住了新名字，以后提示和陪练都会一起改。`, "新名字");
@@ -7610,6 +7867,7 @@ const STORE = {
         els.progressDots.appendChild(dot);
       }
       renderMissionStrip();
+      renderDesktopPracticeOverview();
       updatePetStatus();
     }
     function restoreCausePanelPlacement() {
@@ -7932,7 +8190,14 @@ const STORE = {
         return;
       }
       const level = progress.level || 1;
-      const count = clamp(10 + Math.floor((level - 1) / 2), 10, 14);
+      state.setSize = clamp(Number(els.setSizeInput.value) || Number(profile.settings?.setSize) || state.setSize || 10, 3, 40);
+      els.setSizeInput.value = String(state.setSize);
+      profile.settings = {
+        ...(profile.settings || {}),
+        setSize: state.setSize
+      };
+      saveProfiles();
+      const count = state.setSize;
       const pointsForGrade = availablePoints(grade);
       const weak = weakestPoints(4).filter((point) => point.grade === grade);
       const challengePool = [...weak, ...pointsForGrade].filter((point, index, list) => list.findIndex((item) => item.id === point.id) === index);
@@ -9683,8 +9948,11 @@ const STORE = {
 
     els.tabs.forEach((btn) => btn.addEventListener("click", () => {
       if (btn.dataset.view) {
+        if (btn.dataset.view === "practice" && state.view === "practice" && document.body.classList.contains("type-settings-open")) {
+          closeTypeSettings();
+          return;
+        }
         showView(btn.dataset.view);
-        if (btn.dataset.view === "practice") setTypeSettingsOpen(false);
       }
     }));
     document.querySelectorAll("[data-top-mode-action]").forEach((btn) => btn.addEventListener("click", handleTopModeAction));
@@ -9749,7 +10017,16 @@ const STORE = {
       if (state.view === "report") renderReport();
     });
     els.startSetBtn.addEventListener("click", () => startNewSet({ focus: true }));
+    els.desktopOverviewStartBtn?.addEventListener("click", () => startNewSet({ focus: true }));
     els.homeStartPracticeBtn?.addEventListener("click", () => startNewSet({ focus: true }));
+    els.challengePanel?.addEventListener("click", (event) => {
+      const startButton = event.target.closest("#startChallengeBtn");
+      const desktopPanelClick = window.matchMedia("(min-width: 981px)").matches && !event.target.closest("#startTimedQuizBtn");
+      if (!startButton && !desktopPanelClick) return;
+      event.preventDefault();
+      event.stopPropagation();
+      startChallengeSet();
+    }, true);
     els.startChallengeBtn?.addEventListener("click", startChallengeSet);
     els.backToSetupBtn.addEventListener("click", returnToPracticeSetup);
     els.closeTypeSettingsBtn?.addEventListener("click", closeTypeSettings);

@@ -710,40 +710,61 @@
       }
       .app-header {
         min-height: 0;
-        grid-template-columns: auto minmax(560px, 720px) auto;
+        grid-template-columns: auto minmax(580px, 760px) auto;
         grid-template-areas:
           "brand tabs stats";
-        gap: 6px 14px;
+        gap: 7px 16px;
+        align-items: center;
       }
       .brand {
         grid-area: brand;
-        align-self: end;
+        align-self: center;
+        gap: 13px;
+        font-size: 21px;
+      }
+      .brand-mark {
+        width: 46px;
+        height: 46px;
+        border-radius: 15px;
+      }
+      .brand-spark {
+        width: 26px;
+        height: 26px;
       }
       .tabs {
         grid-area: tabs;
-        width: min(720px, 100%);
+        width: min(620px, 100%);
         display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         justify-self: center;
         align-self: center;
-        gap: 6px;
+        gap: 8px;
       }
       .tab-btn {
         width: 100%;
         min-width: 0;
         justify-content: center;
-        min-height: 36px;
-        padding: 0 8px;
-        font-size: 13px;
+        min-height: 40px;
+        padding: 0 10px;
+        font-size: 13.5px;
         white-space: nowrap;
+      }
+      .tab-btn[data-view="data"] {
+        display: none !important;
+      }
+      .tab-btn[data-top-mode-action] {
+        display: none !important;
       }
       .quick-stats {
         grid-area: stats;
         justify-content: flex-end;
         align-self: center;
+        gap: 9px;
       }
       .pill {
-        min-height: 30px;
+        min-height: 34px;
+        padding: 0 12px;
+        font-size: 13.5px;
       }
     }
 
@@ -799,7 +820,7 @@
     .hero-actions, .panel-actions, .row-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
     .hero-actions { margin-top: 22px; }
     .home-dashboard {
-      display: grid;
+      display: none;
       overflow: hidden;
       margin: 8px 0 10px;
       padding: 12px 14px;
@@ -1359,14 +1380,119 @@
     .inline-check {
       margin-top: 12px;
       display: grid;
-      grid-template-columns: 20px 1fr;
-      gap: 10px;
-      align-items: start;
+      grid-template-columns: 46px minmax(0, 1fr);
+      gap: 11px;
+      align-items: center;
+      min-height: 48px;
+      padding: 9px 10px;
+      border-radius: 14px;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,.86), color-mix(in oklch, var(--accent), white 92%));
+      border: 1px solid color-mix(in oklch, var(--border), white 18%);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.5), 0 8px 18px rgba(44,86,108,.06);
       color: color-mix(in oklch, var(--fg), white 12%);
       font-weight: 850;
-      line-height: 1.5;
+      line-height: 1.38;
+      cursor: pointer;
+      user-select: none;
     }
-    .inline-check input { width: 20px; min-height: 20px; accent-color: var(--accent); margin-top: 2px; }
+    .inline-check input {
+      display: block;
+      appearance: none;
+      -webkit-appearance: none;
+      position: relative;
+      box-sizing: border-box;
+      width: 42px;
+      min-width: 42px;
+      height: 24px;
+      min-height: 24px;
+      padding: 0 !important;
+      margin: 0;
+      border-radius: 999px;
+      border: 1px solid color-mix(in oklch, var(--border), white 4%);
+      background: color-mix(in oklch, var(--muted), white 74%);
+      box-shadow: inset 0 2px 6px rgba(44,86,108,.14);
+      cursor: pointer;
+      transition: background .18s ease, border-color .18s ease, box-shadow .18s ease;
+    }
+    .inline-check input::before {
+      content: "";
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 18px;
+      height: 18px;
+      border-radius: 999px;
+      background: #fff;
+      box-shadow: 0 3px 8px rgba(44,86,108,.2);
+      transition: transform .18s ease;
+    }
+    .inline-check input:checked {
+      border-color: color-mix(in oklch, var(--accent), white 18%);
+      background: linear-gradient(90deg, color-mix(in oklch, var(--accent), black 5%), color-mix(in oklch, var(--accent), white 18%));
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.25), 0 6px 14px color-mix(in oklch, var(--accent), transparent 72%);
+    }
+    .inline-check input:checked::before {
+      transform: translateX(18px);
+    }
+    .inline-check input:focus-visible {
+      outline: 3px solid color-mix(in oklch, var(--accent), white 56%);
+      outline-offset: 2px;
+    }
+    .inline-check > span {
+      min-width: 0;
+      display: block;
+    }
+    .inline-check .custom-switch {
+      width: 42px !important;
+      height: 24px !important;
+      display: inline-grid !important;
+      place-items: center;
+      align-self: center;
+      position: relative;
+      cursor: pointer;
+    }
+    .inline-check .custom-switch input[type="checkbox"] {
+      position: absolute;
+      inset: 0;
+      width: 100% !important;
+      height: 100% !important;
+      min-width: 0 !important;
+      min-height: 0 !important;
+      margin: 0 !important;
+      opacity: 0;
+      cursor: pointer;
+    }
+    .inline-check .switch-track {
+      width: 42px !important;
+      height: 24px !important;
+      display: block !important;
+      border-radius: 999px !important;
+      border: 1px solid color-mix(in oklch, var(--border), white 4%);
+      background: color-mix(in oklch, var(--muted), white 74%) !important;
+      box-shadow: inset 0 2px 6px rgba(44,86,108,.14);
+      transition: background .18s ease, border-color .18s ease, box-shadow .18s ease !important;
+    }
+    .inline-check .switch-thumb {
+      top: 3px !important;
+      left: 3px !important;
+      width: 18px !important;
+      height: 18px !important;
+      display: block !important;
+      border-radius: 999px !important;
+      background: #fff !important;
+      box-shadow: 0 3px 8px rgba(44,86,108,.2) !important;
+      transition: transform .18s ease !important;
+    }
+    .inline-check .custom-switch input:checked + .switch-track {
+      border-color: color-mix(in oklch, var(--accent), white 18%);
+      background: linear-gradient(90deg, color-mix(in oklch, var(--accent), black 5%), color-mix(in oklch, var(--accent), white 18%)) !important;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.25), 0 6px 14px color-mix(in oklch, var(--accent), transparent 72%);
+    }
+    .inline-check .custom-switch input:checked + .switch-track .switch-thumb {
+      left: 3px !important;
+      transform: translateX(18px) !important;
+    }
     .grade-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -1534,6 +1660,9 @@
     .status-strip .stat strong { font-size: 21px; }
     .stat span, .metric span { color: var(--muted); font-size: 13px; font-weight: 850; }
     .status-strip .stat span { font-size: 11px; line-height: 1; }
+    .timer-progress-ring {
+      display: none !important;
+    }
     .mission-strip {
       display: grid;
       grid-template-columns: 1fr 1fr minmax(220px, 1.4fr);
@@ -1562,6 +1691,9 @@
       color: color-mix(in oklch, var(--fg), white 6%);
       font: 950 15px/1.25 var(--font-display);
       text-wrap: pretty;
+    }
+    .desktop-practice-overview {
+      display: none;
     }
     .practice-card {
       position: relative;
@@ -2912,7 +3044,7 @@
     }
     .pet-shop-card,
     .pet-bag-card {
-      width: min(860px, 100%);
+      width: min(980px, 100%);
       height: min(700px, calc(100dvh - 44px));
       overflow: hidden;
       display: grid;
@@ -4046,8 +4178,98 @@
     }
 
     @media (min-width: 981px) {
+      body:not(.practice-view-active) .home-dashboard {
+        display: none !important;
+      }
+      #petspaceView.active {
+        margin-top: 0;
+      }
+      #petspaceView.active .pet-space-layout {
+        gap: 0;
+      }
       #petspaceView.active .pet-room-card {
-        padding-bottom: 18px;
+        padding: 14px;
+        border-radius: 14px;
+      }
+      #petspaceView.active .pet-room-top {
+        min-height: 0;
+        align-items: center;
+      }
+      #petspaceView.active .pet-room-top h2 {
+        font-size: 22px;
+      }
+      #petspaceView.active .pet-room-top .muted {
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        max-width: 78ch;
+        line-height: 1.25;
+      }
+      #petspaceView.active .pet-wallet {
+        min-width: 112px;
+        padding: 8px 12px;
+      }
+      #petspaceView.active .pet-room-stage {
+        min-height: 320px;
+        margin-top: 10px;
+        gap: 12px;
+      }
+      #petspaceView.active .pet-room-scene {
+        min-height: 320px;
+      }
+      #petspaceView.active .pet-room-info {
+        padding: 12px;
+        gap: 8px;
+        align-content: start;
+      }
+      #petspaceView.active .pet-room-info h3 {
+        font-size: 17px;
+      }
+      #petspaceView.active .pet-room-info p,
+      #petspaceView.active .pet-stage-card span {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        line-height: 1.32;
+      }
+      #petspaceView.active .pet-stage-card {
+        padding: 9px 10px;
+        gap: 4px;
+      }
+      #petspaceView.active .pet-stage-card strong {
+        font-size: 15px;
+      }
+      #petspaceView.active .pet-space-progress {
+        gap: 7px;
+      }
+      #petspaceView.active .pet-space-progress div {
+        padding: 8px 10px;
+      }
+      #petspaceView.active .pet-space-progress strong {
+        margin-top: 2px;
+        font-size: 19px;
+      }
+      #petspaceView.active .pet-skill-strip span {
+        min-height: 22px;
+        padding: 0 7px;
+        font-size: 10px;
+      }
+      #petspaceView.active .pet-space-bars {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 10px;
+      }
+      #petspaceView.active .pet-space-bar {
+        min-height: 42px;
+        padding: 8px 9px;
+        grid-template-columns: 46px minmax(0, 1fr) 28px;
+        gap: 7px;
+        font-size: 11px;
+      }
+      #petspaceView.active .pet-space-bar .bar-track {
+        height: 7px;
       }
       #petspaceView.active .pet-showcase-card {
         grid-template-columns: minmax(210px, .23fr) minmax(0, 1fr);
@@ -4100,7 +4322,7 @@
       #petspaceView.active .pet-care-dashboard {
         grid-template-columns: repeat(6, minmax(0, 1fr));
         gap: 10px;
-        margin-top: 12px;
+        margin-top: 10px;
       }
       #petspaceView.active .pet-wish-card,
       #petspaceView.active .pet-level-gift-card,
@@ -4108,8 +4330,8 @@
       #petspaceView.active .pet-event-card,
       #petspaceView.active .pet-story-card,
       #petspaceView.active .pet-memory-card {
-        min-height: 132px;
-        max-height: 132px;
+        min-height: 204px;
+        max-height: 204px;
         padding: 10px;
         gap: 6px;
         overflow: hidden;
@@ -4140,7 +4362,7 @@
       #petspaceView.active .pet-card-title p,
       #petspaceView.active .pet-care-plan-head .muted {
         display: -webkit-box;
-        -webkit-line-clamp: 1;
+        -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
         font-size: 11px;
@@ -4163,17 +4385,14 @@
         font-size: 11px;
       }
       #petspaceView.active .pet-care-checklist {
-        gap: 4px;
+        gap: 3px;
       }
       #petspaceView.active .pet-care-checklist div {
         grid-template-columns: 18px minmax(36px, auto) minmax(0, 1fr);
-        min-height: 21px;
+        min-height: 23px;
         padding: 3px 6px;
-        gap: 6px;
+        gap: 5px;
         font-size: 10px;
-      }
-      #petspaceView.active .pet-care-checklist div:nth-child(n+4) {
-        display: none;
       }
       #petspaceView.active .pet-care-checklist span {
         width: 18px;
@@ -4196,13 +4415,15 @@
       #petspaceView.active .pet-space-actions {
         display: grid;
         grid-template-columns: repeat(6, minmax(0, 1fr));
-        gap: 10px;
-        margin-top: 12px;
+        gap: 8px;
+        margin-top: 10px;
       }
       #petspaceView.active .pet-space-actions button {
         min-width: 0;
         width: 100%;
-        min-height: 44px;
+        min-height: 38px;
+        padding: 0 8px;
+        font-size: 12px;
       }
     }
 
@@ -4367,9 +4588,9 @@
     .pet-bag-grid {
       grid-column: 1 / -1;
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 12px;
-      max-height: min(480px, calc(100dvh - 260px));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      max-height: min(540px, calc(100dvh - 240px));
       overflow: auto;
       overscroll-behavior: contain;
       padding: 2px 4px 4px 2px;
@@ -4398,7 +4619,7 @@
     .pet-shop-card .pet-shop-grid,
     .pet-bag-card .pet-bag-list {
       min-height: 0;
-      max-height: min(480px, calc(100dvh - 260px));
+      max-height: min(540px, calc(100dvh - 240px));
       overflow: auto;
       overscroll-behavior: contain;
       padding: 2px 4px 4px 2px;
@@ -4542,6 +4763,14 @@
       text-align: center;
       transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
     }
+    #petBagModal .pet-bag-item {
+      grid-template-rows: 42px auto minmax(34px, 1fr) auto;
+      min-width: 0;
+      min-height: 168px;
+      gap: 7px;
+      padding: 10px;
+      border-radius: 14px;
+    }
     .pet-shop-item:hover,
     .pet-bag-item:hover,
     .pet-shop-item:focus-visible,
@@ -4577,6 +4806,12 @@
       font: 950 15px/1.2 var(--font-display);
       color: var(--fg);
     }
+    #petBagModal .pet-bag-item strong {
+      min-height: 0;
+      max-width: 100%;
+      font-size: 14px;
+      overflow-wrap: anywhere;
+    }
     .pet-shop-item small,
     .pet-bag-item small {
       min-height: 16px;
@@ -4584,6 +4819,15 @@
       font-size: 11px;
       font-weight: 850;
       line-height: 1.25;
+    }
+    #petBagModal .pet-bag-item small {
+      min-height: 34px;
+      max-width: 100%;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      overflow-wrap: anywhere;
     }
     .pet-shop-buy {
       display: grid;
@@ -5029,13 +5273,25 @@
       }
       .practice-workspace > .panel .inline-check {
         margin-top: 11px;
-        gap: 8px;
+        grid-template-columns: 42px minmax(0, 1fr);
+        gap: 9px;
+        min-height: 44px;
+        padding: 8px 9px;
         font-size: 12px;
         line-height: 1.42;
       }
       .practice-workspace > .panel .inline-check input {
-        width: 18px;
-        min-height: 18px;
+        width: 38px;
+        min-width: 38px;
+        height: 22px;
+        min-height: 22px;
+      }
+      .practice-workspace > .panel .inline-check input::before {
+        width: 16px;
+        height: 16px;
+      }
+      .practice-workspace > .panel .inline-check input:checked::before {
+        transform: translateX(16px);
       }
       .practice-workspace .choice {
         min-height: 34px;
@@ -5915,13 +6171,124 @@
     }
 
     @media (min-width: 981px) {
+      html:has(body.practice-view-active.practice-focus-mode),
+      body.practice-view-active.practice-focus-mode {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+      body.practice-view-active.practice-focus-mode .app {
+        width: min(100% - 28px, 1380px);
+        height: 100dvh;
+        padding: 6px 0;
+        display: grid;
+        grid-template-rows: auto auto minmax(0, 1fr);
+        gap: 6px;
+        overflow: hidden;
+      }
+      body.practice-view-active.practice-focus-mode .app-header {
+        display: grid;
+        width: 100%;
+        min-height: 0;
+        margin-bottom: 0;
+      }
+      body.practice-view-active.practice-focus-mode #practiceView,
+      body.practice-view-active.practice-focus-mode .practice-workspace,
+      body.practice-view-active.practice-focus-mode .practice-workspace > .main-stack {
+        min-height: 0;
+        height: 100%;
+        overflow: hidden;
+      }
+      body.practice-view-active.practice-focus-mode #practiceView {
+        height: auto;
+      }
+      body.practice-view-active.practice-focus-mode .practice-workspace {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr);
+      }
+      body.practice-view-active.practice-focus-mode .practice-workspace > .panel {
+        display: none;
+      }
+      body.practice-view-active.practice-focus-mode .practice-workspace > .main-stack {
+        display: grid;
+        grid-template-rows: auto auto minmax(0, 1fr);
+        gap: 5px;
+      }
+      body.practice-view-active.practice-focus-mode .practice-card {
+        min-height: 0;
+        height: 100%;
+        max-height: 100%;
+        align-self: stretch;
+        overflow: hidden;
+      }
+      body.practice-view-active.practice-focus-mode .answer-panel,
+      body.practice-view-active.practice-focus-mode .companion {
+        min-height: 0;
+        max-height: 100%;
+        overflow: hidden;
+      }
+      body.practice-view-active.practice-focus-mode .answer-panel {
+        justify-content: space-between;
+      }
+      body.practice-view-active.practice-focus-mode .companion {
+        display: grid;
+        align-content: stretch;
+      }
+      body.practice-view-active.practice-focus-mode .status-strip {
+        gap: 6px;
+      }
+      body.practice-view-active.practice-focus-mode .status-strip .stat {
+        min-height: 34px;
+        padding: 5px 8px;
+        border-radius: 12px;
+      }
+      body.practice-view-active.practice-focus-mode .status-strip .stat strong {
+        font-size: 18px;
+        line-height: 1;
+      }
+      body.practice-view-active.practice-focus-mode .status-strip .stat span {
+        margin-top: 2px;
+        font-size: 10px;
+        line-height: 1;
+      }
+      body.practice-view-active.practice-focus-mode .mission-strip {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+      }
+      body.practice-view-active.practice-focus-mode .mission-card {
+        min-height: 38px;
+        padding: 6px 10px;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: center;
+        gap: 6px 10px;
+        border-radius: 12px;
+      }
+      body.practice-view-active.practice-focus-mode .mission-card span,
+      body.practice-view-active.practice-focus-mode .mission-card strong {
+        min-width: 0;
+        margin: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      body.practice-view-active.practice-focus-mode .mission-card span {
+        font-size: 10px;
+      }
+      body.practice-view-active.practice-focus-mode .mission-card strong {
+        font-size: 13px;
+        line-height: 1.15;
+      }
       body.practice-view-active:not(.practice-focus-mode) .app {
         width: min(100% - 28px, 1380px);
+        height: 100dvh;
+        padding: 8px 0;
         display: grid;
-        grid-template-columns: 292px minmax(0, 1fr);
+        grid-template-columns: 270px minmax(0, 1fr);
         grid-template-rows: auto auto minmax(0, 1fr);
-        gap: 12px 14px;
+        gap: 8px 10px;
         align-items: start;
+        overflow: hidden;
       }
       body.practice-view-active:not(.practice-focus-mode) .app-header {
         grid-column: 1 / -1;
@@ -5929,10 +6296,11 @@
         margin-bottom: 0;
       }
       body.practice-view-active:not(.practice-focus-mode) .home-dashboard {
+        display: grid;
         grid-column: 1 / -1;
         width: 100%;
         margin: 0;
-        padding: 10px;
+        padding: 6px;
         grid-template-columns: minmax(0, 1fr);
         gap: 0;
         overflow: visible;
@@ -5944,15 +6312,15 @@
         grid-column: 1;
         grid-row: 1;
         grid-template-columns: minmax(180px, .24fr) minmax(220px, .26fr) minmax(0, 1fr);
-        gap: 7px 10px;
+        gap: 5px 8px;
         align-content: start;
       }
       body.practice-view-active:not(.practice-focus-mode) .home-dashboard .eyebrow {
         font-size: 12px;
       }
       body.practice-view-active:not(.practice-focus-mode) .home-dashboard h1 {
-        margin-top: 2px;
-        font-size: 22px;
+        margin-top: 0;
+        font-size: 20px;
       }
       body.practice-view-active:not(.practice-focus-mode) .home-dashboard .lead {
         max-width: 30ch;
@@ -5968,8 +6336,8 @@
         align-self: stretch;
       }
       body.practice-view-active:not(.practice-focus-mode) .home-cockpit-meter span {
-        min-height: 38px;
-        padding: 6px 7px;
+        min-height: 34px;
+        padding: 5px 7px;
       }
       body.practice-view-active:not(.practice-focus-mode) .today-plan-card > .eyebrow,
       body.practice-view-active:not(.practice-focus-mode) .today-plan-card > h1,
@@ -5980,8 +6348,8 @@
         display: none;
       }
       body.practice-view-active:not(.practice-focus-mode) .weak-chip {
-        min-height: 44px;
-        padding: 7px 8px;
+        min-height: 38px;
+        padding: 6px 8px;
       }
       body.practice-view-active:not(.practice-focus-mode) .home-route-list {
         grid-column: 3;
@@ -5992,8 +6360,8 @@
       }
       body.practice-view-active:not(.practice-focus-mode) .home-route-step {
         min-height: 0;
-        padding: 7px;
-        gap: 4px;
+        padding: 6px;
+        gap: 3px;
       }
       body.practice-view-active:not(.practice-focus-mode) .home-route-step-head b {
         width: 20px;
@@ -6008,7 +6376,7 @@
         line-height: 1.25;
       }
       body.practice-view-active:not(.practice-focus-mode) .home-route-step button {
-        min-height: 28px;
+        min-height: 26px;
         font-size: 11px;
       }
       body.practice-view-active:not(.practice-focus-mode) .home-dashboard .hero-actions {
@@ -6025,34 +6393,1190 @@
       body.practice-view-active:not(.practice-focus-mode) #practiceView {
         grid-column: 1 / -1;
         width: 100%;
+        min-height: 0;
+        height: 100%;
+        overflow: hidden;
       }
       body.practice-view-active:not(.practice-focus-mode) .practice-workspace {
-        grid-template-columns: 292px minmax(0, 1fr);
-        gap: 14px;
+        grid-template-columns: 270px minmax(0, 1fr);
+        gap: 10px;
+        min-height: 0;
+        height: 100%;
+        align-items: stretch;
+        overflow: hidden;
       }
       body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel {
+        box-sizing: border-box;
         min-height: 0;
-        align-self: start;
+        height: 100%;
+        max-height: 100%;
+        padding: 8px 10px;
+        align-self: stretch;
+        overflow: hidden;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel h2 {
+        margin: 0 0 6px;
+        font-size: 15px;
+        line-height: 1.15;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel p {
+        margin: 0 0 8px;
+        font-size: 11px;
+        line-height: 1.35;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .field {
+        margin-top: 5px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .field label,
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .field-label {
+        margin-bottom: 4px;
+        font-size: 11px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel input,
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel select,
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .custom-select-button {
+        min-height: 32px;
+        padding-top: 6px;
+        padding-bottom: 6px;
+        font-size: 12px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .enhanced-input-wrapper {
+        margin-top: 8px;
+        margin-bottom: 8px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .hint-box,
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .inline-check,
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .goal-card,
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .knowledge-card,
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .challenge-panel {
+        margin-top: 6px;
+        padding: 7px 9px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel #challengePanel {
+        display: grid !important;
+        min-height: 52px;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 7px;
+        order: 0;
+        border-radius: 13px;
+        cursor: pointer;
+        background:
+          radial-gradient(circle at 88% 16%, color-mix(in oklch, var(--sun), white 28%) 0 18px, transparent 19px),
+          linear-gradient(135deg, color-mix(in oklch, var(--accent), white 84%), rgba(255,255,255,.9));
+        border-color: color-mix(in oklch, var(--accent), white 42%);
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel #challengePanel:hover {
+        border-color: color-mix(in oklch, var(--accent), white 18%);
+        box-shadow: 0 10px 22px rgba(0, 148, 96, .12);
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel #challengePanel strong {
+        font-size: 13px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel #challengePanel span {
+        display: none !important;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel #challengePanel .challenge-stats {
+        display: none;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel #challengePanel .challenge-actions {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0;
+        margin-top: 0;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel #challengePanel #startTimedQuizBtn {
+        display: none;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel #challengePanel button {
+        min-width: 0;
+        min-height: 32px;
+        width: 100%;
+        padding: 0 8px;
+        border-radius: 11px;
+        font-size: 11px;
+        line-height: 1.1;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .hint-box,
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .inline-check {
+        font-size: 10.5px;
+        line-height: 1.25;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .inline-check {
+        grid-template-columns: 40px minmax(0, 1fr);
+        gap: 8px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .inline-check input {
+        width: 36px;
+        min-width: 36px;
+        height: 20px;
+        min-height: 20px;
+        padding: 0;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .inline-check input::before {
+        top: 2px;
+        left: 2px;
+        width: 16px;
+        height: 16px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .inline-check input:checked::before {
+        transform: translateX(16px);
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .inline-check .custom-switch,
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .inline-check .switch-track {
+        width: 36px !important;
+        height: 20px !important;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .inline-check .switch-thumb {
+        top: 2px !important;
+        left: 2px !important;
+        width: 16px !important;
+        height: 16px !important;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .inline-check .custom-switch input:checked + .switch-track .switch-thumb {
+        left: 2px !important;
+        transform: translateX(16px) !important;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .goal-card {
+        min-height: 42px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .goal-card strong {
+        font-size: 20px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .knowledge-card summary {
+        min-height: 32px;
+        font-size: 12px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .knowledge-card:not([open]) .knowledge-card-body {
+        display: none;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .knowledge-card[open] .knowledge-card-body {
+        display: block;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .panel-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 4px;
+        margin-top: 6px !important;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .panel-actions button {
+        min-height: 28px;
+        font-size: 11.5px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .panel-actions button.primary {
+        grid-column: 1 / -1;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .main-stack {
+        min-height: 0;
+        height: 100%;
+        overflow: hidden;
+        grid-template-rows: auto minmax(0, 1fr);
+        gap: 6px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .desktop-practice-overview {
+        min-height: 0;
+        height: 100%;
+        max-height: none;
+        align-self: stretch;
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(0, .95fr) minmax(0, .95fr);
+        grid-template-rows: minmax(0, 1.03fr) minmax(0, 1fr) minmax(0, 1.08fr);
+        gap: 8px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .desktop-overview-card {
+        min-width: 0;
+        min-height: 0;
+        padding: 8px 10px;
+        display: grid;
+        align-content: start;
+        gap: 4px;
+        border-radius: 12px;
+        border: 1px solid color-mix(in oklch, var(--border), white 18%);
+        background:
+          radial-gradient(circle at 94% 14%, color-mix(in oklch, var(--sun), white 34%) 0 20px, transparent 21px),
+          linear-gradient(135deg, rgba(255,255,255,.92), color-mix(in oklch, var(--soft), white 54%));
+        box-shadow: 0 10px 22px rgba(44, 86, 108, .06);
+        overflow: hidden;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-card-head {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .desktop-overview-card span {
+        color: var(--accent);
+        font-size: 11px;
+        font-weight: 950;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-card-head b {
+        min-height: 22px;
+        padding: 0 8px;
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        background: rgba(255,255,255,.76);
+        color: color-mix(in oklch, var(--fg), white 14%);
+        font-size: 11px;
+        font-weight: 950;
+        white-space: nowrap;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .desktop-overview-card strong {
+        color: color-mix(in oklch, var(--fg), white 4%);
+        font: 950 clamp(16px, 1.05vw, 20px)/1.15 var(--font-display);
+      }
+      body.practice-view-active:not(.practice-focus-mode) .desktop-overview-card p {
+        max-width: 58ch;
+        margin: 0;
+        color: color-mix(in oklch, var(--fg), white 18%);
+        font-size: 12px;
+        font-weight: 850;
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-student {
+        grid-column: 1;
+        grid-row: 1 / 3;
+        align-content: stretch;
+        padding: 12px;
+        background:
+          radial-gradient(circle at 88% 16%, color-mix(in oklch, var(--accent-2), white 48%) 0 34px, transparent 35px),
+          linear-gradient(145deg, rgba(255,255,255,.96), color-mix(in oklch, var(--accent), white 88%));
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-student strong {
+        font-size: clamp(19px, 1.45vw, 24px);
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-stat-grid {
+        margin-top: auto;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-stat-grid span {
+        min-width: 0;
+        min-height: 44px;
+        padding: 7px 8px;
+        display: grid;
+        align-content: center;
+        border-radius: 10px;
+        background: rgba(255,255,255,.74);
+        border: 1px solid color-mix(in oklch, var(--border), white 24%);
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-stat-grid b {
+        color: color-mix(in oklch, var(--accent), black 8%);
+        font: 950 18px/1 var(--font-display);
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-stat-grid em {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 10px;
+        font-style: normal;
+        font-weight: 900;
+        white-space: nowrap;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-progress-card {
+        display: grid;
+        gap: 5px;
+        padding: 7px 8px;
+        border-radius: 10px;
+        background: rgba(255,255,255,.62);
+        border: 1px solid color-mix(in oklch, var(--border), white 28%);
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-progress-card div {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-progress-card span {
+        color: var(--muted);
+        font-size: 10.5px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-progress-card b {
+        color: color-mix(in oklch, var(--accent), black 8%);
+        font: 950 15px/1 var(--font-display);
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-progress-card i,
+      body.practice-view-active:not(.practice-focus-mode) .overview-insight-grid i {
+        display: block;
+        width: 100%;
+        height: 7px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: color-mix(in oklch, var(--border), white 36%);
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-progress-card i::before,
+      body.practice-view-active:not(.practice-focus-mode) .overview-insight-grid i::before {
+        content: "";
+        display: block;
+        width: var(--value, 0%);
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--accent), var(--sun));
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-insight-grid {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 5px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-insight-grid span {
+        min-width: 0;
+        min-height: 46px;
+        padding: 6px 7px;
+        display: grid;
+        align-content: center;
+        gap: 2px;
+        border-radius: 10px;
+        background: rgba(255,255,255,.56);
+        border: 1px solid color-mix(in oklch, var(--border), white 28%);
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-insight-grid b {
+        min-width: 0;
+        color: color-mix(in oklch, var(--fg), white 6%);
+        font: 950 13px/1.22 var(--font-display);
+        overflow-wrap: anywhere;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-insight-grid strong {
+        color: var(--accent);
+        font: 950 11px/1.2 var(--font-display);
+        overflow-wrap: anywhere;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-insight-grid em {
+        color: var(--muted);
+        font-size: 10.5px;
+        font-style: normal;
+        font-weight: 850;
+        line-height: 1.22;
+        overflow-wrap: anywhere;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-insight-grid-compact {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-insight-grid-compact span {
+        min-height: 42px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-mini-list {
+        min-width: 0;
+        display: grid;
+        gap: 4px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-mini-list span {
+        min-width: 0;
+        min-height: 32px;
+        padding: 7px 10px;
+        display: flex;
+        align-items: center;
+        border-radius: 8px;
+        background: rgba(255,255,255,.58);
+        border: 1px solid color-mix(in oklch, var(--border), white 28%);
+        color: color-mix(in oklch, var(--fg), white 12%);
+        font-size: 12px;
+        font-weight: 900;
+        line-height: 1.42;
+        white-space: normal;
+        overflow-wrap: anywhere;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-micro-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 5px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-pet .overview-micro-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-micro-grid span {
+        min-width: 0;
+        min-height: 42px;
+        padding: 7px 9px;
+        display: grid;
+        align-content: center;
+        border-radius: 9px;
+        background: rgba(255,255,255,.62);
+        border: 1px solid color-mix(in oklch, var(--border), white 28%);
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-micro-grid b {
+        color: color-mix(in oklch, var(--accent), black 10%);
+        font: 950 14px/1 var(--font-display);
+        white-space: nowrap;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-micro-grid em {
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 10px;
+        font-style: normal;
+        font-weight: 900;
+        white-space: nowrap;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-challenge {
+        grid-column: 2;
+        grid-row: 1;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-wrong {
+        grid-column: 3;
+        grid-row: 3;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-challenge,
+      body.practice-view-active:not(.practice-focus-mode) .overview-wrong,
+      body.practice-view-active:not(.practice-focus-mode) .overview-report,
+      body.practice-view-active:not(.practice-focus-mode) .overview-actions,
+      body.practice-view-active:not(.practice-focus-mode) .overview-pet {
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-challenge .overview-mini-list,
+      body.practice-view-active:not(.practice-focus-mode) .overview-wrong .overview-mini-list,
+      body.practice-view-active:not(.practice-focus-mode) .overview-report .overview-mini-list,
+      body.practice-view-active:not(.practice-focus-mode) .overview-actions .overview-mini-list,
+      body.practice-view-active:not(.practice-focus-mode) .overview-pet .overview-mini-list {
+        flex: 1;
+        align-content: space-evenly;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-weak {
+        grid-column: 2 / 4;
+        grid-row: 2;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-weak .overview-mini-list {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-weak .overview-mini-list span {
+        min-height: 42px;
+        line-height: 1.28;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-weak .overview-insight-grid-compact {
+        flex: 1;
+        align-content: stretch;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-weak .overview-insight-grid-compact span {
+        min-height: 58px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-pet {
+        grid-column: 1;
+        grid-row: 3;
+        background:
+          radial-gradient(circle at 90% 16%, color-mix(in oklch, var(--sun), white 30%) 0 28px, transparent 29px),
+          linear-gradient(145deg, rgba(255,255,255,.94), color-mix(in oklch, var(--accent-2), white 82%));
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-report {
+        grid-column: 2;
+        grid-row: 3;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-wrong {
+        background:
+          radial-gradient(circle at 90% 16%, color-mix(in oklch, var(--danger), white 58%) 0 28px, transparent 29px),
+          linear-gradient(145deg, rgba(255,255,255,.94), color-mix(in oklch, var(--soft), white 72%));
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-actions {
+        grid-column: 3;
+        grid-row: 1;
+        align-content: stretch;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-actions p {
+        display: none;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-actions .overview-mini-list span {
+        min-height: 34px;
+        padding: 6px 9px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-chip-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-chip-list span {
+        min-height: 28px;
+        padding: 4px 10px;
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        background: color-mix(in oklch, var(--accent-2), white 82%);
+        color: color-mix(in oklch, var(--fg), white 10%);
+        font-size: 12px;
+        line-height: 1.25;
+        white-space: normal;
+        overflow-wrap: anywhere;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-chip-list span.active {
+        background: color-mix(in oklch, var(--accent), white 76%);
+        color: color-mix(in oklch, var(--accent), black 20%);
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-action-row {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .desktop-overview-card button {
+        min-height: 39px;
+        width: 100%;
+        padding: 0 10px;
+        border-radius: 11px;
+        font-size: 12.5px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .overview-actions button {
+        margin-top: auto;
+      }
+
+      @media (min-height: 1100px) {
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel {
+          padding: 12px 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 9px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel h2 {
+          margin-bottom: 4px;
+          font-size: 17px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel p {
+          margin-bottom: 6px;
+          font-size: 12px;
+          line-height: 1.5;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .field {
+          margin-top: 7px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .field label,
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .field-label {
+          margin-bottom: 6px;
+          font-size: 12px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .grade-grid {
+          gap: 9px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .grade-choice {
+          min-height: 40px;
+          font-size: 14px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel input,
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel select,
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .custom-select-button {
+          min-height: 38px;
+          padding-top: 8px;
+          padding-bottom: 8px;
+          font-size: 13px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .enhanced-input-wrapper {
+          margin-top: 12px;
+          margin-bottom: 12px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .inline-check {
+          min-height: 46px;
+          padding: 9px 10px;
+          font-size: 11.5px;
+          line-height: 1.45;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .hint-box {
+          min-height: 46px;
+          padding: 9px 10px;
+          font-size: 11.5px;
+          line-height: 1.42;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .goal-card {
+          min-height: 56px;
+          padding: 10px 12px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .goal-card strong {
+          font-size: 24px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel #challengePanel {
+          min-height: 72px;
+          padding: 10px 12px;
+          gap: 8px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel #challengePanel strong {
+          font-size: 14px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel #challengePanel button {
+          min-height: 38px;
+          font-size: 12px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .knowledge-card summary {
+          min-height: 42px;
+          font-size: 13px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .panel-actions {
+          gap: 7px;
+          margin-top: auto !important;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .panel-actions button {
+          min-height: 38px;
+          font-size: 12.5px;
+        }
+
+        body.practice-view-active:not(.practice-focus-mode) .desktop-overview-card {
+          padding: 13px 15px;
+          gap: 10px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-card-head span,
+        body.practice-view-active:not(.practice-focus-mode) .desktop-overview-card > span {
+          font-size: 12px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-card-head b {
+          min-height: 28px;
+          padding: 0 10px;
+          font-size: 12px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .desktop-overview-card strong {
+          font-size: clamp(19px, 1.28vw, 24px);
+          line-height: 1.22;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .desktop-overview-card p {
+          font-size: 12.5px;
+          line-height: 1.62;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-progress-card {
+          gap: 8px;
+          padding: 10px 12px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-progress-card span {
+          font-size: 12px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-progress-card b {
+          font-size: 17px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-progress-card i,
+        body.practice-view-active:not(.practice-focus-mode) .overview-insight-grid i {
+          height: 9px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-stat-grid,
+        body.practice-view-active:not(.practice-focus-mode) .overview-micro-grid,
+        body.practice-view-active:not(.practice-focus-mode) .overview-insight-grid,
+        body.practice-view-active:not(.practice-focus-mode) .overview-mini-list,
+        body.practice-view-active:not(.practice-focus-mode) .overview-chip-list {
+          gap: 9px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-stat-grid span {
+          min-height: 58px;
+          padding: 10px 12px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-stat-grid b {
+          font-size: 21px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-stat-grid em {
+          font-size: 11px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-micro-grid span {
+          min-height: 56px;
+          padding: 10px 12px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-micro-grid b {
+          font-size: 16px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-micro-grid em {
+          font-size: 11px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-mini-list span {
+          min-height: 42px;
+          padding: 8px 11px;
+          font-size: 12px;
+          line-height: 1.45;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-insight-grid span {
+          min-height: 62px;
+          padding: 9px 11px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-insight-grid b {
+          font-size: 14px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-insight-grid strong {
+          font-size: 12px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-insight-grid em {
+          font-size: 11px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-chip-list span {
+          min-height: 30px;
+          padding: 0 11px;
+          font-size: 12px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-weak .overview-mini-list span {
+          min-height: 50px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-weak .overview-insight-grid-compact span {
+          min-height: 74px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-actions .overview-mini-list span {
+          min-height: 46px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .desktop-overview-card button {
+          min-height: 46px;
+          font-size: 13.5px;
+        }
+      }
+
+      @media (min-height: 1100px) {
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel {
+          gap: 6px;
+          padding: 10px 11px;
+          justify-content: space-between;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel h2 {
+          font-size: 16px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .field {
+          margin-top: 5px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .grade-grid {
+          gap: 7px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .grade-choice {
+          min-height: 36px;
+          font-size: 13.5px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel input,
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel select,
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .custom-select-button {
+          min-height: 34px;
+          padding-top: 7px;
+          padding-bottom: 7px;
+          font-size: 12.5px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .enhanced-input-wrapper {
+          margin-top: 8px;
+          margin-bottom: 8px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .inline-check,
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .hint-box {
+          min-height: 40px;
+          padding: 8px 10px;
+          font-size: 11px;
+          line-height: 1.32;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .goal-card {
+          min-height: 48px;
+          padding: 8px 10px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .goal-card strong {
+          font-size: 22px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel #challengePanel {
+          min-height: 58px;
+          padding: 8px 10px;
+          gap: 6px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel #challengePanel button {
+          min-height: 34px;
+          font-size: 11.5px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .knowledge-card summary {
+          min-height: 36px;
+          font-size: 12.5px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .panel-actions {
+          gap: 5px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .panel-actions button {
+          min-height: 32px;
+          font-size: 12px;
+        }
+
+        body.practice-view-active:not(.practice-focus-mode) .desktop-overview-card {
+          padding: 10px 12px;
+          gap: 6px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-student {
+          align-content: space-between;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-card-head span,
+        body.practice-view-active:not(.practice-focus-mode) .desktop-overview-card > span {
+          font-size: 11.5px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-card-head b {
+          min-height: 24px;
+          font-size: 11.5px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .desktop-overview-card strong {
+          font-size: clamp(17px, 1.14vw, 21px);
+          line-height: 1.2;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .desktop-overview-card p {
+          font-size: 12.8px;
+          line-height: 1.56;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-progress-card {
+          gap: 6px;
+          padding: 8px 10px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-stat-grid,
+        body.practice-view-active:not(.practice-focus-mode) .overview-micro-grid,
+        body.practice-view-active:not(.practice-focus-mode) .overview-insight-grid,
+        body.practice-view-active:not(.practice-focus-mode) .overview-mini-list,
+        body.practice-view-active:not(.practice-focus-mode) .overview-chip-list {
+          gap: 7px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-stat-grid span {
+          min-height: 48px;
+          padding: 8px 9px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-stat-grid b {
+          font-size: 19px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-micro-grid span {
+          min-height: 42px;
+          padding: 7px 9px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-micro-grid b {
+          font-size: 15px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-mini-list span {
+          min-height: 38px;
+          padding: 8px 10px;
+          font-size: 12.5px;
+          line-height: 1.48;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-insight-grid span {
+          min-height: 56px;
+          padding: 8px 10px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-insight-grid b {
+          font-size: 14px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-insight-grid strong {
+          font-size: 12px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-insight-grid-compact span {
+          min-height: 66px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-weak .overview-mini-list span {
+          min-height: 46px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-actions .overview-mini-list span {
+          min-height: 42px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .desktop-overview-card button {
+          min-height: 40px;
+          font-size: 13px;
+        }
+      }
+      body.practice-view-active:not(.practice-focus-mode) .status-strip {
+        gap: 6px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .status-strip .stat {
+        min-height: 42px;
+        padding: 6px 8px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .status-strip .stat strong {
+        font-size: 19px;
       }
       body.practice-view-active:not(.practice-focus-mode) .mission-strip {
         display: none;
       }
       body.practice-view-active:not(.practice-focus-mode) .practice-card {
-        height: auto;
-        min-height: 0;
-        overflow: visible;
+        display: none;
       }
       body.practice-view-active:not(.practice-focus-mode) .practice-card .answer-panel,
       body.practice-view-active:not(.practice-focus-mode) .practice-card .companion {
         min-height: 0;
+        max-height: 100%;
         overflow: visible;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .question {
+        min-height: 46px;
+        margin-bottom: 6px;
+        font-size: clamp(30px, 2.9vw, 42px);
+        line-height: 1.16;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .question.word {
+        min-height: 58px;
+        font-size: clamp(22px, 2.2vw, 31px);
+        line-height: 1.18;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .answer-input {
+        min-height: 46px;
+        font-size: 22px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .answer-row .primary {
+        min-height: 46px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .answer-mode-panel {
+        padding: 8px 10px;
+        gap: 5px;
+        font-size: 11px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .answer-mode-copy {
+        line-height: 1.25;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .number-pad {
+        gap: 5px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .number-pad button {
+        min-height: 32px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .feedback {
+        min-height: 36px;
+        margin-top: 6px;
+        padding: 7px 10px;
+        font-size: 11px;
+        line-height: 1.3;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-actions {
+        gap: 5px;
+        margin-top: 6px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-actions button {
+        min-height: 32px;
+        font-size: 11.5px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .answer-tip-card {
+        margin-top: 6px;
+        padding: 6px 8px;
+        font-size: 10.5px;
+        line-height: 1.25;
       }
       body.practice-view-active:not(.practice-focus-mode) .practice-card .companion {
         height: auto;
         grid-template-rows: auto auto auto auto auto;
+        gap: 8px;
+        padding: 10px;
       }
       body.practice-view-active:not(.practice-focus-mode) .practice-card .companion-card {
         overflow: visible;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .companion-art {
+        min-height: 86px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .companion-body {
+        gap: 7px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .speech {
+        font-size: 12px;
+        line-height: 1.35;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .pet-bars {
+        gap: 5px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .pet-bar {
+        grid-template-columns: 38px minmax(0, 1fr) 24px;
+        gap: 5px;
+        font-size: 10px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .pet-actions {
+        gap: 7px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .pet-actions button {
+        min-height: 36px;
+        font-size: 12px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .dots {
+        gap: 4px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .companion-card {
+        padding: 8px 10px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .companion-card strong {
+        font-size: 12px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .companion-card p {
+        font-size: 10.5px;
+        line-height: 1.25;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .appendix-card .challenge-actions {
+        gap: 6px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .appendix-card .challenge-actions button {
+        min-height: 34px;
+        font-size: 12px;
+      }
+      body.practice-view-active.practice-focus-mode .home-dashboard {
+        display: grid;
+        width: 100%;
+        margin: 0;
+        padding: 10px;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0;
+        overflow: visible;
+      }
+      body.practice-view-active.practice-focus-mode .home-settings-card,
+      body.practice-view-active.practice-focus-mode .weak-point-list,
+      body.practice-view-active.practice-focus-mode .home-dashboard .hero-actions,
+      body.practice-view-active.practice-focus-mode .home-side-panel {
+        display: none;
+      }
+      body.practice-view-active.practice-focus-mode .today-plan-card {
+        grid-column: 1;
+        grid-row: 1;
+        grid-template-columns: minmax(180px, .24fr) minmax(220px, .26fr) minmax(0, 1fr);
+        gap: 7px 10px;
+        align-content: start;
+      }
+      body.practice-view-active.practice-focus-mode .today-plan-card > .eyebrow,
+      body.practice-view-active.practice-focus-mode .today-plan-card > h1,
+      body.practice-view-active.practice-focus-mode .today-plan-card > .lead {
+        grid-column: 1;
+      }
+      body.practice-view-active.practice-focus-mode .home-dashboard .eyebrow {
+        font-size: 12px;
+      }
+      body.practice-view-active.practice-focus-mode .home-dashboard h1 {
+        margin-top: 2px;
+        font-size: 22px;
+      }
+      body.practice-view-active.practice-focus-mode .home-dashboard .lead {
+        max-width: 30ch;
+        font-size: 11.5px;
+        line-height: 1.28;
+        -webkit-line-clamp: 1;
+      }
+      body.practice-view-active.practice-focus-mode .home-cockpit-meter {
+        grid-column: 2;
+        grid-row: 1 / span 3;
+        gap: 5px;
+        margin-top: 0;
+        align-self: stretch;
+      }
+      body.practice-view-active.practice-focus-mode .home-cockpit-meter span {
+        min-height: 38px;
+        padding: 6px 7px;
+      }
+      body.practice-view-active.practice-focus-mode .home-route-list {
+        grid-column: 3;
+        grid-row: 1 / span 3;
+        margin-top: 0;
+        gap: 6px;
+        align-self: stretch;
+      }
+      body.practice-view-active.practice-focus-mode .home-route-step {
+        min-height: 0;
+        padding: 7px;
+        gap: 4px;
+      }
+      body.practice-view-active.practice-focus-mode .home-route-step-head b {
+        width: 20px;
+        height: 20px;
+      }
+      body.practice-view-active.practice-focus-mode .home-route-step-head strong {
+        font-size: 13px;
+      }
+      body.practice-view-active.practice-focus-mode .home-route-step > span {
+        min-height: 24px;
+        font-size: 10.5px;
+        line-height: 1.25;
+      }
+      body.practice-view-active.practice-focus-mode .home-route-step button {
+        min-height: 28px;
+        font-size: 11px;
+      }
+
+      @media (min-height: 781px) and (max-height: 1099px) {
+        body.practice-view-active:not(.practice-focus-mode) .desktop-overview-card {
+          padding: 8px 10px;
+          gap: 5px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .desktop-overview-card p {
+          font-size: 11.5px;
+          line-height: 1.36;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-student .overview-progress-card,
+        body.practice-view-active:not(.practice-focus-mode) .overview-challenge p,
+        body.practice-view-active:not(.practice-focus-mode) .overview-wrong p,
+        body.practice-view-active:not(.practice-focus-mode) .overview-pet p,
+        body.practice-view-active:not(.practice-focus-mode) .overview-report p {
+          display: none;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-mini-list span {
+          min-height: 30px;
+          padding: 6px 8px;
+          font-size: 11.5px;
+          line-height: 1.3;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-challenge .overview-mini-list span:nth-child(n+2),
+        body.practice-view-active:not(.practice-focus-mode) .overview-wrong .overview-mini-list span:nth-child(n+2),
+        body.practice-view-active:not(.practice-focus-mode) .overview-pet .overview-mini-list span:nth-child(n+3),
+        body.practice-view-active:not(.practice-focus-mode) .overview-report .overview-mini-list span:nth-child(n+2),
+        body.practice-view-active:not(.practice-focus-mode) .overview-actions .overview-mini-list span:nth-child(n+4) {
+          display: none;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-insight-grid {
+          gap: 5px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-insight-grid span {
+          min-height: 42px;
+          padding: 6px 8px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-insight-grid-compact span {
+          min-height: 50px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-insight-grid b {
+          font-size: 12.5px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-insight-grid strong {
+          font-size: 10.5px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-insight-grid em {
+          font-size: 10px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-action-row,
+        body.practice-view-active:not(.practice-focus-mode) .overview-micro-grid,
+        body.practice-view-active:not(.practice-focus-mode) .overview-stat-grid {
+          gap: 5px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-micro-grid span,
+        body.practice-view-active:not(.practice-focus-mode) .overview-stat-grid span {
+          min-height: 40px;
+          padding: 6px 8px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .desktop-overview-card button {
+          min-height: 36px;
+        }
+      }
+
+      @media (max-height: 780px) {
+        body.practice-view-active:not(.practice-focus-mode) .desktop-overview-card {
+          padding: 7px 9px;
+          gap: 4px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .desktop-overview-card p {
+          font-size: 10.5px;
+          line-height: 1.24;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-progress-card,
+        body.practice-view-active:not(.practice-focus-mode) .overview-insight-grid {
+          display: none;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-stat-grid span,
+        body.practice-view-active:not(.practice-focus-mode) .overview-micro-grid span {
+          min-height: 30px;
+          padding: 4px 7px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-mini-list {
+          gap: 3px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-mini-list span {
+          min-height: 20px;
+          padding: 3px 6px;
+          font-size: 10px;
+          line-height: 1.16;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-mini-list span:nth-child(n+3) {
+          display: none;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-challenge .overview-mini-list,
+        body.practice-view-active:not(.practice-focus-mode) .overview-wrong .overview-mini-list,
+        body.practice-view-active:not(.practice-focus-mode) .overview-report .overview-mini-list,
+        body.practice-view-active:not(.practice-focus-mode) .overview-actions .overview-mini-list,
+        body.practice-view-active:not(.practice-focus-mode) .overview-pet .overview-mini-list {
+          display: none;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-challenge p,
+        body.practice-view-active:not(.practice-focus-mode) .overview-wrong p,
+        body.practice-view-active:not(.practice-focus-mode) .overview-report p,
+        body.practice-view-active:not(.practice-focus-mode) .overview-actions p {
+          display: none;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-weak .overview-mini-list {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        body.practice-view-active:not(.practice-focus-mode) .overview-weak .overview-mini-list span {
+          min-height: 28px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .desktop-overview-card button {
+          min-height: 30px;
+          font-size: 11px;
+        }
       }
 
       .view.active:not(#practiceView) {
@@ -6065,10 +7589,51 @@
         gap: 14px;
         align-items: start;
       }
+      #reportView .main-stack {
+        grid-template-columns: repeat(12, minmax(0, 1fr));
+        gap: 10px;
+        align-items: start;
+        grid-auto-flow: dense;
+      }
+      #reportView .report-grid {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 8px;
+        margin: 0;
+      }
       #reportView .report-card:first-child,
       #knowledgeMapView .report-card:first-child,
       #knowledgeMapView .learning-map-page {
         grid-column: 1 / -1;
+      }
+      #reportView .report-card:nth-of-type(1) {
+        grid-column: 1 / 8;
+        grid-row: 2;
+      }
+      #reportView .report-card:nth-of-type(2) {
+        grid-column: 8 / -1;
+        grid-row: 2;
+      }
+      #reportView .report-card:nth-of-type(3) {
+        grid-column: 1 / -1;
+        grid-row: 3;
+      }
+      #reportView .report-card:nth-of-type(4) {
+        grid-column: 1 / 9;
+        grid-row: 4 / span 2;
+      }
+      #reportView .report-card:nth-of-type(5) {
+        grid-column: 9 / -1;
+        grid-row: 4;
+      }
+      #reportView .report-card:nth-of-type(6) {
+        grid-column: 9 / -1;
+        grid-row: 5;
+      }
+      #reportView .report-card:nth-of-type(7) {
+        grid-column: 1 / -1;
+        grid-row: 6;
       }
       #reportView .report-card,
       #knowledgeMapView .report-card,
@@ -6076,14 +7641,143 @@
       .data-card {
         padding: 18px;
       }
+      #reportView .report-card {
+        padding: 12px;
+        border-radius: 13px;
+        min-width: 0;
+        align-self: start;
+      }
+      #reportView .report-card h2 {
+        margin: 0;
+        font-size: 17px;
+        line-height: 1.18;
+      }
+      #reportView .report-card .muted {
+        font-size: 12px;
+        line-height: 1.36;
+      }
+      #reportView .item-top {
+        gap: 9px;
+        align-items: center;
+      }
+      #reportView .row-actions {
+        gap: 6px;
+      }
+      #reportView .row-actions button {
+        min-height: 32px;
+        padding: 0 10px;
+        font-size: 12px;
+        white-space: nowrap;
+      }
+      #reportView .metric {
+        min-height: 60px;
+        padding: 9px 10px;
+        border-radius: 12px;
+        display: grid;
+        align-content: center;
+        gap: 4px;
+      }
+      #reportView .metric strong {
+        font-size: 22px;
+        line-height: 1;
+      }
+      #reportView .metric span {
+        font-size: 11px;
+        line-height: 1.15;
+      }
       #reportView .report-grid,
       .mastery-grid,
       .reward-grid {
         gap: 9px;
       }
+      #reportView .mastery-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 10px;
+      }
+      #reportView .mastery-card {
+        min-width: 0;
+        padding: 9px;
+        border-radius: 11px;
+      }
+      #reportView .mastery-card .item-top {
+        gap: 6px;
+      }
+      #reportView .mastery-card h3 {
+        font-size: 13px;
+        line-height: 1.18;
+      }
+      #reportView .mastery-card .tag {
+        min-height: 22px;
+        padding: 0 7px;
+        font-size: 10.5px;
+      }
+      #reportView .mastery-card p {
+        display: -webkit-box;
+        min-height: 34px;
+        margin-top: 5px;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        font-size: 11px;
+        line-height: 1.35;
+      }
+      #reportView .bar-track {
+        height: 7px;
+        margin-top: 7px;
+      }
+      #reportView .mini-meta {
+        gap: 5px;
+        margin-top: 6px;
+        font-size: 10.5px;
+      }
       #reportView .report-list {
-        gap: 10px;
-        margin-top: 12px;
+        gap: 7px;
+        margin-top: 9px;
+      }
+      #reportView .report-item {
+        padding: 9px;
+        border-radius: 11px;
+      }
+      #reportView .report-item h3 {
+        font-size: 13px;
+        line-height: 1.2;
+      }
+      #reportView .report-item p {
+        margin-top: 5px;
+        font-size: 11.5px;
+        line-height: 1.4;
+      }
+      #reportView .report-card:nth-of-type(3) .report-list {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+      #reportView .report-card:nth-of-type(6) .report-list {
+        grid-template-columns: 1fr;
+      }
+      #reportView .report-card:nth-of-type(7) .report-list {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      #reportView .report-card:nth-of-type(7) .report-item h3 {
+        display: -webkit-box;
+        min-height: 31px;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      #reportView .reward-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 10px;
+      }
+      #reportView .week-panel {
+        padding: 10px;
+      }
+      #reportView .week-grid {
+        gap: 5px;
+      }
+      #reportView .day-bar {
+        min-height: 92px;
+        gap: 5px;
       }
       #printView .print-layout {
         grid-template-columns: 300px minmax(0, 1fr);
@@ -6108,6 +7802,9 @@
     }
 
     @media (min-width: 621px) and (max-width: 1180px) {
+      .tab-btn[data-top-mode-action] {
+        display: none !important;
+      }
       body.practice-view-active:not(.practice-focus-mode) .home-dashboard {
         max-height: none;
       }
@@ -6451,16 +8148,19 @@
         width: 100%;
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 6px;
+        gap: 5px;
       }
       .tab-btn {
         width: 100%;
         min-width: 0;
-        min-height: 38px;
+        min-height: 34px;
         justify-content: center;
-        padding: 0 8px;
-        font-size: 12px;
+        padding: 0 5px;
+        font-size: 11px;
         white-space: nowrap;
+      }
+      .tab-btn[data-view="data"] {
+        display: none !important;
       }
       body.practice-view-active:not(.practice-focus-mode) .home-dashboard {
         padding: 8px;
@@ -7163,8 +8863,12 @@
       .practice-workspace > .panel .field:nth-of-type(1) { grid-column: 1 / -1; }
       .practice-workspace > .panel .field:nth-of-type(2) { grid-column: 1 / -1; }
       .practice-workspace > .panel .field:nth-of-type(3),
-      .practice-workspace > .panel .field:nth-of-type(4),
-      .practice-workspace > .panel .inline-check { display: block; }
+      .practice-workspace > .panel .field:nth-of-type(4) { display: block; }
+      .practice-workspace > .panel .inline-check {
+        display: grid;
+        grid-template-columns: 40px minmax(0, 1fr);
+        gap: 8px;
+      }
       .practice-workspace > .panel .field:nth-of-type(4),
       .practice-workspace > .panel .inline-check,
       .practice-workspace > .panel .panel-actions { grid-column: 1 / -1; }
@@ -7254,6 +8958,13 @@
     }
 
     @media (min-width: 621px) and (max-width: 1180px) {
+      body.practice-view-active #practiceView.view.active,
+      body.practice-view-active #practiceView.view.active.view-enter,
+      body.practice-view-active #practiceView.view.active .practice-card,
+      body.practice-view-active .home-dashboard.view-enter {
+        animation: none !important;
+        transform: none !important;
+      }
       html:has(body.practice-view-active),
       body.practice-view-active {
         width: 100%;
@@ -7412,6 +9123,39 @@
       .practice-focus-mode .paw-row {
         display: none !important;
       }
+      .practice-focus-mode .method-card,
+      .practice-focus-mode .appendix-card {
+        display: grid !important;
+        gap: 5px;
+        min-height: 0;
+        max-height: 170px;
+        padding: 8px 10px;
+        overflow: auto;
+      }
+      .practice-focus-mode .method-card strong,
+      .practice-focus-mode .appendix-card strong {
+        font-size: 12px;
+        line-height: 1.15;
+      }
+      .practice-focus-mode .method-card p,
+      .practice-focus-mode .appendix-card p {
+        font-size: 10.5px;
+        line-height: 1.25;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .practice-focus-mode .appendix-card .challenge-actions {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 5px;
+      }
+      .practice-focus-mode .appendix-card .challenge-actions button {
+        min-height: 30px;
+        padding: 0 8px;
+        font-size: 11px;
+      }
       .practice-workspace {
         grid-template-columns: minmax(0, 1fr);
         grid-template-rows: auto minmax(0, 1fr);
@@ -7491,8 +9235,8 @@
         grid-template-columns: minmax(0, 1fr) minmax(300px, 34%);
         gap: 14px;
         min-height: 0;
-        height: calc(100% - 10px);
-        max-height: calc(100% - 10px);
+        height: calc(100% - 18px);
+        max-height: calc(100% - 18px);
       }
       .answer-panel {
         min-height: 0;
@@ -7590,6 +9334,39 @@
       .method-card,
       .paw-row {
         display: none;
+      }
+      .practice-focus-mode .method-card,
+      .practice-focus-mode .appendix-card {
+        display: grid !important;
+        gap: 5px;
+        min-height: 0;
+        max-height: 150px;
+        padding: 8px 10px;
+        overflow: auto;
+      }
+      .practice-focus-mode .method-card strong,
+      .practice-focus-mode .appendix-card strong {
+        font-size: 12px;
+        line-height: 1.15;
+      }
+      .practice-focus-mode .method-card p,
+      .practice-focus-mode .appendix-card p {
+        font-size: 10.5px;
+        line-height: 1.25;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .practice-focus-mode .appendix-card .challenge-actions {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 5px;
+      }
+      .practice-focus-mode .appendix-card .challenge-actions button {
+        min-height: 30px;
+        padding: 0 8px;
+        font-size: 11px;
       }
       .speech {
         font-size: 13px;
@@ -7950,7 +9727,11 @@
       }
       .practice-workspace > .panel .inline-check {
         display: grid !important;
-        grid-template-columns: 20px 1fr;
+        grid-template-columns: 46px minmax(0, 1fr);
+      }
+      .practice-workspace > .panel .inline-check input {
+        display: block !important;
+        padding: 0;
       }
       .practice-workspace > .panel .panel-actions {
         display: grid !important;
@@ -8045,6 +9826,77 @@
       #reportView .metric span {
         font-size: 11px;
         line-height: 1.2;
+      }
+    }
+
+    @media (min-width: 621px) and (max-width: 1180px) {
+      #knowledgeMapView .learning-map-page {
+        min-height: 0;
+      }
+      #knowledgeMapView .learning-map-panel {
+        min-height: 0;
+        margin-top: 10px;
+        padding: 10px;
+        border-radius: 14px;
+      }
+      #knowledgeMapView .learning-map-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 9px;
+      }
+      #knowledgeMapView .learning-map-head h3 {
+        font-size: 16px;
+      }
+      #knowledgeMapView .learning-map-head p {
+        font-size: 11px;
+        line-height: 1.25;
+      }
+      #knowledgeMapView .learning-map-head .compact-btn {
+        min-width: 90px;
+        min-height: 32px;
+        padding: 0 9px;
+        font-size: 11px;
+      }
+      #knowledgeMapView .learning-map-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        grid-auto-rows: minmax(96px, auto);
+        gap: 8px;
+        align-content: start;
+      }
+      #knowledgeMapView .learning-map-node {
+        min-height: 96px;
+        grid-template-rows: auto minmax(28px, 1fr) auto;
+        gap: 4px;
+        padding: 8px;
+        border-radius: 11px;
+      }
+      #knowledgeMapView .learning-map-node strong {
+        min-height: 0;
+        display: block;
+        font-size: 12.5px;
+        line-height: 1.16;
+      }
+      #knowledgeMapView .learning-map-node span {
+        min-height: 0;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        font-size: 10.2px;
+        line-height: 1.2;
+      }
+      #knowledgeMapView .learning-map-node em {
+        width: 100%;
+        margin-top: 0;
+        padding: 3px 5px;
+        font-size: 9.5px;
+        line-height: 1.14;
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
     }
 
@@ -9149,12 +11001,42 @@
       }
       .practice-workspace > .panel .inline-check {
         display: grid !important;
-        grid-template-columns: 18px minmax(0, 1fr);
-        gap: 6px;
+        grid-template-columns: 42px minmax(0, 1fr);
+        gap: 8px;
         padding: 7px 8px;
         border-radius: 11px;
         font-size: 11px;
         line-height: 1.25;
+      }
+      .practice-workspace > .panel .inline-check input {
+        display: block !important;
+        width: 38px;
+        min-width: 38px;
+        height: 22px;
+        min-height: 22px;
+        padding: 0;
+      }
+      .practice-workspace > .panel .inline-check input::before {
+        width: 16px;
+        height: 16px;
+      }
+      .practice-workspace > .panel .inline-check input:checked::before {
+        transform: translateX(16px);
+      }
+      .practice-workspace > .panel .inline-check .custom-switch,
+      .practice-workspace > .panel .inline-check .switch-track {
+        width: 38px !important;
+        height: 22px !important;
+      }
+      .practice-workspace > .panel .inline-check .switch-thumb {
+        top: 3px !important;
+        left: 3px !important;
+        width: 16px !important;
+        height: 16px !important;
+      }
+      .practice-workspace > .panel .inline-check .custom-switch input:checked + .switch-track .switch-thumb {
+        left: 3px !important;
+        transform: translateX(16px) !important;
       }
       .practice-workspace > .panel .hint-box {
         display: block !important;
@@ -9429,6 +11311,9 @@
         min-width: 100%;
       }
       .practice-workspace:not(.focus-mode) > .panel .inline-check {
+        display: grid !important;
+        grid-template-columns: 42px minmax(0, 1fr);
+        gap: 8px;
         grid-column: 1 / -1;
         min-height: 34px;
         padding: 6px 8px !important;
@@ -9438,6 +11323,36 @@
         align-items: center;
         background: color-mix(in oklch, var(--accent-2), white 84%);
         border: 1px solid color-mix(in oklch, var(--accent-2), white 44%);
+      }
+      .practice-workspace:not(.focus-mode) > .panel .inline-check input {
+        display: block !important;
+        width: 38px;
+        min-width: 38px;
+        height: 22px;
+        min-height: 22px;
+        padding: 0;
+      }
+      .practice-workspace:not(.focus-mode) > .panel .inline-check input::before {
+        width: 16px;
+        height: 16px;
+      }
+      .practice-workspace:not(.focus-mode) > .panel .inline-check input:checked::before {
+        transform: translateX(16px);
+      }
+      .practice-workspace:not(.focus-mode) > .panel .inline-check .custom-switch,
+      .practice-workspace:not(.focus-mode) > .panel .inline-check .switch-track {
+        width: 38px !important;
+        height: 22px !important;
+      }
+      .practice-workspace:not(.focus-mode) > .panel .inline-check .switch-thumb {
+        top: 3px !important;
+        left: 3px !important;
+        width: 16px !important;
+        height: 16px !important;
+      }
+      .practice-workspace:not(.focus-mode) > .panel .inline-check .custom-switch input:checked + .switch-track .switch-thumb {
+        left: 3px !important;
+        transform: translateX(16px) !important;
       }
       .practice-workspace:not(.focus-mode) > .panel .mobile-step-note,
       .practice-workspace:not(.focus-mode) > .panel .hint-box {
@@ -10261,11 +12176,37 @@
         height: 100%;
         max-height: none;
         min-height: 0;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         align-content: start;
+        gap: 8px;
         overflow: auto;
         overscroll-behavior: contain;
         padding: 2px 2px max(8px, env(safe-area-inset-bottom)) 2px;
+      }
+      #petBagModal .pet-bag-item {
+        grid-template-rows: 38px auto minmax(32px, 1fr) auto;
+        min-height: 158px;
+        gap: 6px;
+        padding: 9px 7px;
+      }
+      #petBagModal .pet-bag-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 13px;
+        font-size: 19px;
+      }
+      #petBagModal .pet-bag-item strong {
+        font-size: 12px;
+        line-height: 1.16;
+      }
+      #petBagModal .pet-bag-item small {
+        min-height: 30px;
+        font-size: 10px;
+        line-height: 1.2;
+      }
+      #petBagModal .pet-bag-item button {
+        min-height: 28px;
+        font-size: 10.5px;
       }
       #petBagModal .pet-bag-empty {
         min-height: 100%;
@@ -10421,6 +12362,11 @@
         overflow-y: auto !important;
       }
       body.practice-view-active.type-settings-open:not(.practice-focus-mode) .practice-workspace > .panel .setup-step-primary .field:first-child {
+        display: block !important;
+        grid-column: 1 / -1;
+      }
+      body.practice-view-active.type-settings-open:not(.practice-focus-mode) .practice-workspace > .panel .setup-set-size-field,
+      body.practice-view-active.type-settings-open:not(.practice-focus-mode) .practice-workspace > .panel .setup-daily-goal-field {
         display: block !important;
         grid-column: 1 / -1;
       }

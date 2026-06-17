@@ -72,11 +72,6 @@
         transition: opacity 0.15s ease !important;
         will-change: contents;
       }
-
-      /* 防止闪烁的额外保护 */
-      #timerStat::before {
-        content: attr(data-time);
-      }
     `;
     document.head.appendChild(style);
 
