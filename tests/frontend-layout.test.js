@@ -278,8 +278,20 @@ assertContains(css, "overflow: visible;", "desktop report cards should not clip 
 assertContains(app, 'topic === "vertical" ? "竖式计算" : topic === "twostep" ? "两步计算"', "report topic bars should localize vertical and twostep labels");
 assertContains(css, "width: min(156px, 100%);", "desktop report visual donut should be larger");
 assertContains(css, "font: 950 31px/1 var(--font-display);", "desktop report visual donut text should be larger");
-assertContains(css, "#reportView .report-bar-track {\n        height: 14px;", "desktop report visual bars should be larger");
+assertContains(css, "#reportView .report-bar-track {\n      height: 14px;", "report visual bars should render with the larger base height");
 assertContains(app, "Math.max(10, Math.min(28, day.count * 4 + 10))", "desktop report rhythm dots should be larger");
+assertContains(css, "#reportView .report-donut {\n      --value: 0%;", "report donut graphic styling should be available outside desktop-only breakpoints");
+assertContains(css, "conic-gradient(var(--accent) var(--value)", "report donut should render as a real circular chart on compact layouts");
+assertContains(css, "#reportView .report-bar-track i {\n      display: block;", "report bar fills should render on compact layouts");
+assertContains(css, "#reportView .report-dot-row {\n      display: grid;", "report rhythm chart should render on compact layouts");
+assertContains(css, "grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);", "tablet report visual grid should keep charts visible in two columns");
+assertContains(css, "#reportView .report-visual-panel:nth-child(3) {\n        grid-column: 1 / -1;", "tablet report rhythm chart should span the full row");
+assertContains(css, "#reportView .main-stack {\n        grid-template-columns: 1fr;", "mobile report should use a single-column card flow");
+assertContains(css, "#reportView .report-visual-grid {\n        grid-template-columns: 1fr;\n        gap: 9px;", "mobile report visual grid should stack charts vertically");
+assertContains(app, 'style="--dot-size:${size}px"', "report rhythm dots should expose size through CSS variables");
+assertContains(css, "width: min(var(--dot-size, 14px), 16px);", "mobile report rhythm dots should be capped by CSS");
+assertContains(css, "width: clamp(88px, 28vw, 112px);", "mobile report donut should fit inside the visual card");
+assertContains(css, "#reportView .report-visual-panel:first-child {\n        grid-template-columns: auto minmax(0, 1fr);", "compact report donut panel should keep the donut and copy aligned");
 
 [
   "index.html",

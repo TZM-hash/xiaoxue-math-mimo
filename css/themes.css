@@ -5494,6 +5494,101 @@
       border: 1px solid color-mix(in oklch, var(--border), white 16%);
     }
     .review-item p, .wrong-item p, .report-item p { margin: 8px 0 0; color: color-mix(in oklch, var(--fg), white 15%); line-height: 1.65; }
+    #reportView .report-visual-card {
+      min-height: 220px;
+    }
+    #reportView .report-visual-grid {
+      display: grid;
+      gap: 12px;
+      margin-top: 10px;
+      min-height: 0;
+    }
+    #reportView .report-visual-panel {
+      min-width: 0;
+      display: grid;
+      align-content: center;
+      gap: 12px;
+      padding: 12px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid color-mix(in oklch, var(--border), white 16%);
+      background: color-mix(in oklch, var(--soft), white 42%);
+    }
+    #reportView .report-visual-panel h3 {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.2;
+    }
+    #reportView .report-visual-panel p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.38;
+    }
+    #reportView .report-donut {
+      --value: 0%;
+      width: min(156px, 100%);
+      aspect-ratio: 1;
+      margin: 0 auto;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at center, var(--surface) 0 57%, transparent 58%),
+        conic-gradient(var(--accent) var(--value), color-mix(in oklch, var(--border), white 25%) 0);
+    }
+    #reportView .report-donut span {
+      font: 950 31px/1 var(--font-display);
+      color: color-mix(in oklch, var(--accent), black 12%);
+    }
+    #reportView .report-bar-list {
+      display: grid;
+      gap: 11px;
+    }
+    #reportView .report-bar-row {
+      display: grid;
+      grid-template-columns: 58px minmax(0, 1fr) 44px;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      font-weight: 850;
+      color: var(--muted);
+    }
+    #reportView .report-bar-track {
+      height: 14px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: color-mix(in oklch, var(--border), white 20%);
+    }
+    #reportView .report-bar-track i {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    }
+    #reportView .report-dot-row {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      align-items: center;
+      gap: 10px;
+      min-height: 112px;
+    }
+    #reportView .report-rhythm-dot {
+      display: grid;
+      justify-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 850;
+    }
+    #reportView .report-rhythm-dot span {
+      display: block;
+      width: var(--dot-size, 14px);
+      height: var(--dot-size, 14px);
+      border-radius: 999px;
+      background: color-mix(in oklch, var(--accent-2), white 20%);
+      box-shadow: 0 0 0 4px color-mix(in oklch, var(--accent-2), white 72%);
+    }
     .step-list { margin: 10px 0 0; padding-left: 20px; color: color-mix(in oklch, var(--fg), white 10%); line-height: 1.7; }
     .wrong-top, .item-top {
       position: relative;
@@ -7728,99 +7823,18 @@
       #reportView .report-card:nth-of-type(2) .compact-report-item {
         min-height: 0;
       }
-      #reportView .report-visual-card {
-        min-height: 220px;
-      }
       #reportView .report-visual-grid {
         flex: 1;
-        display: grid;
         grid-template-columns: minmax(240px, .72fr) minmax(0, 1.18fr) minmax(0, 1fr);
-        gap: 12px;
-        margin-top: 10px;
-        min-height: 0;
       }
       #reportView .report-visual-panel {
-        min-width: 0;
-        display: grid;
-        align-content: center;
-        gap: 12px;
-        padding: 12px;
-        border-radius: 12px;
-        border: 1px solid color-mix(in oklch, var(--border), white 16%);
-        background: color-mix(in oklch, var(--soft), white 42%);
-      }
-      #reportView .report-visual-panel h3 {
-        margin: 0;
-        font-size: 16px;
-        line-height: 1.2;
-      }
-      #reportView .report-visual-panel p {
-        margin: 0;
-        color: var(--muted);
-        font-size: 13px;
-        line-height: 1.38;
+        overflow: visible;
       }
       #reportView .report-donut {
-        --value: 0%;
         width: min(156px, 100%);
-        aspect-ratio: 1;
-        margin: 0 auto;
-        border-radius: 50%;
-        display: grid;
-        place-items: center;
-        background:
-          radial-gradient(circle at center, var(--surface) 0 57%, transparent 58%),
-          conic-gradient(var(--accent) var(--value), color-mix(in oklch, var(--border), white 25%) 0);
       }
       #reportView .report-donut span {
         font: 950 31px/1 var(--font-display);
-        color: color-mix(in oklch, var(--accent), black 12%);
-      }
-      #reportView .report-bar-list {
-        display: grid;
-        gap: 11px;
-      }
-      #reportView .report-bar-row {
-        display: grid;
-        grid-template-columns: 58px minmax(0, 1fr) 44px;
-        align-items: center;
-        gap: 10px;
-        font-size: 14px;
-        font-weight: 850;
-        color: var(--muted);
-      }
-      #reportView .report-bar-track {
-        height: 14px;
-        border-radius: 999px;
-        overflow: hidden;
-        background: color-mix(in oklch, var(--border), white 20%);
-      }
-      #reportView .report-bar-track i {
-        display: block;
-        height: 100%;
-        border-radius: inherit;
-        background: linear-gradient(90deg, var(--accent), var(--accent-2));
-      }
-      #reportView .report-dot-row {
-        display: grid;
-        grid-template-columns: repeat(7, minmax(0, 1fr));
-        align-items: end;
-        gap: 10px;
-        min-height: 112px;
-      }
-      #reportView .report-rhythm-dot {
-        display: grid;
-        justify-items: center;
-        gap: 8px;
-        color: var(--muted);
-        font-size: 11px;
-        font-weight: 850;
-      }
-      #reportView .report-rhythm-dot span {
-        display: block;
-        border-radius: 999px;
-        background: color-mix(in oklch, var(--accent-2), white 20%);
-        box-shadow: 0 0 0 4px color-mix(in oklch, var(--accent-2), white 72%);
       }
       #reportView .report-item h3 {
         font-size: 14.5px;
@@ -9885,7 +9899,50 @@
         gap: 8px;
       }
       #reportView .report-visual-grid {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+        align-items: stretch;
+        min-height: 0;
+      }
+      #reportView .report-visual-panel {
+        min-height: 190px;
+        align-content: center;
+        overflow: hidden;
+      }
+      #reportView .report-visual-panel:first-child {
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: center;
+        justify-content: center;
+      }
+      #reportView .report-visual-panel:nth-child(3) {
+        grid-column: 1 / -1;
+        min-height: 168px;
+      }
+      #reportView .report-donut {
+        width: min(140px, 52vw);
+      }
+      #reportView .report-donut span {
+        font-size: 27px;
+      }
+      #reportView .report-bar-row {
+        grid-template-columns: 74px minmax(0, 1fr) 40px;
+        gap: 8px;
+        font-size: 13px;
+      }
+      #reportView .report-bar-track {
+        height: 12px;
+      }
+      #reportView .report-dot-row {
+        min-height: 92px;
+        gap: 8px;
+        align-items: center;
+      }
+      #reportView .report-rhythm-dot {
+        gap: 6px;
+        font-size: 10px;
+      }
+      #reportView .report-rhythm-dot span {
+        width: min(var(--dot-size, 18px), 22px);
+        height: min(var(--dot-size, 18px), 22px);
       }
       #reportView .metric {
         min-height: 68px;
@@ -9992,6 +10049,13 @@
       #reportView .report-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
         gap: 5px;
+      }
+      #reportView .main-stack {
+        grid-template-columns: 1fr;
+      }
+      #reportView .report-grid,
+      #reportView .report-card:nth-of-type(n) {
+        grid-column: 1 / -1;
       }
       #reportView .metric {
         min-height: 48px;
@@ -10107,6 +10171,56 @@
       #reportView .report-list {
         gap: 7px;
         margin-top: 9px;
+      }
+      #reportView .report-visual-card {
+        min-height: 0;
+      }
+      #reportView .report-visual-grid {
+        grid-template-columns: 1fr;
+        gap: 9px;
+        margin-top: 9px;
+      }
+      #reportView .report-visual-panel,
+      #reportView .report-visual-panel:nth-child(3) {
+        grid-column: 1;
+        min-height: 0;
+        padding: 10px;
+        gap: 8px;
+      }
+      #reportView .report-visual-panel:first-child {
+        grid-template-columns: auto minmax(0, 1fr);
+        justify-content: start;
+      }
+      #reportView .report-donut {
+        width: clamp(88px, 28vw, 112px);
+      }
+      #reportView .report-donut span {
+        font-size: 22px;
+      }
+      #reportView .report-bar-list {
+        gap: 8px;
+      }
+      #reportView .report-bar-row {
+        grid-template-columns: 68px minmax(0, 1fr) 36px;
+        gap: 7px;
+        font-size: 12px;
+      }
+      #reportView .report-bar-track {
+        height: 11px;
+      }
+      #reportView .report-dot-row {
+        min-height: 64px;
+        gap: 4px;
+        align-items: center;
+      }
+      #reportView .report-rhythm-dot {
+        gap: 5px;
+        font-size: 9.5px;
+      }
+      #reportView .report-rhythm-dot span {
+        width: min(var(--dot-size, 14px), 16px);
+        height: min(var(--dot-size, 14px), 16px);
+        box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent-2), white 72%);
       }
       #reportView .report-item,
       #reportView .mastery-card,

@@ -9453,7 +9453,7 @@ const STORE = {
         });
         els.reportRhythmDots.innerHTML = days.map((day) => {
           const size = Math.max(10, Math.min(28, day.count * 4 + 10));
-          return `<div class="report-rhythm-dot" title="${escapeAttr(day.date)}"><span style="width:${size}px;height:${size}px"></span><small>${day.date.slice(5).replace("-", "/")}</small></div>`;
+          return `<div class="report-rhythm-dot" title="${escapeAttr(day.date)}"><span style="--dot-size:${size}px"></span><small>${day.date.slice(5).replace("-", "/")}</small></div>`;
         }).join("");
       }
     }
