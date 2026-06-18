@@ -10607,11 +10607,6 @@ const STORE = {
     renderNumberPad();
     syncFromProfile();
     startNewSet({ autoFocus: false });
-    if (isCompactPracticeViewport()) {
-      setPracticeLayer("setup");
-      setTypeSettingsOpen(true);
-      rememberPracticeViewState();
-    }
     if (!isAndroidWebView()) generatePrintSheet();
     initCloudSync();
     if (state.musicOn) {

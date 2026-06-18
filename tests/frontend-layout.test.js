@@ -89,8 +89,8 @@ assertContains(app, "renderPetThemeShop", "app should render the system theme sh
 assertContains(app, "systemThemeOwned", "app should lock non-initial system themes behind pet growth");
 assertContains(app, "openPetThemeShopBtn", "desktop theme shop button should be wired to the theme shop modal");
 assertNotContains(app, "initRippleEffect", "app should not register a global click ripple effect");
-assertContains(app, 'startNewSet({ autoFocus: false })', "initial practice should stay on the online-practice setup page instead of entering focus mode");
-assertContains(app, 'if (isCompactPracticeViewport()) {\n      setPracticeLayer("setup");\n      setTypeSettingsOpen(true);\n      rememberPracticeViewState();\n    }', "mobile/tablet cold launch should open the online-practice type settings page");
+assertContains(app, 'startNewSet({ autoFocus: false })', "initial practice should stay on the online-practice home page instead of entering focus mode");
+assertNotContains(app, 'startNewSet({ focus: window.matchMedia("(max-width: 1180px)").matches })', "cold launch should not auto-enter the focused question mode");
 assertContains(app, 'document.body.classList.toggle("practice-return-visible", layer === "focus")', "all focused practice modes should use the challenge-style return bar");
 assertContains(app, 'state.view === "practice" && window.matchMedia("(max-width: 1180px)").matches', "mobile/tablet practice rounds should default to focus layout");
 assertContains(app, 'isCompactPracticeViewport() && mode === "step"', "tablet practice should hide step answering like mobile");
