@@ -145,6 +145,11 @@ vm.createContext(context);
   "js/ui-feedback.js",
   "js/question-bank.js",
   "js/pet-economy.js",
+  "js/question-generator.js",
+  "js/practice-engine.js",
+  "js/report.js",
+  "js/pet.js",
+  "js/import-export.js",
   "js/home-route.js",
   "js/pet-dressup-meta.js",
   "js/cloud-sync.js",
@@ -251,12 +256,14 @@ function runUpgradeFeatureTests() {
   assert(pet.wish && pet.wish.date === debug.todayKey(), "新宠物应生成今日心愿");
   assert(pet.event && pet.event.date === debug.todayKey(), "新宠物应生成今日随机事件");
   assert(pet.memories && Array.isArray(pet.memories.log), "新宠物应包含成长日记");
-  assert.strictEqual(debug.petDailyTasks.length, 5, "每日宠物任务应包含 30 题目标和限时小测任务");
+  assert.strictEqual(debug.petDailyTasks.length, 6, "每日宠物任务应包含到期错题复习任务");
   assert(!debug.petDailyTasks.some((task) => task.id === "daily-special-5"), "每日任务不应包含专项练习");
   assert(debug.petDailyTasks.some((task) => task.id === "daily-30"), "每日任务应包含 30 题目标");
+  assert(debug.petDailyTasks.some((task) => task.id === "daily-due-3"), "每日任务应包含到期错题复习");
   assert(debug.petDailyTasks.some((task) => task.id === "daily-quiz-1"), "每日任务应包含限时小测");
-  assert.strictEqual(debug.petWeeklyTasks.length, 6, "每周宠物任务应包含闯关任务");
+  assert.strictEqual(debug.petWeeklyTasks.length, 7, "每周宠物任务应包含到期错题复习任务");
   assert(debug.petWeeklyTasks.some((task) => task.id === "weekly-challenge-2"), "每周任务应包含闯关通关目标");
+  assert(debug.petWeeklyTasks.some((task) => task.id === "weekly-due-8"), "每周任务应包含到期错题复习");
 
   debug.state.profiles = [legacy];
   debug.state.activeId = legacy.id;
@@ -278,6 +285,20 @@ function runUpgradeFeatureTests() {
   const wrongReviewTask = debug.petTaskState(legacy, debug.petDailyTasks.find((task) => task.id === "daily-wrong-3"), "daily");
   const timedTask = debug.petTaskState(legacy, debug.petDailyTasks.find((task) => task.id === "daily-quiz-1"), "daily");
   assert.strictEqual(wrongReviewTask.complete, true, "错题本练习应计入每日错题复习任务");
+  legacy.history.unshift(
+    { date: taskDate, time: 8, grade: 3, pointId: "g3-mixed", correct: true, cause: "不会做", text: "到期复习", mode: "due-review" },
+    { date: taskDate, time: 9, grade: 3, pointId: "g3-mixed", correct: true, cause: "不会做", text: "到期复习", mode: "due-review" },
+    { date: taskDate, time: 10, grade: 3, pointId: "g3-mixed", correct: true, cause: "不会做", text: "到期复习", mode: "due-review" },
+    { date: taskDate, time: 11, grade: 3, pointId: "g3-mixed", correct: true, cause: "不会做", text: "到期复习", mode: "due-review" },
+    { date: taskDate, time: 12, grade: 3, pointId: "g3-mixed", correct: true, cause: "不会做", text: "到期复习", mode: "due-review" },
+    { date: taskDate, time: 13, grade: 3, pointId: "g3-mixed", correct: true, cause: "不会做", text: "到期复习", mode: "due-review" },
+    { date: taskDate, time: 14, grade: 3, pointId: "g3-mixed", correct: true, cause: "不会做", text: "到期复习", mode: "due-review" },
+    { date: taskDate, time: 15, grade: 3, pointId: "g3-mixed", correct: true, cause: "不会做", text: "到期复习", mode: "due-review" }
+  );
+  const dueReviewTask = debug.petTaskState(legacy, debug.petDailyTasks.find((task) => task.id === "daily-due-3"), "daily");
+  const weeklyDueReviewTask = debug.petTaskState(legacy, debug.petWeeklyTasks.find((task) => task.id === "weekly-due-8"), "weekly");
+  assert.strictEqual(dueReviewTask.complete, true, "到期错题复习应计入专属任务");
+  assert.strictEqual(weeklyDueReviewTask.complete, true, "到期错题复习应计入每周专属任务");
   assert.strictEqual(timedTask.complete, true, "限时小测应计入每日限时任务");
 }
 
@@ -828,6 +849,102 @@ function runGradeAndDecimalDisplayTests() {
   });
 }
 
+function runFineGrainedCloudMergeTests() {
+  const debug = context.mathCampDebug;
+  const point = debug.availablePoints(4)[0];
+  const local = debug.normalizeProfile({
+    id: "cloud-merge-fine",
+    name: "Cloud Merge",
+    grade: 4,
+    history: [{ id: "local-history", date: debug.todayKey(), time: 100, grade: 4, pointId: point.id, correct: true, cause: "", mode: "practice", text: "1 + 1 = ?" }],
+    wrongbook: [{ id: "local-wrong", signature: "local-sig", question: { id: "q-local", grade: 4, pointId: point.id, topic: point.topic, text: "3 + 4 = ?", answer: 7 }, cause: "careless", updatedAt: 100 }],
+    masteredWrong: [{ id: "local-mastered", signature: "local-mastered-sig", question: { id: "q-local-m", grade: 4, pointId: point.id, topic: point.topic, text: "2 + 6 = ?", answer: 8 }, cause: "careless", masteredAt: 120, updatedAt: 120 }],
+    mastery: { [point.id]: { attempts: 2, correct: 1, level: 2, streak: 1 } },
+    rewards: { clearedWrong: 1, pet: { coins: 1 } },
+    updatedAt: 1000
+  });
+  const cloud = debug.normalizeProfile({
+    ...local,
+    history: [{ id: "cloud-history", date: debug.todayKey(), time: 200, grade: 4, pointId: point.id, correct: false, cause: "", mode: "wrongbook", text: "5 + 5 = ?" }],
+    wrongbook: [{ id: "cloud-wrong", signature: "cloud-sig", question: { id: "q-cloud", grade: 4, pointId: point.id, topic: point.topic, text: "8 + 4 = ?", answer: 12 }, cause: "understand", updatedAt: 200 }],
+    masteredWrong: [{ id: "cloud-mastered", signature: "cloud-mastered-sig", question: { id: "q-cloud-m", grade: 4, pointId: point.id, topic: point.topic, text: "7 + 1 = ?", answer: 8 }, cause: "understand", masteredAt: 220, updatedAt: 220 }],
+    mastery: { [point.id]: { attempts: 5, correct: 4, level: 3, streak: 2 } },
+    rewards: { clearedWrong: 2, pet: { coins: 9 } },
+    updatedAt: 2000
+  });
+  const merged = context.MathCampCloudSync.mergeProfiles(
+    [local],
+    [{ device_id: "cloud", profiles: [cloud], active_id: local.id }]
+  )[0];
+  assert(merged.history.some((item) => item.time === 100 && item.text === "1 + 1 = ?"), "merge should keep local history");
+  assert(merged.history.some((item) => item.time === 200 && item.text === "5 + 5 = ?"), "merge should keep cloud history");
+  assert(merged.wrongbook.some((item) => item.id === "local-wrong"), "merge should keep local wrongbook");
+  assert(merged.wrongbook.some((item) => item.id === "cloud-wrong"), "merge should keep cloud wrongbook");
+  assert(merged.masteredWrong.some((item) => item.id === "local-mastered"), "merge should keep local mastered wrong");
+  assert(merged.masteredWrong.some((item) => item.id === "cloud-mastered"), "merge should keep cloud mastered wrong");
+  assert(merged.mastery[point.id].attempts >= 5, "merge should keep strongest mastery");
+  assert.strictEqual(debug.petState(merged).coins, 9, "newer pet state should win");
+
+  const summary = context.MathCampCloudSync.mergeSummary(
+    [local],
+    [merged],
+    true
+  );
+  assert(summary.history >= 1, "merge summary should report history gains");
+  assert(summary.wrongbook >= 1, "merge summary should report wrongbook gains");
+  assert(summary.masteredWrong >= 1, "merge summary should report mastered wrong gains");
+  assert.strictEqual(summary.settingsChanged, true, "merge summary should carry settings change state");
+}
+
+function runAdaptiveRouteTests() {
+  const debug = context.mathCampDebug;
+  const profile = debug.normalizeProfile({
+    id: "adaptive-route",
+    name: "Adaptive",
+    grade: 3,
+    wrongbook: [{
+      id: "due-wrong",
+      signature: "due-sig",
+      question: { id: "q-due", grade: 3, pointId: "g3-mul-div", topic: "muldiv", text: "6 × 7 = ?", answer: 42 },
+      cause: "不会做",
+      wrongCount: 2,
+      correctStreak: 0,
+      reviewStage: 0,
+      dueDate: debug.todayKey(),
+      updatedAt: Date.now()
+    }],
+    history: []
+  });
+  debug.state.profiles = [profile];
+  debug.state.activeId = profile.id;
+  debug.state.grade = 3;
+  debug.state.pointId = "auto";
+  debug.state.adaptive = true;
+  const set = debug.buildAdaptiveQuestionSet(10, "auto");
+  assert.strictEqual(set.length, 10, "adaptive practice should build a full set");
+  assert(set.some((question) => question.reviewSource === "due" || question.reviewSource === "weak"), "adaptive practice should include review-oriented questions");
+  assert(set.every((question) => question.grade === 3), "adaptive practice should stay in grade");
+}
+
+function runArchiveVersionTests() {
+  const debug = context.mathCampDebug;
+  const archive = debug.buildArchiveData();
+  assert.strictEqual(archive.version, 6, "archive version should advance after migration");
+  debug.els.importText.value = JSON.stringify({ ...archive, version: 5 });
+  const parsed = debug.parseImportBackup();
+  assert(parsed.repairNotes.some((note) => /v5|v6/.test(note)), "older archives should report an upgrade note");
+}
+
+function runUtf8EncodingTests() {
+  const files = ["js/app.js", "js/cloud-sync.js", "js/pet-economy.js", "index.html", "tests/question-rules.test.js", "tests/frontend-layout.test.js"];
+  const mojibakeTokens = ["\u93c1", "\u93b7", "\u7edb", "\u95bf", "\u9983", "\u8133", "\u923f", "\u9241", "\u9286", "\u4fd9", "\u6992", "\u5744", "\u6624", "\ufffd"];
+  const mojibake = new RegExp(mojibakeTokens.join("|"));
+  files.forEach((file) => {
+    const source = fs.readFileSync(path.join(root, file), "utf8");
+    assert(!mojibake.test(source), `${file} 应保持 UTF-8 文本，不能混入乱码`);
+  });
+}
+
 const result = context.mathCampSelfTest(32);
 if (result.failed) {
   console.error(JSON.stringify(result.failures.slice(0, 10), null, 2));
@@ -839,6 +956,10 @@ runPetRewardClaimTests();
 runPetEconomyTests();
 runTypeSettingsPersistenceTests();
 runArchiveCloudCoverageTests();
+runFineGrainedCloudMergeTests();
+runAdaptiveRouteTests();
+runArchiveVersionTests();
+runUtf8EncodingTests();
 runInteractionBoundaryTests();
 runTwoStepMulDivTests();
 runVerticalQuestionTests();

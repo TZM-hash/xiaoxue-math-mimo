@@ -29,6 +29,13 @@ const dressupMeta = read("js/pet-dressup-meta.js");
 const questionEnhancements = read("js/question-enhancements.js");
 const cursorEffects = read("js/cursor-effects.js");
 const timerFix = read("js/timer-fix.js");
+const questionGenerator = read("js/question-generator.js");
+const practiceEngine = read("js/practice-engine.js");
+const reportModule = read("js/report.js");
+const petModule = read("js/pet.js");
+const importExportModule = read("js/import-export.js");
+const mojibakeTokens = ["\\u93c1", "\\u93b7", "\\u7edb", "\\u95bf", "\\u9983", "\\u8133", "\\u923f", "\\u9241", "\\u9286", "\\u4fd9", "\\u6992", "\\u5744", "\\u6624", "\\ufffd"];
+const mojibake = new RegExp(mojibakeTokens.join("|") + "|\\?\\?\\?");
 
 assertContains(html, 'id="homeRouteList"', "首页应包含今日学习路线容器");
 assertContains(html, 'id="homeCockpitMeter"', "home should include a task cockpit meter");
@@ -63,6 +70,26 @@ assertContains(html, 'id="closeTypeSettingsBtn"', "type settings page should inc
 assertNotContains(html, 'id="systemProfileGradeInput"', "system settings should not expose a separate grade selector");
 assertContains(html, 'src="js/home-route.js"', "页面应加载今日学习路线模块");
 assertContains(html, 'src="js/pet-dressup-meta.js"', "页面应加载装扮馆来源文案模块");
+assertContains(html, 'id="cloudSyncDetail"', "云同步设置应包含同步详情页");
+assertNotContains(html, 'id="reportGoal"', "学习报告顶部应移除重复的今日目标指标");
+assertNotContains(html, 'id="reportChallenge"', "学习报告顶部应移除重复的关卡指标");
+assertNotContains(html, 'id="reportStreak"', "学习报告顶部应移除连续天数指标");
+assertNotContains(html, 'report-more-card', "学习报告应直接删除低频细节区，而不是折叠隐藏");
+assertContains(html, 'id="reportWeakList"', "学习报告应保留薄弱点优先级摘要");
+assertContains(html, 'id="reportCauseSummary"', "学习报告应保留错因摘要");
+assertContains(html, 'id="reportTrendSummary"', "学习报告应保留趋势摘要");
+assertContains(html, 'report-visual-card', "学习报告应包含图形概览卡填充桌面空间");
+assertContains(html, 'id="reportAccuracyDonut"', "学习报告图形概览应包含正确率圆环");
+assertContains(html, 'id="reportTopicBars"', "学习报告图形概览应包含题型构成条形图");
+assertContains(html, 'id="reportRhythmDots"', "学习报告图形概览应包含本周节奏点阵");
+assertNotContains(html, 'id="rewardGrid"', "学习报告不应保留奖励徽章列表");
+assertNotContains(html, 'id="weekGrid"', "学习报告不应保留近 7 天柱状图");
+assertNotContains(html, 'id="historyList"', "学习报告不应保留最近记录列表");
+assertContains(html, 'src="js/question-generator.js"', "页面应加载拆分后的题目生成模块");
+assertContains(html, 'src="js/practice-engine.js"', "页面应加载拆分后的练习引擎模块");
+assertContains(html, 'src="js/report.js"', "页面应加载拆分后的报告模块");
+assertContains(html, 'src="js/pet.js"', "页面应加载拆分后的宠物模块");
+assertContains(html, 'src="js/import-export.js"', "页面应加载拆分后的导入导出模块");
 
 assertContains(app, "homeRouteList: document.getElementById", "app 应缓存首页路线 DOM");
 assertContains(app, "homeCockpitMeter: document.getElementById", "app should bind the home task cockpit meter");
@@ -122,6 +149,18 @@ assertContains(app, "data-home-route", "首页路线按钮应有稳定动作标�
 assertContains(app, "PetDressupMeta.unlockSourceText", "装扮馆应使用来源文案模块");
 assertContains(app, "pet-collection-source", "装扮馆卡片应渲染解锁来源");
 assertContains(app, "pet-collection-progress", "装扮馆卡片应渲染解锁进度");
+assertContains(app, "renderCloudSyncSummary", "app 应渲染云同步详情");
+assertContains(app, "MathCampQuestionGenerator.makeQuestion", "app 应委托题目生成模块生成题目");
+assertContains(app, "MathCampPracticeEngine.buildAdaptiveQuestionSet", "app 应委托练习引擎生成自适应题组");
+assertContains(app, "MathCampReport.buildReportModel", "app 应委托报告模块计算报告数据");
+assertContains(app, "MathCampPet.taskState", "app 应委托宠物模块计算任务状态");
+assertContains(app, "MathCampImportExport.buildArchiveData", "app 应委托导入导出模块构建存档");
+assertContains(app, "MathCampImportExport.parseImportBackup", "app 应委托导入导出模块解析存档");
+assertContains(app, "renderReportWeakSummary", "学习报告应渲染薄弱点摘要");
+assertContains(app, "renderReportCauseSummary", "学习报告应渲染错因摘要");
+assertContains(app, "renderReportTrendSummary", "学习报告应渲染趋势摘要");
+assertContains(app, "renderReportVisualSummary", "学习报告应渲染图形概览");
+assertNotContains(app, "data-daily-plan", "学习报告不应保留多步处方入口");
 assertNotContains(app, "systemProfileGradeInput", "app should not bind removed system grade control");
 
 assertContains(homeRoute, "window.MathCampHomeRoute", "今日学习路线模块应暴露全局接口");
@@ -130,6 +169,16 @@ assertContains(homeRoute, "reviewDue", "home route should include due review pro
 assertContains(dressupMeta, "window.MathCampPetDressupMeta", "装扮馆文案模块应暴露全局接口");
 assertContains(dressupMeta, "unlockSourceText", "装扮馆文案模块应导出来源函数");
 assertContains(dressupMeta, "unlockProgressText", "装扮馆文案模块应导出进度函数");
+assertContains(questionGenerator, "window.MathCampQuestionGenerator", "题目生成模块应暴露全局接口");
+assertContains(questionGenerator, "makeQuestion", "题目生成模块应导出 makeQuestion");
+assertContains(practiceEngine, "window.MathCampPracticeEngine", "练习引擎模块应暴露全局接口");
+assertContains(practiceEngine, "buildAdaptiveQuestionSet", "练习引擎模块应导出自适应组题函数");
+assertContains(reportModule, "window.MathCampReport", "报告模块应暴露全局接口");
+assertContains(reportModule, "buildReportModel", "报告模块应导出报告模型函数");
+assertContains(petModule, "window.MathCampPet", "宠物模块应暴露全局接口");
+assertContains(petModule, "taskState", "宠物模块应导出任务状态函数");
+assertContains(importExportModule, "window.MathCampImportExport", "导入导出模块应暴露全局接口");
+assertContains(importExportModule, "parseImportBackup", "导入导出模块应导出解析函数");
 assertNotContains(questionEnhancements, "const isQuestionArea = e.target.closest", "clicking the practice card should not leave a full-screen focus blur overlay");
 assertContains(cursorEffects, "particle.textContent = '★'", "valid click effect should use star burst particles");
 assertNotContains(cursorEffects, "createRipple(x, y)", "valid click effect should not include a center ripple");
@@ -214,6 +263,41 @@ assertContains(css, "#petShopModal .pet-shop-card", "移动端商店弹窗应有
 assertContains(css, "#petBagModal .pet-bag-card", "移动端背包弹窗应有尺寸约束");
 assertContains(css, ".pet-bag-card .pet-bag-list", "背包滚动区应有布局约束");
 assertContains(css, "min-height: 0;", "滚动区应允许底部详情显示");
+assertContains(css, ".cloud-sync-detail", "CSS 应包含云同步详情样式");
+assertContains(css, "#reportView .report-grid {\n        grid-template-columns: repeat(3, minmax(0, 1fr));", "桌面学习报告顶部应只展示三个核心指标");
+assertContains(css, "#reportView .report-card:nth-of-type(1) {\n        grid-column: 1 / 8;", "桌面学习报告行动卡应占据左侧大区");
+assertContains(css, "#reportView .report-card:nth-of-type(4) {\n        grid-column: 7 / -1;", "桌面学习报告趋势摘要应占据右侧大区");
+assertContains(css, "min-height: calc(100dvh - 126px);", "桌面学习报告应吃满可用高度");
+assertContains(css, "#reportView .report-card:nth-of-type(5) {\n        grid-column: 1 / -1;", "桌面学习报告图形概览应横跨底部");
+assertContains(css, "#reportView .report-visual-grid", "学习报告应包含图形概览网格样式");
+
+assertContains(css, "grid-template-rows: auto auto auto minmax(220px, 1fr);", "desktop report upper summary should grow with content instead of clipping");
+assertContains(css, "#reportView .report-card h2 {\n        margin: 0;\n        font-size: 19px;", "desktop report card headings should be larger after compacting height");
+assertContains(css, "#reportView .report-item h3 {\n        font-size: 14.5px;", "desktop report item headings should be larger after compacting height");
+assertContains(css, "overflow: visible;", "desktop report cards should not clip summary content");
+assertContains(app, 'topic === "vertical" ? "竖式计算" : topic === "twostep" ? "两步计算"', "report topic bars should localize vertical and twostep labels");
+assertContains(css, "width: min(156px, 100%);", "desktop report visual donut should be larger");
+assertContains(css, "font: 950 31px/1 var(--font-display);", "desktop report visual donut text should be larger");
+assertContains(css, "#reportView .report-bar-track {\n        height: 14px;", "desktop report visual bars should be larger");
+assertContains(app, "Math.max(10, Math.min(28, day.count * 4 + 10))", "desktop report rhythm dots should be larger");
+
+[
+  "index.html",
+  "css/themes.css",
+  "js/app.js",
+  "js/cloud-sync.js",
+  "js/pet-economy.js",
+  "js/question-generator.js",
+  "js/practice-engine.js",
+  "js/report.js",
+  "js/pet.js",
+  "js/import-export.js",
+  "tests/question-rules.test.js",
+  "tests/frontend-layout.test.js"
+].forEach((relativePath) => {
+  const source = read(relativePath);
+  assert(!mojibake.test(source), `${relativePath} should stay valid UTF-8 without mojibake`);
+});
 
 [
   "index.html",
@@ -225,6 +309,11 @@ assertContains(css, "min-height: 0;", "滚动区应允许底部详情显示");
   "js/question-enhancements.js",
   "js/pet-dressup-meta.js",
   "js/pet-economy.js",
+  "js/question-generator.js",
+  "js/practice-engine.js",
+  "js/report.js",
+  "js/pet.js",
+  "js/import-export.js",
   "js/question-bank.js"
 ].forEach((relativePath) => {
   const androidPath = path.join("android/app/src/main/assets/www", relativePath);

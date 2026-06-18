@@ -699,55 +699,52 @@
         <div class="report-grid">
           <div class="metric"><strong id="reportToday">0</strong><span>今日练习</span></div>
           <div class="metric"><strong id="reportAccuracy">--</strong><span>总体正确率</span></div>
-          <div class="metric"><strong id="reportStreak">0</strong><span>连续学习天数</span></div>
           <div class="metric"><strong id="reportWeakCount">0</strong><span>需要巩固知识点</span></div>
-          <div class="metric"><strong id="reportGoal">0%</strong><span>今日目标</span></div>
-          <div class="metric"><strong id="reportChallenge">1</strong><span>当前关卡</span></div>
         </div>
         <article class="report-card">
           <div class="item-top">
             <div>
               <h2>学习报告</h2>
-              <p class="muted">这里给家长看学习情况：今日题量、正确率、薄弱知识点、常见错因和最近练习记录。</p>
+              <p class="muted">保留能指导下一轮练习的重点信息，删掉奖励、徽章和流水记录。</p>
             </div>
             <div class="row-actions">
               <button class="primary" type="button" id="startWeakReportBtn">按薄弱点出题</button>
               <button class="secondary" type="button" id="clearTodayBtn">清空今日记录</button>
             </div>
           </div>
-          <div class="mastery-grid" id="masteryGrid"></div>
-        </article>
-        <article class="report-card">
-          <h2>家长下一步建议</h2>
-          <div class="report-list" id="parentAdviceList"></div>
-        </article>
-        <article class="report-card">
-          <h2>趋势摘要与本周计划</h2>
           <div class="report-list" id="trendReportList"></div>
         </article>
         <article class="report-card">
-          <div class="item-top">
-            <div>
-              <h2>奖励与徽章</h2>
-              <p class="muted">奖励只作为温和反馈：鼓励坚持、认真检查和补齐薄弱点，不让奖励喧宾夺主。</p>
-            </div>
-            <span class="tag" id="levelTag">Lv. 1</span>
+          <h2>薄弱点优先级</h2>
+          <div class="report-list compact-report-list" id="reportWeakList"></div>
+        </article>
+        <article class="report-card">
+          <h2>错因摘要</h2>
+          <div class="report-list compact-report-list" id="reportCauseSummary"></div>
+        </article>
+        <article class="report-card">
+          <h2>7 天趋势</h2>
+          <div class="report-list compact-report-list" id="reportTrendSummary"></div>
+        </article>
+        <article class="report-card report-visual-card">
+          <h2>图形概览</h2>
+          <div class="report-visual-grid">
+            <section class="report-visual-panel">
+              <div class="report-donut" id="reportAccuracyDonut"><span id="reportAccuracyDonutText">--</span></div>
+              <div>
+                <h3>正确率</h3>
+                <p id="reportAccuracyCopy">完成练习后会显示稳定度。</p>
+              </div>
+            </section>
+            <section class="report-visual-panel">
+              <h3>题型构成</h3>
+              <div class="report-bar-list" id="reportTopicBars"></div>
+            </section>
+            <section class="report-visual-panel">
+              <h3>本周节奏</h3>
+              <div class="report-dot-row" id="reportRhythmDots"></div>
+            </section>
           </div>
-          <div class="reward-grid" id="rewardGrid"></div>
-        </article>
-        <article class="report-card">
-          <h2>近 7 天练习</h2>
-          <div class="week-panel">
-            <div class="week-grid" id="weekGrid"></div>
-          </div>
-        </article>
-        <article class="report-card">
-          <h2>错因分析</h2>
-          <div class="report-list" id="causeReportList"></div>
-        </article>
-        <article class="report-card">
-          <h2>最近练习记录</h2>
-          <div class="report-list" id="historyList"></div>
         </article>
       </div>
     </section>
@@ -1002,6 +999,7 @@
                 <button class="secondary" type="button" id="syncNowBtn">立即同步</button>
               </div>
               <div class="cloud-sync-status" id="cloudSyncStatus">未配置</div>
+              <div class="cloud-sync-detail" id="cloudSyncDetail" hidden>本次同步详情：暂无同步记录。</div>
               <details class="knowledge-card" style="margin-top:12px">
                 <summary>建表 SQL（首次配置需执行）</summary>
                 <div class="knowledge-card-body">
@@ -1220,6 +1218,11 @@ CREATE POLICY "allow_all_user_settings" ON user_settings FOR ALL USING (true) WI
   <script src="js/ui-feedback.js"></script>
   <script src="js/question-bank.js"></script>
   <script src="js/pet-economy.js"></script>
+  <script src="js/question-generator.js"></script>
+  <script src="js/practice-engine.js"></script>
+  <script src="js/report.js"></script>
+  <script src="js/pet.js"></script>
+  <script src="js/import-export.js"></script>
   <script src="js/home-route.js"></script>
   <script src="js/pet-dressup-meta.js"></script>
   <script src="js/ui-animations.js"></script>

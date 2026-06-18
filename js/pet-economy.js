@@ -15,12 +15,14 @@
     { id: "daily-20", title: "答对 20 题", target: 20, reward: 12, bond: 2, progressKey: "todayCorrect" },
     { id: "daily-30", title: "答对 30 题", target: 30, reward: 12, bond: 2, progressKey: "todayCorrect" },
     { id: "daily-wrong-3", title: "复习 3 道错题", target: 3, reward: 12, bond: 3, progressKey: "todayWrongReview" },
+    { id: "daily-due-3", title: "复习 3 道到期错题", target: 3, reward: 14, bond: 3, progressKey: "todayDueReview" },
     { id: "daily-quiz-1", title: "完成 1 次限时小测", target: 1, reward: 10, bond: 2, progressKey: "todayTimedQuiz" }
   ];
 
   const WEEKLY_TASKS = [
     { id: "weekly-days-5", title: "连续练习 5 天", target: 5, reward: 42, bond: 5, progressKey: "learningDays" },
     { id: "weekly-wrong-10", title: "本周复习 10 道错题", target: 10, reward: 36, bond: 4, progressKey: "weekWrongReview" },
+    { id: "weekly-due-8", title: "本周复习 8 道到期错题", target: 8, reward: 44, bond: 5, progressKey: "weekDueReview" },
     { id: "weekly-master-3", title: "清空 3 道错题", target: 3, reward: 42, bond: 6, progressKey: "weekMasteredWrong" },
     { id: "weekly-points-4", title: "练过 4 个知识点", target: 4, reward: 30, bond: 3, progressKey: "weekPointCount" },
     { id: "weekly-accuracy-80", title: "本周正确率 80%", target: 80, reward: 34, bond: 4, progressKey: "weekAccuracy" },

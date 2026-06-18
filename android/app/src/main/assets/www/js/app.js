@@ -154,9 +154,11 @@ const STORE = {
       todayCount: (profile) => todayItems(profile).length,
       todayCorrect: (profile) => todayItems(profile).filter((item) => item.correct).length,
       todayWrongReview: (profile) => todayItems(profile).filter((item) => item.mode === "wrongbook").length,
+      todayDueReview: (profile) => todayItems(profile).filter((item) => item.mode === "due-review").length,
       todayTimedQuiz: (profile) => todayItems(profile).filter((item) => item.mode === "timed").length ? 1 : 0,
       learningDays: (profile) => learningDaysFor(profile),
       weekWrongReview: (profile) => currentWeekItems(profile).filter((item) => item.mode === "wrongbook").length,
+      weekDueReview: (profile) => currentWeekItems(profile).filter((item) => item.mode === "due-review").length,
       weekMasteredWrong: (profile) => currentWeekMasteredWrong(profile).length,
       weekPointCount: (profile) => new Set(currentWeekItems(profile).map((item) => item.pointId).filter(Boolean)).size,
       weekAccuracy: (profile) => accuracyOf(currentWeekItems(profile)),
@@ -419,16 +421,15 @@ const STORE = {
       reportAccuracy: document.getElementById("reportAccuracy"),
       reportStreak: document.getElementById("reportStreak"),
       reportWeakCount: document.getElementById("reportWeakCount"),
-      reportGoal: document.getElementById("reportGoal"),
-      reportChallenge: document.getElementById("reportChallenge"),
-      levelTag: document.getElementById("levelTag"),
-      rewardGrid: document.getElementById("rewardGrid"),
-      weekGrid: document.getElementById("weekGrid"),
-      masteryGrid: document.getElementById("masteryGrid"),
-      parentAdviceList: document.getElementById("parentAdviceList"),
       trendReportList: document.getElementById("trendReportList"),
-      causeReportList: document.getElementById("causeReportList"),
-      historyList: document.getElementById("historyList"),
+      reportWeakList: document.getElementById("reportWeakList"),
+      reportCauseSummary: document.getElementById("reportCauseSummary"),
+      reportTrendSummary: document.getElementById("reportTrendSummary"),
+      reportAccuracyDonut: document.getElementById("reportAccuracyDonut"),
+      reportAccuracyDonutText: document.getElementById("reportAccuracyDonutText"),
+      reportAccuracyCopy: document.getElementById("reportAccuracyCopy"),
+      reportTopicBars: document.getElementById("reportTopicBars"),
+      reportRhythmDots: document.getElementById("reportRhythmDots"),
       startWeakReportBtn: document.getElementById("startWeakReportBtn"),
       clearTodayBtn: document.getElementById("clearTodayBtn"),
       printGrade: document.getElementById("printGrade"),
@@ -1288,7 +1289,7 @@ const STORE = {
         grade,
         correct: Boolean(item.correct),
         cause: normalizeCause(item.cause),
-        mode: ["practice", "wrongbook", "similar", "weak", "timed", "appendix", "hard-word", "challenge"].includes(item.mode) ? item.mode : "practice",
+        mode: ["practice", "wrongbook", "due-review", "similar", "weak", "timed", "appendix", "hard-word", "challenge"].includes(item.mode) ? item.mode : "practice",
         text: String(item.text || "").slice(0, 160)
       };
     }
@@ -1853,6 +1854,7 @@ const STORE = {
       const weeklyTasks = PET_WEEKLY_TASKS.map((task) => petTaskState(profile, task, "weekly"));
       const taskReady = [...dailyTasks, ...weeklyTasks].filter((task) => task.complete && !task.claimed).length;
       const taskDone = [...dailyTasks, ...weeklyTasks].filter((task) => task.claimed).length;
+      if (!els.levelTag || !els.rewardGrid) return;
       els.levelTag.textContent = `学生 Lv. ${learnerLevel(profile)} · ${name} Lv. ${pet.level}`;
       els.rewardGrid.innerHTML = `
         <article class="badge-card pet-care-card unlocked">
@@ -1879,6 +1881,7 @@ const STORE = {
         return { date, count: items.length, rate: accuracyOf(items) };
       });
       const max = Math.max(1, ...days.map((day) => day.count));
+      if (!els.weekGrid) return;
       els.weekGrid.innerHTML = days.map((day) => {
         const label = day.date.slice(5).replace("-", "/");
         const height = `${Math.max(10, Math.round(day.count / max * 92))}px`;
@@ -1945,6 +1948,7 @@ const STORE = {
         var ok = await CloudSync.initSupabase(savedConfig);
         if (ok) {
           var result = await CloudSync.fullSync(state.profiles, state.activeId, collectSystemSettings());
+          renderCloudSyncSummary(result);
           if (result.settingsChanged && result.systemSettings) {
             applySystemSettings(result.systemSettings, { touch: false, sync: false });
           }
@@ -1973,6 +1977,20 @@ const STORE = {
         disconnected: "📴 离线模式"
       };
       el.textContent = labels[status] || status;
+    }
+    function renderCloudSyncSummary(result) {
+      var el = document.getElementById("cloudSyncDetail");
+      if (!el || !result || !result.summary) return;
+      var summary = result.summary;
+      var parts = [
+        `练习 ${Number(summary.history) || 0} 条`,
+        `错题 ${Number(summary.wrongbook) || 0} 条`,
+        `已掌握错题 ${Number(summary.masteredWrong) || 0} 条`
+      ];
+      if (Number(summary.profiles) > 0) parts.push(`新增档案 ${Number(summary.profiles)} 个`);
+      if (summary.settingsChanged) parts.push("系统设置已更新");
+      el.hidden = false;
+      el.textContent = `本次同步详情：合并 ${parts.join("，")}。`;
     }
     function availablePoints(grade = state.grade) {
       const normalizedGrade = clamp(Number(grade) || 1, 1, 6);
@@ -2272,6 +2290,22 @@ const STORE = {
       const total = clamp(Number(count) || state.setSize || 10, 1, 80);
       return Array.from({ length: total }, () => makeStrictQuestionForPoint(target, preferred));
     }
+    function buildAdaptiveQuestionSet(count = state.setSize, preferred = state.answerMode) {
+      return window.MathCampPracticeEngine.buildAdaptiveQuestionSet({
+        activeProfile,
+        applyQuestionInteraction,
+        choosePoint,
+        clamp,
+        dueWrongbook,
+        makeQuestion,
+        makeStrictQuestionForPoint,
+        pointMap,
+        shuffle,
+        signature,
+        state,
+        weakestPoints
+      }, count, preferred);
+    }
     function interactionRuleIssues(question) {
       const interaction = question?.interaction;
       if (!interaction) return [];
@@ -2319,6 +2353,12 @@ const STORE = {
       if (!state.adaptive) return pick(options);
       if (!adaptive) return pick(options);
       const profile = activeProfile();
+      const dueCounts = new Map();
+      dueWrongbook(profile, state.grade).forEach((item) => {
+        const pointId = item?.question?.pointId;
+        if (!pointId) return;
+        dueCounts.set(pointId, (dueCounts.get(pointId) || 0) + 1);
+      });
       const recentWrongPointIds = profile.history
         .filter((item) => !item.correct)
         .slice(0, 30)
@@ -2328,48 +2368,45 @@ const STORE = {
         const m = masteryFor(profile, point.id);
         const accuracy = m.attempts ? m.correct / m.attempts : 0.3;
         const wrongs = profile.wrongbook.filter((item) => item.question.pointId === point.id).length;
+        const dueBoost = (dueCounts.get(point.id) || 0) * 4;
         const recentWrongs = recentWrongPointIds.filter((id) => id === point.id).length;
         const coldStart = m.attempts < 3 ? 2 : 0;
         const levelBoost = clamp(6 - (Number(m.level) || 1), 1, 5);
-        const weight = clamp(Math.round((1 - accuracy) * 8 + wrongs * 2.4 + recentWrongs * 1.6 + coldStart + levelBoost), 1, 18);
+        const weight = clamp(Math.round((1 - accuracy) * 8 + wrongs * 2.4 + dueBoost + recentWrongs * 1.6 + coldStart + levelBoost), 1, 18);
         for (let i = 0; i < weight; i += 1) weighted.push(point);
       });
       return pick(weighted.length ? weighted : options);
     }
 
     function makeQuestion(point = choosePoint(), options = {}) {
-      const profile = activeProfile();
-      const level = state.adaptive ? masteryFor(profile, point.id).level : 2;
-      const makers = {
-        addsub: makeAddSub,
-        compare: makeCompare,
-        muldiv: makeMulDiv,
-        remainder: makeRemainder,
-        mixed: makeMixed,
-        twostep: makeTwoStep,
-        vertical: makeVertical,
-        large: makeLarge,
-        geometry: makeGeometry,
-        decimal: makeDecimal,
-        fraction: makeFraction,
-        unit: makeUnit,
-        percent: makePercent,
-        ratio: makeRatio,
-        statistics: makeStatistics,
-        equation: makeEquation,
-        word: makeWord,
-        appendix: makeAppendix
-      };
-      const allowTopicVariation = point.id !== "g2-100-add";
-      if (allowTopicVariation && !options.strict && Math.random() < 0.26) {
-        const supplemental = makeSupplementalQuestion(point, level);
-        if (supplemental) return ensureQuestionMatchesRule(point, supplemental, options);
-      }
-      if (allowTopicVariation && !options.strict && Math.random() < 0.38) {
-        const extra = makeExtraQuestion(point, level);
-        if (extra) return ensureQuestionMatchesRule(point, extra, options);
-      }
-      return ensureQuestionMatchesRule(point, makers[point.topic](point, level), options);
+      return window.MathCampQuestionGenerator.makeQuestion({
+        activeProfile,
+        ensureQuestionMatchesRule,
+        makeExtraQuestion,
+        makeSupplementalQuestion,
+        masteryFor,
+        state,
+        makers: {
+          addsub: makeAddSub,
+          compare: makeCompare,
+          muldiv: makeMulDiv,
+          remainder: makeRemainder,
+          mixed: makeMixed,
+          twostep: makeTwoStep,
+          vertical: makeVertical,
+          large: makeLarge,
+          geometry: makeGeometry,
+          decimal: makeDecimal,
+          fraction: makeFraction,
+          unit: makeUnit,
+          percent: makePercent,
+          ratio: makeRatio,
+          statistics: makeStatistics,
+          equation: makeEquation,
+          word: makeWord,
+          appendix: makeAppendix
+        }
+      }, point, options);
     }
     function baseQuestion(point, data) {
       const kp = knowledgeProfileFor(point);
@@ -6141,11 +6178,11 @@ const STORE = {
       if (pet.runaway?.status !== "home") return;
       const quality = petLearningQuality(profile);
       const mode = context.mode || state.mode || "practice";
-      const qualityXp = correct ? quality.xpBonus + (mode === "wrongbook" ? 1 : 0) + (mode === "timed" && quality.rate >= 80 ? 1 : 0) : 0;
+      const qualityXp = correct ? quality.xpBonus + (mode === "wrongbook" || mode === "due-review" ? 1 : 0) + (mode === "timed" && quality.rate >= 80 ? 1 : 0) : 0;
       if (qualityXp) pet.xp += qualityXp;
       if (correct && quality.rate >= 85 && quality.recentCount >= 6) pet.mood = clamp(pet.mood + 1, 0, 100);
       if (correct && quality.rate >= 90 && quality.recentCount >= 10) pet.bond = clamp(pet.bond + 1, 0, 100);
-      if (correct && mode === "wrongbook") pet.bond = clamp(pet.bond + 1, 0, 100);
+      if (correct && (mode === "wrongbook" || mode === "due-review")) pet.bond = clamp(pet.bond + 1, 0, 100);
       if (correct && mode === "timed" && quality.rate >= 80) pet.mood = clamp(pet.mood + 1, 0, 100);
       if (!correct && quality.recentCount >= 6 && quality.rate < 60) pet.mood = clamp(pet.mood - 1, 0, 100);
       const wish = currentPetWish(pet);
@@ -6254,13 +6291,12 @@ const STORE = {
     }
 
     function petTaskState(profile, task, period) {
-      const pet = petState(profile);
-      const key = period === "weekly" ? currentWeekKey() : todayKey();
-      const bucket = pet.tasks?.[period] || {};
-      const done = clamp(Number(task.progress(profile)) || 0, 0, 999);
-      const target = Math.max(1, Number(task.target) || 1);
-      const claimed = bucket[task.id] === key;
-      return { ...task, period, key, done, target, complete: done >= target, claimed };
+      return window.MathCampPet.taskState({
+        clamp,
+        currentWeekKey,
+        petState,
+        todayKey
+      }, profile, task, period);
     }
 
     function renderPetTaskCard(task) {
@@ -6289,7 +6325,7 @@ const STORE = {
       const claimedToday = daily.filter((task) => task.claimed).length;
       if (els.petTaskSummary) els.petTaskSummary.textContent = ready ? `${ready} 项可领取` : `今日已完成 ${claimedToday} 项`;
       if (els.taskTodayCount) els.taskTodayCount.textContent = `${todayItems(profile).length} 题`;
-      if (els.taskWrongReviewCount) els.taskWrongReviewCount.textContent = `${todayItems(profile).filter((item) => item.mode === "wrongbook").length} 题`;
+      if (els.taskWrongReviewCount) els.taskWrongReviewCount.textContent = `${todayItems(profile).filter((item) => item.mode === "wrongbook" || item.mode === "due-review").length} 题`;
       if (els.taskCoinCount) els.taskCoinCount.textContent = String(pet.coins);
     }
 
@@ -6375,12 +6411,12 @@ const STORE = {
         return 0;
       }
       let gain = 2;
-      if (state.mode === "wrongbook" && correct) gain += 2;
+      if ((state.mode === "wrongbook" || state.mode === "due-review") && correct) gain += 2;
       awardCoins(gain, "答题奖励");
       const pet = petState();
       pet.xp += 2;
       pet.mood = clamp(pet.mood + 1, 0, 100);
-      if (state.mode === "wrongbook" && correct) pet.bond = clamp(pet.bond + 1, 0, 100);
+      if ((state.mode === "wrongbook" || state.mode === "due-review") && correct) pet.bond = clamp(pet.bond + 1, 0, 100);
       pet.lastPracticeDate = todayKey();
       return gain;
     }
@@ -6393,7 +6429,7 @@ const STORE = {
       const reward = {
         coins: correct ? Math.min(10, Math.ceil(correct / 2)) : 0,
         mood: total ? 6 + (rate >= 80 ? 3 : 0) : 0,
-        bond: total ? 4 + (state.mode === "wrongbook" ? 3 : 0) + (state.mode === "challenge" && rate >= 80 ? 2 : 0) : 0,
+        bond: total ? 4 + ((state.mode === "wrongbook" || state.mode === "due-review") ? 3 : 0) + (state.mode === "challenge" && rate >= 80 ? 2 : 0) : 0,
         xp: total + correct + (rate >= 80 ? 10 : 0) + (firstRoundToday ? 12 : 0) + (state.mode === "timed" && total >= 8 ? 8 : 0),
         foundBack: false
       };
@@ -7892,7 +7928,7 @@ const STORE = {
       els.streakStat.textContent = state.streak;
       els.gradeTag.textContent = gradeNames[state.grade - 1];
       els.pointTag.textContent = current ? pointLabel(current.pointId) : pointLabel(state.pointId);
-      els.modeTag.textContent = state.mode === "wrongbook" ? "错题复练" : state.mode === "similar" ? "同类巩固" : state.mode === "weak" ? "薄弱点练习" : state.mode === "timed" ? "限时小测" : state.mode === "appendix" ? "附加题挑战" : state.mode === "hard-word" ? "应用题强化" : state.mode === "challenge" ? `闯关第 ${state.challengeMeta?.level || 1} 关` : "普通练习";
+      els.modeTag.textContent = state.mode === "due-review" ? "到期错题复习" : state.mode === "wrongbook" ? "错题复练" : state.mode === "similar" ? "同类巩固" : state.mode === "weak" ? "薄弱点练习" : state.mode === "timed" ? "限时小测" : state.mode === "appendix" ? "附加题挑战" : state.mode === "hard-word" ? "应用题强化" : state.mode === "challenge" ? `闯关第 ${state.challengeMeta?.level || 1} 关` : "普通练习";
       els.progressDots.innerHTML = "";
       for (let i = 0; i < total; i += 1) {
         const dot = document.createElement("span");
@@ -8036,7 +8072,7 @@ const STORE = {
       const selectedPoint = strictPoint ? pointMap[state.pointId] : null;
       state.currentSet = selectedPoint
         ? buildQuestionSetForPoint(selectedPoint, state.setSize, state.answerMode)
-        : Array.from({ length: state.setSize }, () => applyQuestionInteraction(makeQuestion(choosePoint()), state.answerMode));
+        : buildAdaptiveQuestionSet(state.setSize, state.answerMode);
       state.index = 0;
       state.checked = false;
       state.correct = 0;
@@ -8090,11 +8126,11 @@ const STORE = {
         .filter((item) => Number(item.question.grade || grade) === grade)
         .sort((a, b) => String(a.dueDate || today).localeCompare(String(b.dueDate || today)) || (a.correctStreak || 0) - (b.correctStreak || 0) || (b.wrongCount || 0) - (a.wrongCount || 0));
     }
-    function startWrongbookPractice(ids = currentGradeWrongbook().map((item) => item.id)) {
+    function startWrongbookPractice(ids = currentGradeWrongbook().map((item) => item.id), options = {}) {
       const profile = activeProfile();
       const queue = ids.map((id) => profile.wrongbook.find((item) => item.id === id)).filter(Boolean);
       if (!queue.length) return;
-      state.mode = "wrongbook";
+      state.mode = options.mode || "wrongbook";
       state.challengeMeta = null;
       state.currentSet = queue.map((item) => applyQuestionInteraction({ ...item.question, wrongId: item.id }, state.answerMode));
       state.grade = state.currentSet[0].grade || profile.grade;
@@ -8120,7 +8156,7 @@ const STORE = {
     function startDueReviewPractice() {
       const due = dueWrongbook(activeProfile()).slice(0, Math.max(1, Math.min(8, state.setSize || 8)));
       if (due.length) {
-        startWrongbookPractice(due.map((item) => item.id));
+        startWrongbookPractice(due.map((item) => item.id), { mode: "due-review" });
         return;
       }
       startWrongbookPractice();
@@ -8911,7 +8947,8 @@ const STORE = {
       const challenge = settleChallengeResult(total, state.correct, rate);
       const reward = awardRoundRewards(total, state.correct, rate);
       setPetAction(wrong.length ? "hint" : "finish", wrong.length ? "复盘" : "完成");
-      const finishedTitle = state.mode === "wrongbook" ? "错题复练结束"
+      const finishedTitle = state.mode === "due-review" ? "到期错题复习结束"
+        : state.mode === "wrongbook" ? "错题复练结束"
         : state.mode === "challenge" ? (challenge?.passed ? "闯关成功" : "闯关复盘")
         : state.mode === "timed" ? (state.timedMeta?.expired ? "限时小测时间到" : "限时小测完成")
         : "本轮练习完成";
@@ -9272,64 +9309,23 @@ const STORE = {
     function renderReport() {
       const profile = activeProfile();
       const mobileReport = isMobilePracticeViewport();
-      const history = profile.history;
-      const today = history.filter((item) => item.date === todayKey());
-      const correct = history.filter((item) => item.correct).length;
-      const accuracy = history.length ? Math.round(correct / history.length * 100) : 0;
-      const weak = weakestPoints(6).filter((point) => masteryAccuracy(profile, point.id) < 0.78 || profile.wrongbook.some((item) => item.question.pointId === point.id));
-      els.reportToday.textContent = today.length;
+      const report = window.MathCampReport.buildReportModel({
+        availablePoints,
+        masteryAccuracy,
+        normalizeCause,
+        todayKey,
+        weakestPoints
+      }, profile, { mobileReport });
+      const history = report.history;
+      const weak = report.weak;
+      const accuracy = report.accuracy;
+      els.reportToday.textContent = report.today.length;
       els.reportAccuracy.textContent = history.length ? `${accuracy}%` : "--";
-      els.reportStreak.textContent = learningDays();
+      if (els.reportStreak) els.reportStreak.textContent = learningDays();
       els.reportWeakCount.textContent = weak.length;
       renderDailyGoal();
-      renderRewards(profile);
-      renderWeek(profile);
-      const shownPoints = mobileReport
-        ? availablePoints(profile.grade).slice(0, 4)
-        : availablePoints(profile.grade);
-      els.masteryGrid.innerHTML = shownPoints.map((point) => {
-        const m = masteryFor(profile, point.id);
-        const rate = m.attempts ? Math.round(m.correct / m.attempts * 100) : 0;
-        return `<div class="mastery-card">
-          <div class="item-top">
-            <h3>${point.label}</h3>
-            <span class="tag">难度 ${m.level}/5</span>
-          </div>
-          <p class="muted">${point.helper}</p>
-          <div class="bar-track"><div class="bar-fill" style="--w:${m.attempts ? rate : 8}%"></div></div>
-          <div class="mini-meta"><span>${m.attempts} 次练习</span><span>正确率 ${m.attempts ? rate + "%" : "--"}</span></div>
-        </div>`;
-      }).join("");
-      const causeCounts = {};
-      history.filter((item) => !item.correct).forEach((item) => {
-        const cause = normalizeCause(item.cause);
-        causeCounts[cause] = (causeCounts[cause] || 0) + 1;
-      });
-      const causeRows = Object.entries(causeCounts).sort((a, b) => b[1] - a[1]);
-      const masteredForGrade = (profile.masteredWrong || []).filter((item) => Number(item.question.grade || profile.grade) === Number(profile.grade));
-      els.causeReportList.innerHTML = causeRows.length ? causeRows.map(([cause, count]) => `
-        <div class="report-item">
-          <div class="item-top"><h3>${escapeHTML(cause)}</h3><span class="tag">${count} 次</span></div>
-          <p>${causeAdvice(cause)}</p>
-          <div class="row-actions"><button class="secondary" type="button" data-cause-practice="${escapeAttr(cause)}">按这个错因复练</button></div>
-        </div>`).join("") : `<div class="empty-state">还没有错题记录。做几轮练习后，这里会显示最常见的错因。</div>`;
-      if (masteredForGrade.length) {
-        els.causeReportList.insertAdjacentHTML("beforeend", `
-          <div class="report-item">
-            <div class="item-top"><h3>已掌握错题沉淀</h3><span class="mastered-chip">${masteredForGrade.length} 题</span></div>
-            <p>这些题已经连续做对 3 次，不再占用错题本，但会保留在报告里，方便家长看到孩子从"反复错"到"已掌握"的变化。</p>
-          </div>`);
-      }
-      els.causeReportList.querySelectorAll("[data-cause-practice]").forEach((btn) => {
-        btn.addEventListener("click", () => startCausePractice(btn.dataset.causePractice));
-      });
-      els.historyList.innerHTML = history.slice(0, mobileReport ? 3 : 12).map((item) => `
-        <div class="report-item">
-          <div class="item-top"><h3>${escapeHTML(item.text)}</h3><span class="tag ${item.correct ? "" : "topic"}">${item.correct ? "答对" : "答错"}</span></div>
-          <div class="mini-meta"><span>${item.date}</span><span>${pointLabel(item.pointId)}</span><span>${escapeHTML(normalizeCause(item.cause))}</span></div>
-        </div>`).join("") || `<div class="empty-state">还没有练习记录。先完成一轮在线练习。</div>`;
       renderTrendReport(profile, weak, accuracy);
-      renderParentAdvice(profile, weak, causeRows, accuracy, today.length);
+      renderReportVisualSummary(profile, history, accuracy);
     }
     function renderTrendReport(profile, weakPoints, accuracy) {
       if (!els.trendReportList) return;
@@ -9343,184 +9339,123 @@ const STORE = {
       const weakest = rows.slice().sort((a, b) => a.rate - b.rate || b.total - a.total)[0];
       const planPoint = weakPoints[0] || (weakest?.pointId ? pointMap[weakest.pointId] : availablePoints(profile.grade)[0]);
       const trendText = !last7.length
-        ? "本周还没有练习数据，先完成 1 轮 6-10 题的小练习建立样本。"
+        ? "先完成 1 轮 6-10 题，建立今天的练习样本。"
         : prev7.length
           ? `近 7 天完成 ${last7.length} 题，正确率 ${lastRate}%，比上一周期${delta >= 0 ? "提高" : "下降"} ${Math.abs(delta)} 个百分点。`
-          : `近 7 天完成 ${last7.length} 题，正确率 ${lastRate}%。继续保持每天少量练习，报告会越来越准确。`;
+          : `近 7 天完成 ${last7.length} 题，正确率 ${lastRate}%。`;
       const planCopy = planPoint
-        ? `建议接下来优先练"${planPoint.label}"：先做 6 道基础题，再做 3 道同类题，最后回看错因。`
-        : "建议先按当前年级混合练习，积累足够记录后再自动推荐专项。";
-      const dailyPlan = buildDailyPlan(profile, planPoint, weakPoints);
+        ? `下一轮优先练“${planPoint.label}”，控制在 10 题以内。`
+        : "下一轮按当前年级混合练习，先积累更多记录。";
       els.trendReportList.innerHTML = `
-        <div class="report-item">
-          <div class="item-top"><h3>本周趋势</h3><span class="tag">${delta > 0 ? "上升" : delta < 0 ? "需稳住" : "观察中"}</span></div>
-          <p>${escapeHTML(trendText)}</p>
-        </div>
-        <div class="report-item">
-          <div class="item-top"><h3>掌握对比</h3><span class="tag">知识点</span></div>
-          <div class="mini-meta"><span>较稳：${strongest ? `${pointLabel(strongest.pointId)} ${strongest.rate}%` : "暂无"}</span><span>需巩固：${weakest ? `${pointLabel(weakest.pointId)} ${weakest.rate}%` : "暂无"}</span><span>总体：${profile.history.length ? accuracy + "%" : "--"}</span></div>
-        </div>
-        <div class="report-item">
-          <div class="item-top"><h3>下一轮计划</h3><span class="tag">可执行</span></div>
-          <p>${escapeHTML(planCopy)}</p>
+        <div class="report-item report-action-item">
+          <div class="item-top"><h3>下一轮怎么练</h3><span class="tag">${delta > 0 ? "上升" : delta < 0 ? "需稳住" : "观察中"}</span></div>
+          <p>${escapeHTML(trendText)} ${escapeHTML(planCopy)}</p>
+          <div class="mini-meta"><span>较稳：${strongest ? `${pointLabel(strongest.pointId)} ${strongest.rate}%` : "暂无"}</span><span>需巩固：${weakest ? `${pointLabel(weakest.pointId)} ${weakest.rate}%` : "暂无"}</span></div>
           ${planPoint ? `<div class="row-actions"><button class="secondary" type="button" data-trend-point="${escapeAttr(planPoint.id)}">按计划练一轮</button></div>` : ""}
-        </div>
-        <div class="report-item">
-          <div class="item-top"><h3>今日学习处方</h3><span class="tag">${dailyPlan.total} 题</span></div>
-          <div class="plan-stack">
-            ${dailyPlan.steps.map((step, index) => `<div class="plan-step"><b>${index + 1}</b><div><strong>${escapeHTML(step.title)}</strong><small>${escapeHTML(step.copy)}</small></div><div class="plan-step-actions"><span class="tag">${escapeHTML(step.count)}</span><button class="secondary compact-btn" type="button" data-daily-plan="${index}">${escapeHTML(step.action || "开始")}</button></div></div>`).join("")}
-          </div>
         </div>`;
       els.trendReportList.querySelectorAll("[data-trend-point]").forEach((btn) => {
         btn.addEventListener("click", () => startPointSet(btn.dataset.trendPoint, Math.min(10, state.setSize), "similar"));
       });
-      els.trendReportList.querySelectorAll("[data-daily-plan]").forEach((btn) => {
-        btn.addEventListener("click", () => startDailyPlanStep(Number(btn.dataset.dailyPlan) || 0));
-      });
+      renderReportWeakSummary(profile, weakPoints, rows);
+      renderReportCauseSummary(profile);
+      renderReportTrendSummary(last7, prev7, lastRate, prevRate, delta, accuracy);
     }
-    function buildDailyPlan(profile, planPoint, weakPoints = []) {
-      const gradeWrong = currentGradeWrongbook(profile).length;
-      const target = clamp(Math.min(dailyGoal(profile), Math.max(10, Number(profile.settings?.setSize) || 10)), 6, 24);
-      const reviewCount = Math.min(5, gradeWrong);
-      const weakCount = planPoint ? Math.max(3, Math.min(8, target - reviewCount - 2)) : 0;
-      const mixedCount = Math.max(0, target - reviewCount - weakCount);
-      const steps = [];
-      if (reviewCount) {
-        steps.push({
-          type: "wrongbook",
-          title: "先复习错题",
-          copy: "优先做本年级错题本中连续做对次数少的题，做对后推进掌握进度。",
-          count: `${reviewCount} 题`,
-          amount: reviewCount,
-          action: "复习错题"
-        });
-      }
-      if (planPoint) {
-        steps.push({
-          type: "point",
-          pointId: planPoint.id,
-          title: `巩固 ${planPoint.label}`,
-          copy: weakPoints.length > 1 ? `这是当前最需要补的知识点之一，做完再看错因是否集中。` : "先做基础题，再做 1-2 道变式题。",
-          count: `${weakCount || 6} 题`,
-          amount: weakCount || 6,
-          action: "开始专项"
-        });
-      }
-      steps.push({
-        type: "mixed",
-        title: "最后混合检查",
-        copy: "从当前年级随机抽题，检查孩子能不能在切换题型时保持稳定。",
-        count: `${Math.max(3, mixedCount || 3)} 题`,
-        amount: Math.max(3, mixedCount || 3),
-        action: "混合练习"
-      });
-      return { total: steps.reduce((sum, step) => sum + (Number.parseInt(step.count, 10) || 0), 0), steps };
+
+    function renderReportWeakSummary(profile, weakPoints, rows = []) {
+      if (!els.reportWeakList) return;
+      const rowMap = Object.fromEntries(rows.map((row) => [row.pointId, row]));
+      const points = (weakPoints.length ? weakPoints : availablePoints(profile.grade)).slice(0, 3);
+      els.reportWeakList.innerHTML = points.length ? points.map((point) => {
+        const row = rowMap[point.id];
+        const mastery = masteryFor(profile, point.id);
+        const rate = row ? row.rate : (mastery.attempts ? Math.round(mastery.correct / mastery.attempts * 100) : 0);
+        return `<div class="report-item compact-report-item">
+          <div class="item-top"><h3>${escapeHTML(point.label)}</h3><span class="tag">${row ? rate + "%" : "待练"}</span></div>
+          <p>${escapeHTML(point.helper)}</p>
+        </div>`;
+      }).join("") : `<div class="empty-state">暂无明显薄弱点，继续保持当前节奏。</div>`;
     }
-    function startDailyPlanStep(index = 0) {
-      const profile = activeProfile();
-      const history = profile.history || [];
-      const correct = history.filter((item) => item.correct).length;
-      const accuracy = history.length ? Math.round(correct / history.length * 100) : 0;
-      const weak = weakestPoints(6).filter((point) => masteryAccuracy(profile, point.id) < 0.78 || profile.wrongbook.some((item) => item.question.pointId === point.id));
-      const rows = pointAttemptRows(profile, profile.grade).filter((row) => row.total >= 3);
-      const weakest = rows.slice().sort((a, b) => a.rate - b.rate || b.total - a.total)[0];
-      const planPoint = weak[0] || (weakest?.pointId ? pointMap[weakest.pointId] : availablePoints(profile.grade)[0]);
-      const plan = buildDailyPlan(profile, planPoint, weak);
-      const step = plan.steps[index] || plan.steps[0];
-      if (!step) return;
-      if (step.type === "wrongbook") {
-        const ids = currentGradeWrongbook(profile)
-          .slice()
-          .sort((a, b) => (a.correctStreak || 0) - (b.correctStreak || 0) || (b.wrongCount || 0) - (a.wrongCount || 0) || (b.updatedAt || 0) - (a.updatedAt || 0))
-          .slice(0, step.amount || 5)
-          .map((item) => item.id);
-        if (ids.length) startWrongbookPractice(ids);
-        return;
-      }
-      if (step.type === "point" && step.pointId) {
-        startPointSet(step.pointId, clamp(Number(step.amount) || 6, 3, 20), "similar");
-        return;
-      }
-      els.pointSelect.value = "auto";
-      els.setSizeInput.value = String(clamp(Number(step.amount) || 6, 3, 20));
-      startNewSet({ focus: true });
-    }
-    function renderParentAdvice(profile, weakPoints, causeRows, accuracy, todayCount) {
-      if (!els.parentAdviceList) return;
-      const advices = [];
-      const goal = dailyGoal(profile);
-      if (todayCount < goal) {
-        advices.push({
-          title: "今天先完成小目标",
-          copy: `今日已完成 ${todayCount}/${goal} 题。建议做一轮 10 题以内的小练习，保持节奏比一次做太多更重要。`,
-          action: "开始 10 题练习",
-          pointId: "auto"
-        });
-      }
-      const weak = weakPoints[0];
-      if (weak) {
-        const kp = knowledgeProfileFor(weak);
-        advices.push({
-          title: `优先巩固：${weak.label}`,
-          copy: `${kp.rule} 建议使用"${weak.topic === "word" || weak.topic === "mixed" ? "分步作答" : "智能混合"}"，连续做 6-10 题后再看错因。`,
-          action: "按这个知识点练",
-          pointId: weak.id
-        });
-      }
-      if (causeRows.length) {
-        const [cause, count] = causeRows[0];
-        advices.push({
-          title: `最常见错因：${cause}`,
-          copy: `${count} 次。${causeAdvice(cause)}`,
-          action: "按这个错因复练",
-          cause
-        });
-      }
-      if (profile.history.length >= 20 && accuracy >= 85 && weakPoints.length <= 1) {
-        advices.push({
-          title: "可以增加挑战题",
-          copy: "最近正确率比较稳定，可以加入本年级附加题或应用题强化，训练读题和建模能力。",
-          action: "挑战附加题",
-          pointId: appendixPointForGrade(profile.grade).id
-        });
-      }
-      if (!advices.length) {
-        advices.push({
-          title: "先建立学习样本",
-          copy: "先完成 2-3 轮练习，系统会根据错题、正确率和知识点覆盖情况给出更准确的建议。",
-          action: "开始练习",
-          pointId: "auto"
-        });
-      }
-      els.parentAdviceList.innerHTML = advices.slice(0, 4).map((item) => `
-        <div class="report-item parent-advice-card">
-          <div class="item-top"><h3>${escapeHTML(item.title)}</h3><span class="tag">建议</span></div>
-          <p>${escapeHTML(item.copy)}</p>
-          <div class="row-actions"><button class="secondary" type="button" ${item.cause ? `data-parent-cause="${escapeAttr(item.cause)}"` : `data-parent-point="${escapeAttr(item.pointId)}"`}>${escapeHTML(item.action)}</button></div>
-        </div>`).join("");
-      els.parentAdviceList.querySelectorAll("[data-parent-point]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const pointId = btn.dataset.parentPoint;
-          if (pointId === "auto") {
-            showView("practice");
-            startNewSet({ focus: true });
-          } else {
-            startPointSet(pointId, Math.min(10, state.setSize), pointMap[pointId]?.topic === "appendix" ? "appendix" : "similar");
-          }
-        });
+
+    function renderReportCauseSummary(profile) {
+      if (!els.reportCauseSummary) return;
+      const counts = {};
+      (profile.history || []).filter((item) => !item.correct).forEach((item) => {
+        const cause = normalizeCause(item.cause);
+        counts[cause] = (counts[cause] || 0) + 1;
       });
-      els.parentAdviceList.querySelectorAll("[data-parent-cause]").forEach((btn) => {
-        btn.addEventListener("click", () => startCausePractice(btn.dataset.parentCause));
-      });
+      const rows = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 3);
+      els.reportCauseSummary.innerHTML = rows.length ? rows.map(([cause, count]) => `
+        <div class="report-item compact-report-item">
+          <div class="item-top"><h3>${escapeHTML(cause)}</h3><span class="tag">${count} 次</span></div>
+          <p>下次练习时重点检查这一类错误。</p>
+        </div>`).join("") : `<div class="empty-state">暂时没有明显错因。</div>`;
     }
-    function causeAdvice(cause) {
-      const map = {
-        "计算粗心": "建议让孩子算完后反向检查一遍，重点看符号、进退位、口诀和最后一步。",
-        "读题理解": '先划关键词，例如"一共、还剩、平均、每份、比多比少"，再决定用什么算式。',
-        "概念单位": "先回到概念和单位关系，例如口诀、分数意义、小数点位置、1 米 = 100 厘米。",
-        "不会做": "建议先看招财讲解，把题目拆成第一步、第二步，再做 2-3 道同类题。"
-      };
-      return map[normalizeCause(cause)] || "先让孩子说出自己第一步想怎么算，再对照讲解找差异。";
+
+    function renderReportTrendSummary(last7, prev7, lastRate, prevRate, delta, accuracy) {
+      if (!els.reportTrendSummary) return;
+      const trendLabel = last7.length && prev7.length ? (delta >= 0 ? "比上周期更稳" : "需要稳住正确率") : "继续积累样本";
+      els.reportTrendSummary.innerHTML = `
+        <div class="report-item compact-report-item">
+          <div class="item-top"><h3>近 7 天</h3><span class="tag">${last7.length} 题</span></div>
+          <p>正确率 ${last7.length ? lastRate + "%" : "--"}，${escapeHTML(trendLabel)}。</p>
+        </div>
+        <div class="report-item compact-report-item">
+          <div class="item-top"><h3>总体状态</h3><span class="tag">${accuracy || "--"}${accuracy ? "%" : ""}</span></div>
+          <p>上一周期正确率 ${prev7.length ? prevRate + "%" : "暂无"}。</p>
+        </div>`;
+    }
+
+    function renderReportVisualSummary(profile, history = [], accuracy = 0) {
+      if (els.reportAccuracyDonutText) {
+        els.reportAccuracyDonutText.textContent = history.length ? `${accuracy}%` : "--";
+      }
+      if (els.reportAccuracyDonut) {
+        els.reportAccuracyDonut.style.setProperty("--value", `${Math.max(0, Math.min(100, accuracy))}%`);
+      }
+      if (els.reportAccuracyCopy) {
+        els.reportAccuracyCopy.textContent = history.length
+          ? `近 ${history.length} 题的总体正确率是 ${accuracy}%。`
+          : "先完成几道题，这里会显示正确率圆环。";
+      }
+      if (els.reportTopicBars) {
+        const topicCounts = {};
+        (history || []).forEach((item) => {
+          const point = pointMap[item.pointId];
+          const key = point ? point.topic : "other";
+          topicCounts[key] = (topicCounts[key] || 0) + 1;
+        });
+        const total = Math.max(1, history.length);
+        const topicLabels = {
+          addsub: "加减",
+          muldiv: "乘除",
+          word: "应用题",
+          geometry: "图形",
+          mixed: "综合",
+          appendix: "附加",
+          decimal: "小数",
+          fraction: "分数",
+          compare: "比较",
+          other: "其他"
+        };
+        const topTopics = Object.entries(topicCounts).sort((a, b) => b[1] - a[1]).slice(0, 4);
+        els.reportTopicBars.innerHTML = topTopics.length ? topTopics.map(([topic, count]) => {
+          const width = Math.max(10, Math.round(count / total * 100));
+          const label = topic === "vertical" ? "竖式计算" : topic === "twostep" ? "两步计算" : (topicLabels[topic] || topic);
+          return `<div class="report-bar-row"><span>${escapeHTML(label)}</span><div class="report-bar-track"><i style="width:${width}%"></i></div><b>${width}%</b></div>`;
+        }).join("") : `<div class="empty-state">暂无题型构成数据。</div>`;
+      }
+      if (els.reportRhythmDots) {
+        const days = Array.from({ length: 7 }, (_, index) => {
+          const offset = index - 6;
+          const date = todayKey(offset);
+          const items = (history || []).filter((item) => item.date === date);
+          return { date, count: items.length, rate: accuracyOf(items) };
+        });
+        els.reportRhythmDots.innerHTML = days.map((day) => {
+          const size = Math.max(10, Math.min(28, day.count * 4 + 10));
+          return `<div class="report-rhythm-dot" title="${escapeAttr(day.date)}"><span style="width:${size}px;height:${size}px"></span><small>${day.date.slice(5).replace("-", "/")}</small></div>`;
+        }).join("");
+      }
     }
 
     function syncPrintControls() {
@@ -9856,18 +9791,11 @@ const STORE = {
       reader.readAsText(file, "utf-8");
     }
     function buildArchiveData() {
-      return {
-        version: 5,
-        type: "miaomiao-math-complete-archive",
-        format: "json",
-        app: "miaomiao-math",
-        platform: "cross-platform",
-        compatibleWith: ["web", "android-webview", "ios-webview"],
-        exportedAt: new Date().toISOString(),
-        profiles: state.profiles.map(normalizeProfile).filter(Boolean),
-        activeId: state.activeId,
-        systemSettings: collectSystemSettings()
-      };
+      return window.MathCampImportExport.buildArchiveData({
+        collectSystemSettings,
+        normalizeProfile,
+        state
+      });
     }
     function buildArchiveText() {
       return JSON.stringify(buildArchiveData(), null, 2);
@@ -9895,32 +9823,13 @@ const STORE = {
     }
     function parseImportBackup() {
       const raw = els.importText.value || "";
-      const data = JSON.parse(raw);
-      if (!data || !Array.isArray(data.profiles) || !data.profiles.length) throw new Error("格式不正确");
-      const before = data.profiles.reduce((acc, profile) => {
-        acc.profiles += 1;
-        acc.wrong += Array.isArray(profile?.wrongbook) ? profile.wrongbook.length : 0;
-        acc.mastered += Array.isArray(profile?.masteredWrong) ? profile.masteredWrong.length : 0;
-        acc.history += Array.isArray(profile?.history) ? profile.history.length : 0;
-        if (isPlainObject(profile?.rewards?.pet)) acc.pets += 1;
-        return acc;
-      }, { profiles: 0, wrong: 0, mastered: 0, history: 0, pets: 0 });
-      const profiles = uniquifyRecordIds(data.profiles.map(normalizeProfile).filter(Boolean), "student");
-      if (!profiles.length) throw new Error("没有有效学生档案");
-      const activeId = profiles.some((profile) => profile.id === data.activeId) ? data.activeId : profiles[0].id;
-      const systemSettings = (isPlainObject(data.systemSettings) || isPlainObject(data.settings))
-        ? normalizeSystemSettings(data.systemSettings || data.settings)
-        : collectSystemSettings();
-      const wrongCount = profiles.reduce((sum, profile) => sum + profile.wrongbook.length, 0);
-      const masteredCount = profiles.reduce((sum, profile) => sum + profile.masteredWrong.length, 0);
-      const historyCount = profiles.reduce((sum, profile) => sum + profile.history.length, 0);
-      const petCount = profiles.reduce((sum, profile) => sum + (isPlainObject(profile.rewards?.pet) ? 1 : 0), 0);
-      const repairNotes = [];
-      if (before.profiles !== profiles.length) repairNotes.push(`丢弃 ${before.profiles - profiles.length} 个无效学生档案`);
-      if (before.wrong !== wrongCount) repairNotes.push(`修复/丢弃 ${before.wrong - wrongCount} 条异常错题`);
-      if (before.mastered !== masteredCount) repairNotes.push(`修复/丢弃 ${before.mastered - masteredCount} 条已掌握错题记录`);
-      if (before.history !== historyCount) repairNotes.push(`修复/丢弃 ${before.history - historyCount} 条异常练习记录`);
-      return { raw, profiles, activeId, systemSettings, wrongCount, masteredCount, historyCount, petCount, repairNotes };
+      return window.MathCampImportExport.parseImportBackup({
+        collectSystemSettings,
+        isPlainObject,
+        normalizeProfile,
+        normalizeSystemSettings,
+        uniquifyRecordIds
+      }, raw);
     }
     async function importData() {
       try {
@@ -10554,6 +10463,7 @@ const STORE = {
       if (ok) {
         UI.notify("云端同步已启用。");
         var result = await window.MathCampCloudSync.fullSync(state.profiles, state.activeId, collectSystemSettings());
+        renderCloudSyncSummary(result);
         if (result.settingsChanged && result.systemSettings) {
           applySystemSettings(result.systemSettings, { touch: false, sync: false });
         }
@@ -10576,6 +10486,7 @@ const STORE = {
       }
       UI.notify("正在同步…");
       var result = await window.MathCampCloudSync.fullSync(state.profiles, state.activeId, collectSystemSettings());
+      renderCloudSyncSummary(result);
       if (result.settingsChanged && result.systemSettings) {
         applySystemSettings(result.systemSettings, { touch: false, sync: false });
       }
@@ -10636,6 +10547,7 @@ const STORE = {
         parseImportBackup,
         collectSystemSettings,
         applySystemSettings,
+        renderCloudSyncSummary,
         saveSystemSettingsSnapshot,
         normalizeSystemSettings,
         petState,
@@ -10686,6 +10598,7 @@ const STORE = {
         makeQuestion,
         makeStrictQuestionForPoint,
         buildQuestionSetForPoint,
+        buildAdaptiveQuestionSet,
         startNewSet,
         applyQuestionInteraction,
         questionRuleIssues,

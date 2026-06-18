@@ -203,6 +203,144 @@
     }
   }
 
+  function arrayByKey(items, keyFn) {
+    var map = {};
+    (Array.isArray(items) ? items : []).forEach(function (item) {
+      if (!item) return;
+      var key = keyFn(item);
+      if (!key) return;
+      var existing = map[key];
+      if (!existing || itemTime(item) >= itemTime(existing)) map[key] = item;
+    });
+    return map;
+  }
+
+  function itemTime(item) {
+    return Math.max(
+      Number(item && item.updatedAt) || 0,
+      Number(item && item.time) || 0,
+      Number(item && item.masteredAt) || 0,
+      Number(item && item.lastReviewedAt) || 0
+    );
+  }
+
+  function countRecords(profile) {
+    return {
+      history: Array.isArray(profile && profile.history) ? profile.history.length : 0,
+      wrongbook: Array.isArray(profile && profile.wrongbook) ? profile.wrongbook.length : 0,
+      masteredWrong: Array.isArray(profile && profile.masteredWrong) ? profile.masteredWrong.length : 0
+    };
+  }
+
+  function blankSummary() {
+    return {
+      profiles: 0,
+      history: 0,
+      wrongbook: 0,
+      masteredWrong: 0,
+      settingsChanged: false
+    };
+  }
+
+  function mergeUniqueRecords(localItems, cloudItems, keyFn, limit) {
+    var localMap = arrayByKey(localItems, keyFn);
+    var cloudMap = arrayByKey(cloudItems, keyFn);
+    var keys = Object.keys(localMap).concat(Object.keys(cloudMap).filter(function (key) { return !localMap[key]; }));
+    return keys.map(function (key) {
+      var local = localMap[key];
+      var cloud = cloudMap[key];
+      if (local && !cloud) return local;
+      if (!local && cloud) return cloud;
+      return itemTime(cloud) > itemTime(local) ? cloud : local;
+    }).sort(function (a, b) {
+      return itemTime(b) - itemTime(a);
+    }).slice(0, limit || 1000);
+  }
+
+  function mergeMastery(localMastery, cloudMastery) {
+    var merged = {};
+    var keys = new Set(Object.keys(localMastery || {}).concat(Object.keys(cloudMastery || {})));
+    keys.forEach(function (key) {
+      var local = (localMastery || {})[key] || {};
+      var cloud = (cloudMastery || {})[key] || {};
+      merged[key] = {
+        attempts: Math.max(Number(local.attempts) || 0, Number(cloud.attempts) || 0),
+        correct: Math.max(Number(local.correct) || 0, Number(cloud.correct) || 0),
+        level: Math.max(Number(local.level) || 1, Number(cloud.level) || 1),
+        streak: Math.max(Number(local.streak) || 0, Number(cloud.streak) || 0)
+      };
+      if (merged[key].correct > merged[key].attempts) merged[key].correct = merged[key].attempts;
+    });
+    return merged;
+  }
+
+  function mergeChallenge(localChallenge, cloudChallenge) {
+    var merged = { gradeLevels: {} };
+    var localLevels = (localChallenge && localChallenge.gradeLevels) || {};
+    var cloudLevels = (cloudChallenge && cloudChallenge.gradeLevels) || {};
+    var grades = new Set(Object.keys(localLevels).concat(Object.keys(cloudLevels)));
+    grades.forEach(function (grade) {
+      var local = localLevels[grade] || {};
+      var cloud = cloudLevels[grade] || {};
+      var localTime = Math.max(Number(local.lastPlayedAt) || 0, Number(local.updatedAt) || 0);
+      var cloudTime = Math.max(Number(cloud.lastPlayedAt) || 0, Number(cloud.updatedAt) || 0);
+      merged.gradeLevels[grade] = {
+        ...(cloudTime > localTime ? local : cloud),
+        ...(cloudTime > localTime ? cloud : local),
+        level: Math.max(Number(local.level) || 1, Number(cloud.level) || 1),
+        passed: Math.max(Number(local.passed) || 0, Number(cloud.passed) || 0),
+        weekPassed: Math.max(Number(local.weekPassed) || 0, Number(cloud.weekPassed) || 0),
+        bestRate: Math.max(Number(local.bestRate) || 0, Number(cloud.bestRate) || 0),
+        todayBestLevel: Math.max(Number(local.todayBestLevel) || 0, Number(cloud.todayBestLevel) || 0),
+        draft: cloudTime > localTime ? cloud.draft || null : local.draft || null
+      };
+    });
+    return merged;
+  }
+
+  function mergeRewards(localRewards, cloudRewards, preferCloud) {
+    var local = localRewards || {};
+    var cloud = cloudRewards || {};
+    var primary = preferCloud ? cloud : local;
+    var secondary = preferCloud ? local : cloud;
+    return {
+      ...secondary,
+      ...primary,
+      clearedWrong: Math.max(Number(local.clearedWrong) || 0, Number(cloud.clearedWrong) || 0),
+      challenge: mergeChallenge(local.challenge, cloud.challenge),
+      pet: primary.pet || secondary.pet || {}
+    };
+  }
+
+  function mergeProfile(local, cloud) {
+    if (!local) return cloud;
+    if (!cloud) return local;
+    var localTime = getProfileTime(local);
+    var cloudTime = getProfileTime(cloud);
+    var preferCloud = cloudTime > localTime;
+    var primary = preferCloud ? cloud : local;
+    var secondary = preferCloud ? local : cloud;
+    var history = mergeUniqueRecords(local.history, cloud.history, function (item) {
+      return [item.time, item.pointId, item.text, item.correct].join("|");
+    }, 2500);
+    var wrongbook = mergeUniqueRecords(local.wrongbook, cloud.wrongbook, function (item) {
+      return item.signature || item.id;
+    }, 300);
+    var masteredWrong = mergeUniqueRecords(local.masteredWrong, cloud.masteredWrong, function (item) {
+      return item.signature || item.id;
+    }, 500);
+    return {
+      ...secondary,
+      ...primary,
+      history: history,
+      wrongbook: wrongbook,
+      masteredWrong: masteredWrong,
+      mastery: mergeMastery(local.mastery, cloud.mastery),
+      rewards: mergeRewards(local.rewards, cloud.rewards, preferCloud),
+      updatedAt: Math.max(Number(local.updatedAt) || 0, Number(cloud.updatedAt) || 0, itemTime(history[0]))
+    };
+  }
+
   function mergeProfiles(localProfiles, cloudRows) {
     if (!cloudRows || !cloudRows.length) return localProfiles;
 
@@ -230,18 +368,33 @@
       var local = localMap[id];
       var cloud = cloudMap[id];
 
-      if (local && !cloud) {
-        merged.push(local);
-      } else if (!local && cloud) {
-        merged.push(cloud);
-      } else {
-        var localTime = getProfileTime(local);
-        var cloudTime = getProfileTime(cloud);
-        merged.push(cloudTime > localTime ? cloud : local);
-      }
+      merged.push(mergeProfile(local, cloud));
     });
 
     return merged;
+  }
+
+  function profileTotals(profiles) {
+    return (Array.isArray(profiles) ? profiles : []).reduce(function (sum, profile) {
+      var counts = countRecords(profile);
+      sum.profiles += profile ? 1 : 0;
+      sum.history += counts.history;
+      sum.wrongbook += counts.wrongbook;
+      sum.masteredWrong += counts.masteredWrong;
+      return sum;
+    }, blankSummary());
+  }
+
+  function mergeSummary(localProfiles, mergedProfiles, settingsChanged) {
+    var local = profileTotals(localProfiles);
+    var merged = profileTotals(mergedProfiles);
+    return {
+      profiles: Math.max(0, merged.profiles - local.profiles),
+      history: Math.max(0, merged.history - local.history),
+      wrongbook: Math.max(0, merged.wrongbook - local.wrongbook),
+      masteredWrong: Math.max(0, merged.masteredWrong - local.masteredWrong),
+      settingsChanged: Boolean(settingsChanged)
+    };
   }
 
   function getProfileTime(profile) {
@@ -263,9 +416,23 @@
   function mergeSettings(localSettings, cloudSettings) {
     if (!cloudSettings) return { settings: localSettings || null, changed: false };
     if (!localSettings || getSettingsTime(cloudSettings) > getSettingsTime(localSettings)) {
-      return { settings: cloudSettings, changed: true };
+      return {
+        settings: {
+          ...(localSettings || {}),
+          ...cloudSettings,
+          effects: { ...((localSettings || {}).effects || {}), ...(cloudSettings.effects || {}) }
+        },
+        changed: true
+      };
     }
-    return { settings: localSettings, changed: false };
+    return {
+      settings: {
+        ...cloudSettings,
+        ...localSettings,
+        effects: { ...(cloudSettings.effects || {}), ...(localSettings.effects || {}) }
+      },
+      changed: false
+    };
   }
 
   function scheduleSync(profiles, activeId) {
@@ -291,7 +458,8 @@
         activeId: localActiveId,
         systemSettings: localSettings || null,
         changed: false,
-        settingsChanged: false
+        settingsChanged: false,
+        summary: blankSummary()
       };
     }
 
@@ -313,11 +481,13 @@
         activeId: localActiveId,
         systemSettings: mergedSettings,
         changed: false,
-        settingsChanged: settingsChanged
+        settingsChanged: settingsChanged,
+        summary: { ...blankSummary(), settingsChanged: settingsChanged }
       };
     }
 
     var merged = mergeProfiles(localProfiles, cloudRows);
+    var summary = mergeSummary(localProfiles, merged, settingsChanged);
 
     var deviceRow = cloudRows.find(function (r) { return r.device_id === deviceId; });
     var mergedActiveId = localActiveId || (deviceRow && deviceRow.active_id) || "";
@@ -329,7 +499,8 @@
         activeId: mergedActiveId,
         systemSettings: mergedSettings,
         changed: true,
-        settingsChanged: settingsChanged
+        settingsChanged: settingsChanged,
+        summary: summary
       };
     }
 
@@ -339,7 +510,8 @@
       activeId: mergedActiveId,
       systemSettings: mergedSettings,
       changed: false,
-      settingsChanged: settingsChanged
+      settingsChanged: settingsChanged,
+      summary: summary
     };
   }
 
@@ -370,7 +542,9 @@
     pushSettings: pushSettings,
     pullSettings: pullSettings,
     mergeSettings: mergeSettings,
+    mergeProfile: mergeProfile,
     mergeProfiles: mergeProfiles,
+    mergeSummary: mergeSummary,
     scheduleSync: scheduleSync,
     fullSync: fullSync,
     isSyncEnabled: isSyncEnabled,
