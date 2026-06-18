@@ -8052,7 +8052,7 @@ const STORE = {
       els.reviewPanel.hidden = true;
       resetRoundRuntime();
       renderPracticeQuestion();
-      const shouldFocus = options.focus || (state.view === "practice" && window.matchMedia("(max-width: 1180px)").matches);
+      const shouldFocus = options.focus || (options.autoFocus !== false && state.view === "practice" && window.matchMedia("(max-width: 1180px)").matches);
       if (shouldFocus) {
         enterPracticeFocus();
         startRoundTimer();
@@ -10606,7 +10606,12 @@ const STORE = {
     updateSoundButtons();
     renderNumberPad();
     syncFromProfile();
-    startNewSet({ focus: window.matchMedia("(max-width: 1180px)").matches });
+    startNewSet({ autoFocus: false });
+    if (isCompactPracticeViewport()) {
+      setPracticeLayer("setup");
+      setTypeSettingsOpen(true);
+      rememberPracticeViewState();
+    }
     if (!isAndroidWebView()) generatePrintSheet();
     initCloudSync();
     if (state.musicOn) {
