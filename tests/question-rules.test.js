@@ -978,6 +978,23 @@ function runHangzhouCurriculumMetadataTests() {
   assert(debug.pointMap["g5-percent"].curriculum.stage.includes("预习"), "early percent practice should be marked as preview");
   assert(debug.pointMap["g3-remainder"].curriculum.stage.includes("复习"), "remainder in grade 3 should be marked as review");
 
+  const grade2Labels = debug.availablePoints(2).map((point) => debug.curriculumSelectLabel(point));
+  assert(grade2Labels.some((label) => label.includes("二上") && label.includes("100 以内加法和减法（二）")), "grade 2 selector labels should include first-term textbook units");
+  assert(grade2Labels.some((label) => label.includes("二下") && label.includes("表内除法")), "grade 2 selector labels should include second-term textbook units");
+  assert.strictEqual(debug.curriculumSelectGroup(debug.pointMap["g2-100-add"]), "上册同步", "first-term core points should be grouped under first-term sync");
+  assert.strictEqual(debug.curriculumSelectGroup(debug.pointMap["g2-table-div"]), "下册同步", "second-term core points should be grouped under second-term sync");
+  assert.strictEqual(debug.curriculumSelectGroup(debug.pointMap["g2-reading"]), "读题与专项能力", "logic reading points should use the dedicated reading group");
+  assert(debug.curriculumPointRank(debug.pointMap["g2-100-add"]) < debug.curriculumPointRank(debug.pointMap["g2-table-div"]), "first-term points should appear before second-term points");
+  const grade2Options = debug.pointOptionsHTML(2, "g2-table-div");
+  assert(grade2Options.includes('<optgroup label="上册同步">'), "selector options should include first-term optgroup");
+  assert(grade2Options.includes('<optgroup label="下册同步">'), "selector options should include second-term optgroup");
+  assert(grade2Options.includes('data-group="下册同步"'), "selector options should carry group metadata for custom selects");
+  assert(grade2Options.includes("二下 · 表内除法（一）（二） · 表内除法"), "selector options should show textbook-aware labels");
+  const wrongbookOptions = debug.pointOptionsHTML(2, "all", { autoValue: "all", autoLabel: "全部本年级教材知识点" });
+  assert(wrongbookOptions.startsWith('<option value="all" selected>全部本年级教材知识点</option>'), "wrongbook selector should keep an all-textbook option");
+  const migratedWrongbookOptions = debug.pointOptionsHTML(2, "auto", { autoValue: "all", autoLabel: "全部本年级教材知识点" });
+  assert(migratedWrongbookOptions.startsWith('<option value="all" selected>全部本年级教材知识点</option>'), "wrongbook selector should migrate stale auto selections to all");
+
   const scaleQuestion = debug.makeQuestion(debug.pointMap["g6-scale"], { strict: true });
   assert(scaleQuestion.curriculumBand.includes("浙江省杭州市"), "generated questions should carry Hangzhou curriculum band");
   assert(scaleQuestion.curriculumBand.includes("比例-比例尺"), "generated scale questions should carry textbook unit band");

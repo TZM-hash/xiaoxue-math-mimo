@@ -39,7 +39,7 @@ const STORE = {
     const PetEconomy = window.MathCampPetEconomy || {};
     const HomeRoute = window.MathCampHomeRoute || {};
     const PetDressupMeta = window.MathCampPetDressupMeta || {};
-    const { grades, gradeNames, causes, causeTagsByTopic, points, pointMap, allOption } = window.MathCampQuestionBank;
+    const { grades, gradeNames, causes, causeTagsByTopic, gradeCurriculum, points, pointMap } = window.MathCampQuestionBank;
     const isAndroidWebView = () => document.documentElement.classList.contains("android-webview");
     const isLowMotionMode = () => isAndroidWebView();
     function effectSettingEnabled(key) {
@@ -874,8 +874,19 @@ const STORE = {
       if (!menu || !button) return;
       button.querySelector(".custom-select-value").textContent = customSelectLabel(select);
       menu.innerHTML = "";
+      let lastGroup = "";
       [...select.options].forEach((option) => {
         if (option.hidden) return;
+        const group = option.dataset.group || option.parentElement?.label || "";
+        if (group && group !== lastGroup) {
+          const groupItem = document.createElement("div");
+          groupItem.className = "custom-select-group";
+          groupItem.textContent = group;
+          menu.appendChild(groupItem);
+          lastGroup = group;
+        } else if (!group) {
+          lastGroup = "";
+        }
         const item = document.createElement("button");
         item.type = "button";
         item.className = "custom-select-option";
@@ -1739,6 +1750,7 @@ const STORE = {
       if (!els.homeSettingsCard || !profile) return;
       const grade = clamp(Number(state.grade || profile.grade) || 1, 1, 6);
       const pointId = safePointId(state.pointId || profile.settings?.pointId || "auto", grade);
+      const pointText = curriculumPointLabel(pointId);
       const mode = normalizeAnswerModeForViewport(state.answerMode || profile.settings?.answerMode || "auto");
       els.homeSettingsCard.innerHTML = `
         <div class="home-settings-main">
@@ -1746,7 +1758,7 @@ const STORE = {
           <span>${escapeHTML(gradeNames[grade - 1] || `${grade}年级`)}</span>
         </div>
         <div class="home-settings-meta">
-          <span title="知识点：${escapeAttr(pointLabel(pointId))}">知识点：${escapeHTML(pointLabel(pointId))}</span>
+          <span title="知识点：${escapeAttr(pointText)}">知识点：${escapeHTML(pointText)}</span>
           <span>答题：${escapeHTML(answerModeLabel(mode))}</span>
           <span>目标：${dailyGoal(profile)}题</span>
         </div>`;
@@ -1994,7 +2006,10 @@ const STORE = {
     }
     function availablePoints(grade = state.grade) {
       const normalizedGrade = clamp(Number(grade) || 1, 1, 6);
-      return points.filter((point) => point.grade === normalizedGrade);
+      return points
+        .filter((point) => point.grade === normalizedGrade)
+        .slice()
+        .sort((a, b) => curriculumPointRank(a) - curriculumPointRank(b) || a.id.localeCompare(b.id));
     }
     function pointBelongsToGrade(pointId, grade = state.grade) {
       if (pointId === "auto") return true;
@@ -2060,6 +2075,54 @@ const STORE = {
       const helper = point?.helper || point?.label || "";
       const brief = curriculumBrief(point);
       return brief ? `${brief} / ${helper}` : helper;
+    }
+    function curriculumSelectGroup(point) {
+      const curriculum = point?.curriculum || {};
+      const stage = String(curriculum.stage || "");
+      const term = String(curriculum.term || "");
+      if (stage.includes("专项")) return "读题与专项能力";
+      if (stage.includes("拓展")) return "拓展思维";
+      if (stage.includes("预习")) return "预习拓展";
+      if (stage.includes("复习") || stage.includes("衔接") || term.includes("复习") || term.includes("衔接")) return "复习衔接";
+      const hasUp = term.includes("上");
+      const hasDown = term.includes("下");
+      if (hasUp && !hasDown) return "上册同步";
+      if (hasDown && !hasUp) return "下册同步";
+      if (hasUp && hasDown) return "跨册核心";
+      return "同步知识点";
+    }
+    function curriculumSelectGroupRank(group) {
+      return {
+        "上册同步": 10,
+        "下册同步": 20,
+        "跨册核心": 30,
+        "复习衔接": 40,
+        "读题与专项能力": 50,
+        "预习拓展": 60,
+        "拓展思维": 70,
+        "同步知识点": 80
+      }[group] || 90;
+    }
+    function curriculumUnitRank(point) {
+      const curriculum = point?.curriculum || {};
+      const plan = gradeCurriculum?.[Number(point?.grade) || 1];
+      const units = [...(plan?.first || []), ...(plan?.second || [])];
+      const unitText = String(curriculum.unit || point?.label || "");
+      const index = units.findIndex((unit) => unitText.includes(unit) || unit.includes(unitText));
+      return index >= 0 ? index : 999;
+    }
+    function curriculumPointRank(point) {
+      const group = curriculumSelectGroup(point);
+      return curriculumSelectGroupRank(group) * 1000 + curriculumUnitRank(point);
+    }
+    function curriculumSelectLabel(point) {
+      const curriculum = point?.curriculum || {};
+      const prefix = [curriculum.term, curriculum.unit].filter(Boolean).join(" · ");
+      return prefix ? `${prefix} · ${point.label}` : point.label;
+    }
+    function curriculumPointLabel(pointId) {
+      const point = pointMap[pointId];
+      return point ? curriculumSelectLabel(point) : "按本年级教材混合 / 自适应";
     }
     function uniqueList(items, limit = 4) {
       const seen = new Set();
@@ -2276,7 +2339,7 @@ const STORE = {
       els.knowledgeDetail.innerHTML = `
         <summary>知识点详情说明</summary>
         <div class="knowledge-card-body">
-        <strong>${point ? escapeHTML(point.label) : "按年级混合 / 自适应"}</strong>
+        <strong>${point ? escapeHTML(curriculumSelectLabel(point)) : "按年级混合 / 自适应"}</strong>
         <p>${escapeHTML(profile.rule)}</p>
         <div class="chip-row">${profile.subskills.map((item) => `<span class="mini-chip">${escapeHTML(item)}</span>`).join("")}</div>
         <div class="chip-row">${profile.pitfalls.slice(0, 3).map((item) => `<span class="mini-chip">易错：${escapeHTML(item)}</span>`).join("")}</div>
@@ -6130,11 +6193,25 @@ const STORE = {
         els.gradeGrid.appendChild(btn);
       });
     }
-    function pointOptionsHTML(grade, selected = "auto") {
-      const safeSelected = safePointId(selected, grade);
-      const opts = [`<option value="auto" ${safeSelected === "auto" ? "selected" : ""}>${allOption.label}</option>`];
+    function pointOptionsHTML(grade, selected = "auto", options = {}) {
+      const autoValue = options.autoValue || "auto";
+      const autoLabel = options.autoLabel || "按本年级教材混合 / 自适应";
+      let safeSelected = selected === autoValue ? autoValue : safePointId(selected, grade);
+      if (safeSelected === "auto" && autoValue !== "auto") safeSelected = autoValue;
+      const opts = [`<option value="${escapeAttr(autoValue)}" ${safeSelected === autoValue ? "selected" : ""}>${escapeHTML(autoLabel)}</option>`];
+      const groups = new Map();
       availablePoints(grade).forEach((point) => {
-        opts.push(`<option value="${point.id}" ${safeSelected === point.id ? "selected" : ""}>${point.label}</option>`);
+        const group = curriculumSelectGroup(point);
+        if (!groups.has(group)) groups.set(group, []);
+        groups.get(group).push(point);
+      });
+      groups.forEach((groupPoints, group) => {
+        opts.push(`<optgroup label="${escapeAttr(group)}">`);
+        groupPoints.forEach((point) => {
+          const label = curriculumSelectLabel(point);
+          opts.push(`<option value="${escapeAttr(point.id)}" data-group="${escapeAttr(group)}" title="${escapeAttr(curriculumHelperText(point))}" ${safeSelected === point.id ? "selected" : ""}>${escapeHTML(label)}</option>`);
+        });
+        opts.push("</optgroup>");
       });
       return opts.join("");
     }
@@ -6152,12 +6229,16 @@ const STORE = {
       els.causeSelect.value = "未标记";
       els.wrongCauseFilter.innerHTML = [`<option value="all">全部错因</option>`, ...causes.map((cause) => `<option value="${escapeAttr(cause)}">${escapeHTML(cause)}</option>`)].join("");
       const wrongGrade = activeProfile().grade || state.grade;
-      const wrongPoint = safePointId(els.wrongPointFilter.value || "all", wrongGrade);
-      els.wrongPointFilter.innerHTML = [`<option value="all">全部本年级知识点</option>`, ...availablePoints(wrongGrade).map((point) => `<option value="${point.id}">${point.label}</option>`)].join("");
-      els.wrongPointFilter.value = wrongPoint === "auto" ? "all" : wrongPoint;
+      const currentWrongPoint = els.wrongPointFilter.value || "all";
+      const wrongPoint = pointBelongsToGrade(currentWrongPoint, wrongGrade) ? currentWrongPoint : "all";
+      els.wrongPointFilter.innerHTML = pointOptionsHTML(wrongGrade, wrongPoint, {
+        autoValue: "all",
+        autoLabel: "全部本年级教材知识点"
+      });
+      els.wrongPointFilter.value = wrongPoint;
       els.adaptiveHint.textContent = state.pointId === "auto"
         ? "当前会按年级混合出题；开启自适应时，会优先安排薄弱知识点。"
-        : `${pointLabel(state.pointId)}：${curriculumHelperText(pointMap[state.pointId]) || "专项练习"}。`;
+        : `${curriculumPointLabel(state.pointId)}：${curriculumHelperText(pointMap[state.pointId]) || "专项练习"}。`;
       renderKnowledgeDetail();
       renderHomeSettingsCard();
       syncCustomSelects();
@@ -11129,6 +11210,10 @@ const STORE = {
         curriculumBandFor,
         curriculumBrief,
         curriculumHelperText,
+        curriculumSelectGroup,
+        curriculumSelectLabel,
+        curriculumPointRank,
+        pointOptionsHTML,
         knowledgeProfileFor,
         state,
         els
