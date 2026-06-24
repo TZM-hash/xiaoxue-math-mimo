@@ -21,6 +21,7 @@
       equation: ["不会做", "概念单位", "计算粗心"],
       word: ["读题理解", "不会做", "概念单位"],
       reading: ["读题理解", "不会做", "计算粗心"],
+      thinking: ["读题理解", "概念单位", "不会做"],
       appendix: ["读题理解", "不会做", "概念单位"]
     };
     const rawPoints = [
@@ -33,6 +34,7 @@
       { id: "g1-shape", grade: 1, topic: "geometry", label: "图形与位置入门", short: "图形位置", helper: "数图形、左右位置、简单排列" },
       { id: "g1-simple-word", grade: 1, topic: "word", label: "一年级简单应用题", short: "一上应用", helper: "一共、还剩、比多比少" },
       { id: "g1-reading", grade: 1, topic: "reading", label: "一年级思维阅读训练", short: "思维阅读", helper: "读懂问什么、找有用数字、排除背景信息" },
+      { id: "g1-thinking", grade: 1, topic: "thinking", label: "一年级思维精进题型", short: "精进", helper: "量感、规律、表达、简单开放题" },
       { id: "g1-appendix", grade: 1, topic: "appendix", label: "一年级附加题", short: "附加", helper: "找规律、数感、简单排队问题" },
       { id: "g2-100-add", grade: 2, topic: "addsub", label: "100 以内进退位", short: "100以内", helper: "两位数加减、进位退位" },
       { id: "g2-vertical", grade: 2, topic: "vertical", label: "100 以内竖式计算", short: "竖式", helper: "数位对齐、进位退位、写清过程" },
@@ -45,6 +47,7 @@
       { id: "g2-angle-view", grade: 2, topic: "geometry", label: "角与观察物体", short: "角观察", helper: "直角、锐角、钝角、线段读图" },
       { id: "g2-simple-word", grade: 2, topic: "word", label: "低年级应用题", short: "应用题", helper: "求一共、还剩、每份" },
       { id: "g2-reading", grade: 2, topic: "reading", label: "二年级思维阅读训练", short: "思维阅读", helper: "筛条件、看关键词、判断第一步" },
+      { id: "g2-thinking", grade: 2, topic: "thinking", label: "二年级思维精进题型", short: "精进", helper: "估算、策略、找错、生活阅读" },
       { id: "g2-appendix", grade: 2, topic: "appendix", label: "二年级附加题", short: "附加", helper: "周期规律、简单倍数、平均分思维" },
       { id: "g3-multi-add", grade: 3, topic: "addsub", label: "多位数加减", short: "多位加减", helper: "三四位数计算" },
       { id: "g3-vertical", grade: 3, topic: "vertical", label: "多位数竖式计算", short: "竖式", helper: "三位数加减、乘一位数、除一位数" },
@@ -57,6 +60,7 @@
       { id: "g3-statistics", grade: 3, topic: "statistics", label: "统计图表入门", short: "统计", helper: "读表格、求最多最少、简单合计" },
       { id: "g3-word-two-step", grade: 3, topic: "word", label: "两步应用题", short: "两步应用", helper: "先求中间量，再回答问题" },
       { id: "g3-reading", grade: 3, topic: "reading", label: "三年级思维阅读训练", short: "思维阅读", helper: "找关系、识别干扰、分清先后步骤" },
+      { id: "g3-thinking", grade: 3, topic: "thinking", label: "三年级思维精进题型", short: "精进", helper: "估算、改错、表格阅读、分类讨论" },
       { id: "g3-appendix", grade: 3, topic: "appendix", label: "三年级附加题", short: "附加", helper: "和差倍、植树雏形、有余数综合" },
       { id: "g4-mixed", grade: 4, topic: "mixed", label: "四则混合运算", short: "混合", helper: "先乘除后加减、括号" },
       { id: "g4-vertical", grade: 4, topic: "vertical", label: "多位乘除竖式", short: "乘除竖式", helper: "多位乘法、除法试商、数位对齐" },
@@ -67,6 +71,7 @@
       { id: "g4-statistics", grade: 4, topic: "statistics", label: "平均数与统计", short: "平均数", helper: "平均数、总量、数据比较" },
       { id: "g4-word", grade: 4, topic: "word", label: "四年级应用题", short: "四上应用", helper: "行程、购物、倍数关系" },
       { id: "g4-reading", grade: 4, topic: "reading", label: "四年级思维阅读训练", short: "思维阅读", helper: "条件推理、真假判断、表格阅读" },
+      { id: "g4-thinking", grade: 4, topic: "thinking", label: "四年级思维精进题型", short: "精进", helper: "策略选择、估算、量感、生活表格" },
       { id: "g4-appendix", grade: 4, topic: "appendix", label: "四年级附加题", short: "附加", helper: "植树、和差倍、年龄与盈亏入门" },
       { id: "g5-decimal-add", grade: 5, topic: "decimal", label: "小数加减", short: "小数加减", helper: "小数点对齐、位数补零" },
       { id: "g5-vertical", grade: 5, topic: "vertical", label: "小数竖式计算", short: "小数竖式", helper: "小数点对齐、补 0、按整数方法计算" },
@@ -80,6 +85,7 @@
       { id: "g5-volume", grade: 5, topic: "geometry", label: "长方体与正方体", short: "体积", helper: "体积、表面积、棱长和" },
       { id: "g5-word", grade: 5, topic: "word", label: "五年级综合应用题", short: "五上应用", helper: "小数、分数、百分数语境" },
       { id: "g5-reading", grade: 5, topic: "reading", label: "五年级思维阅读训练", short: "思维阅读", helper: "多条件推理、比例语境、结论判断" },
+      { id: "g5-thinking", grade: 5, topic: "thinking", label: "五年级思维精进题型", short: "精进", helper: "开放题、可能性、找错、策略表达" },
       { id: "g5-appendix", grade: 5, topic: "appendix", label: "五年级附加题", short: "附加", helper: "鸡兔同笼、行程、工程、平均数" },
       { id: "g6-ratio", grade: 6, topic: "ratio", label: "比和比例", short: "比例", helper: "按比例分配" },
       { id: "g6-vertical", grade: 6, topic: "vertical", label: "综合竖式计算", short: "综合竖式", helper: "小数、百分数和多位数竖式计算" },
@@ -91,6 +97,7 @@
       { id: "g6-equation", grade: 6, topic: "equation", label: "方程综合", short: "方程综合", helper: "含未知数的等量关系与两步方程" },
       { id: "g6-complex-word", grade: 6, topic: "word", label: "综合应用题", short: "综合应用", helper: "多步列式、单位与关系" },
       { id: "g6-reading", grade: 6, topic: "reading", label: "六年级思维阅读训练", short: "思维阅读", helper: "综合阅读、必要条件、逻辑结论" },
+      { id: "g6-thinking", grade: 6, topic: "thinking", label: "六年级思维精进题型", short: "精进", helper: "综合估算、分类讨论、生活阅读、数学表达" },
       { id: "g6-appendix", grade: 6, topic: "appendix", label: "六年级附加题", short: "附加", helper: "浓度、比例、复杂行程、分数百分数综合" }
     ];
     const curriculumProfile = {
@@ -142,6 +149,7 @@
       "g1-shape": { term: "一上/一下", unit: "位置、认识图形（一）（二）", stage: "当前基础", focus: "在数图形、左右位置和排队问题中建立空间表达。", questionTypes: ["数图形", "左右前后", "图形分类"] },
       "g1-simple-word": { term: "一上/一下", unit: "加减法解决问题", stage: "核心巩固", focus: "先读问题，再找一共、还剩、比多比少对应的数量关系。", questionTypes: ["一共", "还剩", "比多比少"] },
       "g1-reading": { term: "一上/一下", unit: "解决问题读题训练", stage: "专项能力", focus: "把题目问什么和哪些数字有用分开看。", questionTypes: ["找问题", "筛条件", "排除背景数"] },
+      "g1-thinking": { term: "一上/一下", unit: "分类与整理、找规律、认识图形", stage: "专项能力", focus: "用量感、规律和算式表达训练低年级数学语言。", questionTypes: ["量感判断", "规律数列", "开放多答案", "数学表达"] },
       "g1-appendix": { term: "一下", unit: "找规律、数学乐园", stage: "拓展思维", focus: "用数列、排队、图形规律做轻量思维训练。", questionTypes: ["找规律", "排队", "简单数感"] },
       "g2-100-add": { term: "二上", unit: "100 以内加法和减法（二）", stage: "当前核心", focus: "掌握两位数进位加、退位减和验算意识。", questionTypes: ["进位加", "退位减", "笔算验算"] },
       "g2-vertical": { term: "二上", unit: "100 以内加法和减法（二）", stage: "当前核心", focus: "相同数位对齐，从个位算起，写清进位和退位。", questionTypes: ["加法竖式", "减法竖式", "缺数竖式"] },
@@ -154,6 +162,7 @@
       "g2-angle-view": { term: "二上/二下", unit: "角的初步认识、观察物体（一）、图形的运动（一）", stage: "当前基础", focus: "先会数角、认直角，再用线段和简单观察图读出有用信息。", questionTypes: ["数直角", "线段合成", "观察物体"] },
       "g2-simple-word": { term: "二上/二下", unit: "乘加乘减、表内除法解决问题", stage: "核心巩固", focus: "从求一共、还剩扩展到每份、几份和两步应用。", questionTypes: ["每份几份", "乘加乘减", "干扰条件"] },
       "g2-reading": { term: "二下", unit: "数学广角-推理、解决问题", stage: "专项能力", focus: "先筛有用条件，再判断第一步该算什么。", questionTypes: ["条件筛选", "第一步判断", "简单推理"] },
+      "g2-thinking": { term: "二上/二下", unit: "长度单位、认识时间、数学广角-搭配（一）、推理", stage: "专项能力", focus: "把估算、策略选择、找错和生活阅读放在二年级可读情境中练。", questionTypes: ["估算合理性", "策略选择", "找错改错", "生活阅读"] },
       "g2-appendix": { term: "二上/二下", unit: "数学广角-搭配（一）、推理", stage: "拓展思维", focus: "用列表、画图和排除法做轻量拓展。", questionTypes: ["搭配", "推理", "周期规律"] },
       "g3-multi-add": { term: "三上", unit: "万以内的加法和减法（一）（二）", stage: "当前核心", focus: "把三四位数加减的估算、笔算和验算连起来。", questionTypes: ["多位加减", "估算", "验算"] },
       "g3-vertical": { term: "三上/三下", unit: "多位数乘一位数、除数是一位数的除法、两位数乘两位数", stage: "当前核心", focus: "竖式中重点看进位、退位、试商和数位位置。", questionTypes: ["乘法竖式", "除法竖式", "多位加减竖式"] },
@@ -166,6 +175,7 @@
       "g3-statistics": { term: "三下", unit: "复式统计表", stage: "当前基础", focus: "读表格先找行列，再求合计、最多最少和差。", questionTypes: ["读表", "合计", "最多最少"] },
       "g3-word-two-step": { term: "三上/三下", unit: "倍的认识、两步解决问题", stage: "核心巩固", focus: "读懂数量关系，明确先求哪个中间量。", questionTypes: ["倍数应用", "归一问题", "干扰条件"] },
       "g3-reading": { term: "三上/三下", unit: "数学广角-集合、搭配（二）", stage: "专项能力", focus: "通过表格、集合和条件句训练读题顺序。", questionTypes: ["表格阅读", "关系推理", "条件排除"] },
+      "g3-thinking": { term: "三上/三下", unit: "测量、复式统计表、长方形和正方形、数学广角", stage: "专项能力", focus: "估算、改错、表格阅读和分类讨论用于训练检查与建模。", questionTypes: ["估算合理性", "找错改错", "生活阅读", "分类讨论"] },
       "g3-appendix": { term: "三上/三下", unit: "数学广角-集合、搭配（二）", stage: "拓展思维", focus: "用画图、枚举、余数和倍的关系处理拓展题。", questionTypes: ["集合", "搭配", "和差倍雏形"] },
       "g4-mixed": { term: "四下", unit: "四则运算、运算定律", stage: "当前核心", focus: "先看括号，再看乘除优先，最后加减；能用运算定律简算。", questionTypes: ["四则混合", "括号", "简便计算"] },
       "g4-vertical": { term: "四上", unit: "三位数乘两位数、除数是两位数的除法", stage: "当前核心", focus: "多位乘除竖式要写清试商、进位和部分积。", questionTypes: ["三位乘两位", "除数两位", "试商"] },
@@ -176,6 +186,7 @@
       "g4-statistics": { term: "四下", unit: "平均数与条形统计图", stage: "当前基础", focus: "平均数先求总量，再平均分；统计图要读清单位。", questionTypes: ["平均数", "条形统计图", "反推数据"] },
       "g4-word": { term: "四上/四下", unit: "三位数乘两位数、四则运算、数学广角", stage: "核心巩固", focus: "购物、行程、倍数和优化题都要先找数量关系。", questionTypes: ["速度时间路程", "购物满减", "优化问题"] },
       "g4-reading": { term: "四上/四下", unit: "条形统计图、数学广角-优化", stage: "专项能力", focus: "在表格、统计图和真假条件中练读题判断。", questionTypes: ["统计阅读", "真假判断", "条件排序"] },
+      "g4-thinking": { term: "四上/四下", unit: "运算定律、角的度量、平均数与条形统计图、数学广角-优化", stage: "专项能力", focus: "重点训练选择策略、估算合理性、量感和生活表格阅读。", questionTypes: ["策略选择", "估算合理性", "量感判断", "生活阅读"] },
       "g4-appendix": { term: "四上/四下", unit: "数学广角-优化、鸡兔同笼", stage: "拓展思维", focus: "把复杂题先转成表格、假设或画图模型。", questionTypes: ["优化", "鸡兔同笼", "和差倍"] },
       "g5-decimal-add": { term: "四下复习/五上衔接", unit: "小数的加法和减法、小数乘除法前置", stage: "衔接巩固", focus: "小数加减先把小数点对齐，为五上小数乘除打基础。", questionTypes: ["小数加法", "小数减法", "补零对齐"] },
       "g5-vertical": { term: "五上", unit: "小数乘法、小数除法", stage: "当前核心", focus: "小数竖式先按整数算，再处理小数点位置。", questionTypes: ["小数乘法竖式", "小数除法竖式", "验算"] },
@@ -189,6 +200,7 @@
       "g5-volume": { term: "五下", unit: "长方体和正方体", stage: "当前核心", focus: "区分棱长和、表面积、体积，先写公式再代入。", questionTypes: ["体积", "表面积", "棱长和"] },
       "g5-word": { term: "五上/五下", unit: "小数乘除、简易方程、分数应用", stage: "核心巩固", focus: "把单价数量总价、方程等量关系和分数单位“1”读清楚。", questionTypes: ["小数应用", "方程应用", "分数应用"] },
       "g5-reading": { term: "五上/五下", unit: "简易方程、统计与分数应用", stage: "专项能力", focus: "多条件题先找单位“1”、未知数和必要条件。", questionTypes: ["多条件筛选", "方程阅读", "统计结论"] },
+      "g5-thinking": { term: "五上/五下", unit: "简易方程、多边形面积、可能性、折线统计图、数学广角", stage: "专项能力", focus: "开放题、可能性、找错和策略表达帮助孩子从会算走向会解释。", questionTypes: ["开放多答案", "可能性", "找错改错", "数学表达"] },
       "g5-appendix": { term: "五上/五下", unit: "数学广角-植树问题、找次品", stage: "拓展思维", focus: "用模型识别植树、找次品、行程和平均数拓展。", questionTypes: ["植树问题", "找次品", "平均数拓展"] },
       "g6-ratio": { term: "六上/六下", unit: "比、比例", stage: "当前核心", focus: "先求总份数或对应量，再做按比例分配和正反比例判断。", questionTypes: ["比的意义", "按比分配", "正比例"] },
       "g6-vertical": { term: "六下", unit: "整理和复习-数与代数", stage: "综合复习", focus: "综合竖式用于检查多位数、小数、百分数计算稳定性。", questionTypes: ["小数竖式", "多位乘除", "综合验算"] },
@@ -200,6 +212,7 @@
       "g6-equation": { term: "六下", unit: "整理和复习-式与方程", stage: "综合复习", focus: "用方程复盘等量关系，处理两步未知数问题。", questionTypes: ["等量关系", "两步方程", "方程应用"] },
       "g6-complex-word": { term: "六上/六下", unit: "分数、百分数、比和比例综合应用", stage: "综合复习", focus: "复杂应用题先画数量关系，再拆成两到三步。", questionTypes: ["分数应用", "百分数应用", "比例应用"] },
       "g6-reading": { term: "六上/六下", unit: "数与形、鸽巢问题、综合实践", stage: "专项能力", focus: "综合阅读题重点判断必要条件、隐藏关系和结论是否必然。", questionTypes: ["必要条件", "逻辑结论", "综合推理"] },
+      "g6-thinking": { term: "六上/六下", unit: "数与形、百分数、比和比例、整理和复习", stage: "专项能力", focus: "综合估算、分类讨论、生活阅读和数学表达用于小升初前的思维整合。", questionTypes: ["综合估算", "分类讨论", "生活阅读", "数学表达"] },
       "g6-appendix": { term: "六上/六下", unit: "数学广角-数与形、鸽巢问题", stage: "拓展思维", focus: "把浓度、行程、比例和抽屉原理转成模型。", questionTypes: ["数与形", "鸽巢问题", "比例拓展"] }
     };
     function fallbackCurriculum(point) {

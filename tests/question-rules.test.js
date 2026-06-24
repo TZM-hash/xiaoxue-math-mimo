@@ -943,6 +943,40 @@ function runLogicReadingQuestionTests() {
   });
 }
 
+function runThinkingSkillQuestionTests() {
+  const debug = context.mathCampDebug;
+  const thinkingPoints = Object.values(debug.pointMap).filter((point) => point.topic === "thinking");
+  const expectedTemplates = ["估算合理性", "策略选择", "量感判断", "找错改错", "开放多答案", "生活阅读", "规律数列", "分类讨论", "可能性", "数学表达"];
+  const globalTemplates = new Set();
+
+  assert.strictEqual(thinkingPoints.length, 6, "thinking skills should provide one point for each grade");
+  [1, 2, 3, 4, 5, 6].forEach((grade) => {
+    assert(debug.pointMap[`g${grade}-thinking`], `grade ${grade} should include a thinking skill point`);
+  });
+
+  thinkingPoints.forEach((point) => {
+    const localTemplates = new Set();
+    for (let index = 0; index < 220; index += 1) {
+      const question = debug.makeQuestion(point, { strict: true });
+      const display = [question.templateType, question.text, question.explanation, ...(question.steps || [])].join(" ");
+      assert.strictEqual(question.topic, "thinking", `${point.id} should keep thinking topic`);
+      assert.strictEqual(question.pointId, point.id, `${point.id} should keep selected point`);
+      assert.strictEqual(question.word, true, `${point.id} should keep word marker for thinking problems`);
+      assert(Number.isFinite(Number(question.answer)), `${point.id} should produce a numeric answer`);
+      assert(expectedTemplates.includes(question.templateType), `${point.id} should use a known thinking template: ${question.templateType}`);
+      assert(/估算|合理|策略|量感|改错|错误|开放|可能|表|票据|课程|规律|至少|分类|算式|表达|序号|选择|例如/.test(display), `${point.id} should include thinking category context: ${display}`);
+      assert.strictEqual(debug.questionRuleIssues(point, question, { strict: true }).length, 0, `${point.id} should pass strict question rules`);
+      localTemplates.add(question.templateType);
+      globalTemplates.add(question.templateType);
+    }
+    assert(localTemplates.size >= 3, `${point.id} should cover multiple thinking templates`);
+  });
+
+  expectedTemplates.forEach((template) => {
+    assert(globalTemplates.has(template), `thinking skill bank should include ${template}`);
+  });
+}
+
 function runGeometryDiagramQuestionTests() {
   const debug = context.mathCampDebug;
   const expectedTypes = new Set(["shape-count", "position-row", "angle-set", "segment-chain", "rectangle", "square", "composite-rect", "cuboid", "circle"]);
@@ -1152,6 +1186,7 @@ runDecimalFormatTests();
 runGradeAndDecimalDisplayTests();
 runMultiStepWordProblemTests();
 runLogicReadingQuestionTests();
+runThinkingSkillQuestionTests();
 runGeometryDiagramQuestionTests();
 runHangzhouCurriculumMetadataTests();
 
@@ -1170,5 +1205,6 @@ console.log("Decimal format tests passed.");
 console.log("Grade boundary and decimal display tests passed.");
 console.log("Multi-step word problem tests passed.");
 console.log("Logic reading question tests passed.");
+console.log("Thinking skill question tests passed.");
 console.log("Geometry diagram question tests passed.");
 console.log("Hangzhou curriculum metadata tests passed.");

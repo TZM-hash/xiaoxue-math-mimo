@@ -2183,6 +2183,7 @@ const STORE = {
       if (question.templateType) return question.templateType;
       if (question.word) return "情境应用";
       if (question.topic === "appendix") return "拓展思维";
+      if (question.topic === "thinking") return "思维精进";
       if (question.topic === "mixed") return "运算顺序";
       if (question.topic === "twostep") return "两步计算";
       if (question.topic === "vertical") return "竖式计算";
@@ -2210,6 +2211,7 @@ const STORE = {
         equation: "方程题先把未知数看成 x，等式两边做相同的运算。",
         word: '应用题先找"已知什么、要求什么"，再把数量关系翻译成算式。',
         reading: "思维阅读题先判断问题目标，再筛有用条件，最后看哪一步或哪条结论最合适。",
+        thinking: "精进题先判断分类：估算看范围，改错找错误，生活阅读先读表，开放题先找一个符合条件的例子。",
         appendix: "附加题不要急着算，先判断模型：规律、和差倍、植树、行程、比例或假设法。"
       };
       return hints[question.topic] || hints.word;
@@ -2443,6 +2445,12 @@ const STORE = {
           pitfalls: ["见数字就算", "把干扰条件也加进去", "没有分清先后顺序"],
           practice: "适合少量高质量练习：先说出理由，再输入选项序号或结果。"
         },
+        thinking: {
+          rule: "先判断题型分类：估算看大约范围，策略题选最省力方法，改错题先找错因，生活阅读先读表格或票据。",
+          subskills: ["估算合理", "找错改错", "生活阅读", "数学表达"],
+          pitfalls: ["不看题型直接计算", "单位量感不合理", "开放题只想到一个固定答案"],
+          practice: "建议用分步作答，先说这题属于哪一类，再计算或选择序号。"
+        },
         appendix: {
           rule: "先识别模型，再选择规律、和差倍、植树、行程、比例或假设法。",
           subskills: ["模型识别", "画图列表", "找规律", "逆向思考"],
@@ -2486,7 +2494,7 @@ const STORE = {
     function chooseInteractionMode(question, preferred = state.answerMode || "auto") {
       preferred = normalizeAnswerModeForViewport(preferred);
       if (preferred !== "auto") return preferred;
-      if (question.word || question.topic === "mixed" || question.topic === "twostep" || question.topic === "vertical" || question.topic === "geometry" || question.topic === "reading") return isMobilePracticeViewport() ? "input" : "step";
+      if (question.word || question.topic === "mixed" || question.topic === "twostep" || question.topic === "vertical" || question.topic === "geometry" || question.topic === "reading" || question.topic === "thinking") return isMobilePracticeViewport() ? "input" : "step";
       if (question.topic === "compare" || question.topic === "muldiv") return Math.random() > 0.5 ? "choice" : "input";
       if (question.topic === "addsub" && Math.random() > 0.7) return "judge";
       return "input";
@@ -2650,6 +2658,7 @@ const STORE = {
           equation: makeEquation,
           word: makeWord,
           reading: makeReading,
+          thinking: makeThinking,
           appendix: makeAppendix
         }
       }, point, options);
@@ -2664,7 +2673,7 @@ const STORE = {
         kind: point.label,
         subskills: kp.subskills.slice(0, 3),
         commonPitfalls: kp.pitfalls.slice(0, 3),
-        templateType: data?.templateType || (data?.word ? "情境应用" : point.topic === "appendix" ? "拓展思维" : point.topic === "reading" ? "思维阅读" : point.topic === "mixed" ? "运算顺序" : point.topic === "twostep" ? "两步计算" : point.topic === "vertical" ? "竖式计算" : "规则计算"),
+        templateType: data?.templateType || (data?.word ? "情境应用" : point.topic === "appendix" ? "拓展思维" : point.topic === "reading" ? "思维阅读" : point.topic === "thinking" ? "思维精进" : point.topic === "mixed" ? "运算顺序" : point.topic === "twostep" ? "两步计算" : point.topic === "vertical" ? "竖式计算" : "规则计算"),
         curriculumBand: curriculumBandFor(point),
         ...data
       });
@@ -2715,6 +2724,7 @@ const STORE = {
       if (point.id === "g6-circle" && !textHas(question, /圆|半径|直径|π|3\.14/)) issues.push("圆题缺少圆的公式语境");
       if (point.id === "g5-volume" && !textHas(question, /长方体|正方体|体积|表面积|立方/)) issues.push("体积题缺少立体图形语境");
       if (point.topic === "reading" && !textHas(question, /读题|有用|无关|干扰|先算|结论|判断|一定|条件|推理|序号/)) issues.push("思维阅读题缺少阅读推理语境");
+      if (point.topic === "thinking" && !textHas(question, /估算|合理|策略|量感|改错|错误|开放|可能|表|票据|课程|规律|至少|分类|算式|表达|序号|选择|例如/)) issues.push("思维精进题缺少分类训练语境");
       if (point.id === "g4-area" && !textHas(question, /面积|平方米|平方厘米/)) issues.push("面积专项混入非面积题");
       if (point.id === "g2-table-div" && !textHas(question, /÷|平均分|每人|分成|每 \d+ 个/)) issues.push("表内除法专项混入非除法题");
       if (point.id === "g5-decimal-add" && textHas(question, /[×÷]/)) issues.push("小数加减专项混入乘除题");
@@ -2800,6 +2810,7 @@ const STORE = {
           equation: makeEquation,
           word: makeWord,
           reading: makeReading,
+          thinking: makeThinking,
           appendix: makeAppendix
         })[point.topic](point, Math.max(1, masteryFor(activeProfile(), point.id).level || 1));
         const retryIssues = questionRuleIssues(point, retry, options);
@@ -4447,6 +4458,169 @@ const STORE = {
         explanation: `正方形面积 = 边长 × 边长。${side} × ${side} = ${side * side} 平方米。`,
         steps: [`写公式：正方形面积 = 边长 × 边长。`, `代入：${side} × ${side}。`, `结果是 ${side * side} 平方米。`]
       });
+    }
+    function makeThinking(point, level) {
+      const grade = clamp(Number(point.grade) || state.grade, 1, 6);
+      const categoryPools = {
+        1: ["quantity", "pattern", "open", "expression"],
+        2: ["estimation", "strategy", "correction", "life", "expression"],
+        3: ["estimation", "correction", "life", "pattern", "case", "quantity"],
+        4: ["estimation", "strategy", "quantity", "correction", "life", "expression"],
+        5: ["open", "probability", "correction", "strategy", "life", "expression"],
+        6: ["estimation", "case", "life", "expression", "open", "probability", "correction", "strategy"]
+      };
+      const makers = {
+        estimation: () => {
+          const place = grade <= 3 ? 10 : grade <= 5 ? 100 : 1000;
+          const a = rand(place * 2, place * (grade + 6));
+          const b = rand(place, place * (grade + 3));
+          const exact = a + b;
+          const estimate = Math.round(exact / place) * place;
+          return baseQuestion(point, {
+            text: `估算合理性：${a} + ${b} 的结果最接近哪个数？`,
+            answer: estimate,
+            word: true,
+            explanation: `估算时先看大约范围。${a} + ${b} = ${exact}，最接近的 ${place === 10 ? "整十" : place === 100 ? "整百" : "整千"}数是 ${estimate}。`,
+            steps: [`先粗看：${a} 接近 ${Math.round(a / place) * place}。`, `${b} 接近 ${Math.round(b / place) * place}。`, `精确和 ${exact} 最接近 ${estimate}。`],
+            templateType: "估算合理性"
+          });
+        },
+        strategy: () => {
+          const anchor = grade <= 2 ? 20 : grade <= 4 ? 100 : 1000;
+          const a = anchor - rand(2, 9);
+          const c = anchor - a;
+          const b = rand(12, 48 + level * 8);
+          return baseQuestion(point, {
+            text: `策略选择：计算 ${a} + ${b} + ${c}，最适合先算哪一步？1 表示先算 ${a}+${c}，2 表示先算 ${a}+${b}，3 表示从左到右硬算。请选择序号。`,
+            answer: 1,
+            word: true,
+            explanation: `${a} + ${c} 正好凑成 ${anchor}，先凑整更省力，所以选 1。`,
+            steps: [`观察 ${a} 和 ${c} 能凑成 ${anchor}。`, `先算 ${a} + ${c} = ${anchor}。`, `再加 ${b}，方法更简便。`],
+            templateType: "策略选择"
+          });
+        },
+        quantity: () => {
+          const items = grade <= 2
+            ? [{ text: "一支铅笔的长度", options: ["18 米", "18 厘米", "18 千米"], answer: 2 }, { text: "一间教室门的高度", options: ["2 米", "2 厘米", "20 米"], answer: 1 }]
+            : [{ text: "一间普通教室的面积", options: ["50 平方厘米", "50 平方米", "5000 平方米"], answer: 2 }, { text: "一瓶矿泉水大约重", options: ["500 克", "500 千克", "5 克"], answer: 1 }];
+          const item = pick(items);
+          return baseQuestion(point, {
+            text: `量感判断：${item.text}最合理的是哪一个？1=${item.options[0]}，2=${item.options[1]}，3=${item.options[2]}。请选择序号。`,
+            answer: item.answer,
+            word: true,
+            explanation: `量感题不急着算，先想真实生活大小。${item.options[item.answer - 1]}最合理。`,
+            steps: [`先排除明显太大或太小的选项。`, `再和生活经验比较。`, `选择 ${item.answer}。`],
+            templateType: "量感判断"
+          });
+        },
+        correction: () => {
+          const a = rand(24, 86 + grade * 10);
+          const b = rand(17, 68);
+          const correct = a + b;
+          const wrong = correct - 10;
+          return baseQuestion(point, {
+            text: `找错改错：小朋友算 ${a} + ${b} = ${wrong}，这是错误的。正确答案是多少？`,
+            answer: correct,
+            word: true,
+            explanation: `这类题先找错误，再改正。${a} + ${b} 的个位相加需要看清进位，正确结果是 ${correct}。`,
+            steps: [`重新计算 ${a} + ${b}。`, `检查个位和十位。`, `正确答案是 ${correct}。`],
+            templateType: "找错改错"
+          });
+        },
+        open: () => {
+          const target = grade <= 1 ? rand(8, 20) : grade <= 2 ? rand(12, 30) : rand(40, 160 + grade * 20);
+          const example = rand(Math.max(1, Math.floor(target / 4)), Math.floor(target / 2));
+          return baseQuestion(point, {
+            text: `开放多答案：写出一个数，使它和 ${target - example} 相加等于 ${target}。可以填一个符合条件的数，例如是多少？`,
+            answer: example,
+            answerLabel: `例如 ${example}`,
+            word: true,
+            explanation: `开放题可能有多种表达方式，这里只要给出一个符合条件的例子。${example} + ${target - example} = ${target}。`,
+            steps: [`先看目标和是 ${target}。`, `用 ${target} - ${target - example} 找到一个可行数。`, `例如可以填 ${example}。`],
+            templateType: "开放多答案"
+          });
+        },
+        life: () => {
+          const priceA = rand(4, 18 + grade * 2);
+          const priceB = rand(3, 16 + grade * 2);
+          const countA = rand(1, 4);
+          const countB = rand(1, 3);
+          const total = priceA * countA + priceB * countB;
+          return baseQuestion(point, {
+            text: `生活阅读：看票据表，面包 ${priceA} 元/个买 ${countA} 个，牛奶 ${priceB} 元/盒买 ${countB} 盒。合计多少元？`,
+            answer: total,
+            word: true,
+            explanation: `读票据表要先找单价和数量，再分别相乘后合计。`,
+            steps: [`面包：${priceA} × ${countA} = ${priceA * countA} 元。`, `牛奶：${priceB} × ${countB} = ${priceB * countB} 元。`, `合计 ${total} 元。`],
+            templateType: "生活阅读"
+          });
+        },
+        pattern: () => {
+          const start = rand(1, 12);
+          const step = rand(2, 8);
+          const sequence = [start, start + step, start + step * 2, start + step * 3];
+          return baseQuestion(point, {
+            text: `规律数列：${sequence.join("，")}，下一个数是多少？`,
+            answer: start + step * 4,
+            word: true,
+            explanation: `相邻两个数每次都增加 ${step}，所以下一个数是 ${sequence[3]} + ${step} = ${start + step * 4}。`,
+            steps: [`看相邻差：都是 ${step}。`, `继续加 ${step}。`, `下一个数是 ${start + step * 4}。`],
+            templateType: "规律数列"
+          });
+        },
+        case: () => {
+          const seats = rand(4, 8);
+          const people = seats * rand(3, 10) + rand(1, seats - 1);
+          const answer = Math.ceil(people / seats);
+          return baseQuestion(point, {
+            text: `分类讨论：${people} 人坐车，每辆车最多坐 ${seats} 人。至少需要几辆车？`,
+            answer,
+            word: true,
+            explanation: `有余数时要分类讨论：剩下的人也需要一辆车，所以要在商的基础上加 1。`,
+            steps: [`${people} ÷ ${seats} = ${Math.floor(people / seats)} 余 ${people % seats}。`, `余下 ${people % seats} 人也要坐车。`, `至少需要 ${answer} 辆。`],
+            templateType: "分类讨论"
+          });
+        },
+        probability: () => {
+          const red = rand(3, 8);
+          const blue = rand(1, red - 1);
+          return baseQuestion(point, {
+            text: `可能性：袋子里有 ${red} 个红球、${blue} 个蓝球，任意摸 1 个，哪种颜色更可能摸到？红球填 1，蓝球填 2。`,
+            answer: 1,
+            word: true,
+            explanation: `红球数量比蓝球多，所以摸到红球的可能性更大。`,
+            steps: [`比较数量：红球 ${red} 个，蓝球 ${blue} 个。`, `数量多的颜色更可能摸到。`, `选择 1。`],
+            templateType: "可能性"
+          });
+        },
+        expression: () => {
+          if (grade <= 1) {
+            const red = rand(2, 9);
+            const blue = rand(2, 9);
+            return baseQuestion(point, {
+              text: `数学表达：盒子里有 ${red} 颗红星和 ${blue} 颗蓝星，求一共有多少颗。正确算式是哪一个？1=${red}+${blue}，2=${red}-${blue}，3=${blue}-${red}。请选择序号。`,
+              answer: 1,
+              word: true,
+              explanation: `求一共有多少，要把两部分合起来，用加法，所以选 1。`,
+              steps: [`红星 ${red} 颗。`, `蓝星 ${blue} 颗。`, `合起来用 ${red}+${blue}。`],
+              templateType: "数学表达"
+            });
+          }
+          const count = rand(2, 6);
+          const price = rand(4, 18 + grade * 2);
+          const extra = rand(2, 12);
+          return baseQuestion(point, {
+            text: `数学表达：买 ${count} 本练习本，每本 ${price} 元，又买 1 支 ${extra} 元的笔。正确算式是哪一个？1=${count}×${price}+${extra}，2=${count}+${price}×${extra}，3=${count}×(${price}+${extra})。请选择序号。`,
+            answer: 1,
+            word: true,
+            explanation: `先用本数 × 单价算练习本的钱，再加笔的钱，正确算式是 ${count}×${price}+${extra}。`,
+            steps: [`练习本：${count} × ${price}。`, `再加笔的钱 ${extra}。`, `选择 1。`],
+            templateType: "数学表达"
+          });
+        }
+      };
+      const category = pick(categoryPools[grade] || categoryPools[6]);
+      return makers[category]();
     }
     function makeDecimal(point, level) {
       const a = round1(rand(12, 98 + level * 20) / 10);
@@ -10239,6 +10413,7 @@ const STORE = {
           muldiv: "乘除",
           word: "应用题",
           reading: "思维阅读",
+          thinking: "思维精进",
           geometry: "图形",
           mixed: "综合",
           appendix: "附加",

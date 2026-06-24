@@ -121,6 +121,12 @@ assertContains(app, "makeReading", "app should generate dedicated logic reading 
 assertContains(app, "function normalizeQuestionDiagram", "app should sanitize generated geometry diagrams");
 assertContains(app, "function renderQuestionDiagram", "app should render generated geometry diagrams");
 assertContains(app, "renderQuestionDiagram(current)", "practice rendering should update the geometry diagram per question");
+assertContains(app, "function makeThinking", "app should generate classified thinking-skill questions");
+assertContains(app, "thinking: makeThinking", "question generation should route thinking points to the thinking maker");
+assertContains(app, "templateType: \"估算合理性\"", "thinking maker should classify estimation questions");
+assertContains(app, "templateType: \"找错改错\"", "thinking maker should classify correction questions");
+assertContains(app, "templateType: \"生活阅读\"", "thinking maker should classify life-reading questions");
+assertContains(app, "templateType: \"可能性\"", "thinking maker should classify probability questions");
 assertContains(app, "function curriculumBrief", "app should render textbook unit metadata for knowledge points");
 assertContains(app, "function curriculumSelectLabel", "app should render textbook-aware knowledge labels");
 assertContains(app, "function curriculumSelectShortLabel", "knowledge selectors should use compact textbook labels");
@@ -133,6 +139,7 @@ assertContains(app, "withCurriculumProfile", "knowledge detail should include Ha
 assertContains(app, "curriculumHelperText(row.point)", "knowledge map should show textbook unit context");
 assertContains(app, 'state.mode === "logic-reading" ? "思维阅读训练"', "practice mode tag should label logic reading training");
 assertContains(app, 'topic === "reading" ? "思维阅读"', "report topic bars should localize logic reading");
+assertContains(app, 'thinking: "思维精进"', "report topic bars should localize thinking-skill practice");
 assertContains(app, "renderPetShopAdvisor", "app should render pet shop recommendations");
 assertContains(app, "renderPetDressupPreview", "app should render current dressup preview");
 assertContains(app, "renderPetThemeShop", "app should render the system theme shop");
@@ -195,8 +202,11 @@ assertContains(dressupMeta, "unlockProgressText", "装扮馆文案模块应导�
 assertContains(questionGenerator, "window.MathCampQuestionGenerator", "题目生成模块应暴露全局接口");
 assertContains(questionGenerator, "makeQuestion", "题目生成模块应导出 makeQuestion");
 assertContains(questionBank, 'reading: ["读题理解", "不会做", "计算粗心"]', "question bank should define reading cause tags");
+assertContains(questionBank, 'thinking: ["读题理解", "概念单位", "不会做"]', "question bank should define thinking cause tags");
 assertContains(questionBank, 'id: "g1-reading"', "question bank should include grade 1 logic reading");
 assertContains(questionBank, 'id: "g6-reading"', "question bank should include grade 6 logic reading");
+assertContains(questionBank, 'id: "g1-thinking"', "question bank should include grade 1 thinking skills");
+assertContains(questionBank, 'id: "g6-thinking"', "question bank should include grade 6 thinking skills");
 assertContains(questionBank, 'id: "g2-angle-view"', "question bank should include grade 2 geometry diagrams");
 assertContains(questionBank, "curriculumProfile", "question bank should expose textbook curriculum profile");
 assertContains(questionBank, 'region: "浙江省杭州市"', "question bank should align curriculum metadata to Hangzhou");
