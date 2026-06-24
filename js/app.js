@@ -284,6 +284,7 @@ const STORE = {
       pointTag: document.getElementById("pointTag"),
       modeTag: document.getElementById("modeTag"),
       questionText: document.getElementById("questionText"),
+      questionDiagram: document.getElementById("questionDiagram"),
       answerInput: document.getElementById("answerInput"),
       answerControlSlot: document.getElementById("answerControlSlot"),
       numberPad: document.getElementById("numberPad"),
@@ -564,6 +565,36 @@ const STORE = {
     }
     function isPlainObject(value) {
       return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+    }
+    function normalizeQuestionDiagram(diagram) {
+      if (!isPlainObject(diagram)) return null;
+      const type = String(diagram.type || "");
+      const allowedTypes = new Set(["shape-count", "position-row", "angle-set", "segment-chain", "rectangle", "square", "composite-rect", "cuboid", "circle"]);
+      if (!allowedTypes.has(type)) return null;
+      const clean = { type };
+      ["caption", "unit", "mode", "angleType"].forEach((key) => {
+        if (diagram[key] !== undefined) clean[key] = String(diagram[key] || "").slice(0, 24);
+      });
+      ["length", "width", "height", "side", "radius", "diameter", "left", "right", "a", "b", "c", "d"].forEach((key) => {
+        if (diagram[key] !== undefined) clean[key] = clamp(Number(diagram[key]) || 0, 0, 999);
+      });
+      if (Array.isArray(diagram.shapes)) {
+        clean.shapes = diagram.shapes.slice(0, 8).map((shape) => ({
+          kind: ["circle", "square", "triangle", "rectangle"].includes(String(shape?.kind || "")) ? String(shape.kind) : "square",
+          count: clamp(Number(shape?.count) || 0, 0, 12),
+          label: String(shape?.label || "").slice(0, 12)
+        })).filter((shape) => shape.count > 0);
+      }
+      if (Array.isArray(diagram.angles)) {
+        clean.angles = diagram.angles.slice(0, 8).map((angle) => ({
+          type: ["right", "acute", "obtuse"].includes(String(angle?.type || "")) ? String(angle.type) : "acute",
+          label: String(angle?.label || "").slice(0, 4)
+        }));
+      }
+      if (Array.isArray(diagram.columns)) {
+        clean.columns = diagram.columns.slice(0, 5).map((value) => clamp(Number(value) || 1, 1, 4));
+      }
+      return clean;
     }
     function safeRecordId(value, prefix = "id") {
       const text = String(value || "");
@@ -1246,6 +1277,7 @@ const STORE = {
         answer,
         answerLabel: String(question.answerLabel || ""),
         word: Boolean(question.word),
+        diagram: normalizeQuestionDiagram(question.diagram),
         explanation: String(question.explanation || point.helper || "先看清题意，再按步骤计算。"),
         steps: steps.length ? steps : [String(question.explanation || point.helper || "先看清题意，再按步骤计算。")],
         subskills: Array.isArray(question.subskills) && question.subskills.length ? question.subskills.slice(0, 4) : kp.subskills.slice(0, 3),
@@ -2213,6 +2245,110 @@ const STORE = {
           <span class="vertical-line" aria-hidden="true"></span>
           <span class="vertical-row result">${escapeHTML(spec.result || "?")}</span>
         </span>`;
+    }
+    function diagramSvg(content, caption = "", viewBox = "0 0 320 180") {
+      return `<svg viewBox="${escapeAttr(viewBox)}" role="img" aria-label="${escapeAttr(caption || "题目图形")}" xmlns="http://www.w3.org/2000/svg">${content}</svg>${caption ? `<span>${escapeHTML(caption)}</span>` : ""}`;
+    }
+    function diagramShape(kind, x, y, size, label = "") {
+      const fill = { circle: "#f9d56e", square: "#79c2ff", triangle: "#87d68d", rectangle: "#ffad8a" }[kind] || "#79c2ff";
+      const stroke = "#31424f";
+      const text = label ? `<text x="${x + size / 2}" y="${y + size + 14}" text-anchor="middle">${escapeHTML(label)}</text>` : "";
+      if (kind === "circle") return `<circle cx="${x + size / 2}" cy="${y + size / 2}" r="${size / 2}" fill="${fill}" stroke="${stroke}" stroke-width="2"/>${text}`;
+      if (kind === "triangle") return `<polygon points="${x + size / 2},${y} ${x + size},${y + size} ${x},${y + size}" fill="${fill}" stroke="${stroke}" stroke-width="2"/>${text}`;
+      if (kind === "rectangle") return `<rect x="${x}" y="${y + 5}" width="${size + 8}" height="${size - 10}" rx="5" fill="${fill}" stroke="${stroke}" stroke-width="2"/>${text}`;
+      return `<rect x="${x}" y="${y}" width="${size}" height="${size}" rx="5" fill="${fill}" stroke="${stroke}" stroke-width="2"/>${text}`;
+    }
+    function renderDiagramShapeCount(diagram) {
+      const pieces = [];
+      const shapes = diagram.shapes || [];
+      const sequence = shapes.flatMap((shape) => Array.from({ length: shape.count }, () => shape.kind));
+      sequence.slice(0, 18).forEach((kind, index) => {
+        const x = 30 + index % 6 * 43;
+        const y = 24 + Math.floor(index / 6) * 44;
+        pieces.push(diagramShape(kind, x, y, 28));
+      });
+      const legend = shapes.map((shape, index) => {
+        const x = 34 + index * 92;
+        return `${diagramShape(shape.kind, x, 146, 18)}<text x="${x + 28}" y="161">${escapeHTML(shape.label || shape.kind)} ${shape.count}</text>`;
+      }).join("");
+      return diagramSvg(`${pieces.join("")}${legend}`, diagram.caption || "按种类数图形");
+    }
+    function renderDiagramPositionRow(diagram) {
+      const left = clamp(Number(diagram.left) || 0, 0, 8);
+      const right = clamp(Number(diagram.right) || 0, 0, 8);
+      const total = left + right + 1;
+      const start = 160 - (total - 1) * 14;
+      const people = Array.from({ length: total }, (_, index) => {
+        const x = start + index * 28;
+        const isFocus = index === left;
+        return `<circle cx="${x}" cy="82" r="${isFocus ? 13 : 10}" fill="${isFocus ? "#f9d56e" : "#9fd6ff"}" stroke="#31424f" stroke-width="2"/><text x="${x}" y="118" text-anchor="middle">${isFocus ? "我" : index + 1}</text>`;
+      }).join("");
+      return diagramSvg(`${people}<path d="M46 82H274" stroke="#9aa7b2" stroke-width="2" stroke-dasharray="5 6"/><text x="62" y="45">左边 ${left} 人</text><text x="222" y="45">右边 ${right} 人</text>`, diagram.caption || "排队位置图");
+    }
+    function renderDiagramAngleSet(diagram) {
+      const angles = diagram.angles || [];
+      const angleSvg = (angle, index) => {
+        const x = 45 + index % 4 * 70;
+        const y = 58 + Math.floor(index / 4) * 68;
+        const ray = angle.type === "right" ? "M0 0H38 M0 0V-38" : angle.type === "obtuse" ? "M0 0H38 M0 0L-28 -28" : "M0 0H38 M0 0L28 -28";
+        const mark = angle.type === "right" ? `<path d="M13 0V-13H0" fill="none" stroke="#31424f" stroke-width="2"/>` : `<path d="M16 -2A18 18 0 0 ${angle.type === "obtuse" ? 0 : 1} ${angle.type === "obtuse" ? "-12 -12" : "12 -12"}" fill="none" stroke="#31424f" stroke-width="2"/>`;
+        return `<g transform="translate(${x} ${y})"><path d="${ray}" stroke="#31424f" stroke-width="4" stroke-linecap="round"/>${mark}<text x="4" y="25">${escapeHTML(angle.label || String(index + 1))}</text></g>`;
+      };
+      return diagramSvg(angles.map(angleSvg).join(""), diagram.caption || "数一数直角");
+    }
+    function renderDiagramSegmentChain(diagram) {
+      const a = Number(diagram.length) || 4;
+      const b = Number(diagram.width) || 3;
+      return diagramSvg(`<path d="M48 92H272" stroke="#31424f" stroke-width="5" stroke-linecap="round"/><circle cx="48" cy="92" r="5" fill="#31424f"/><circle cx="168" cy="92" r="5" fill="#31424f"/><circle cx="272" cy="92" r="5" fill="#31424f"/><text x="48" y="122" text-anchor="middle">A</text><text x="168" y="122" text-anchor="middle">B</text><text x="272" y="122" text-anchor="middle">C</text><text x="108" y="72" text-anchor="middle">${a} cm</text><text x="220" y="72" text-anchor="middle">${b} cm</text>`, diagram.caption || "线段长度图");
+    }
+    function renderDiagramRectangle(diagram) {
+      const l = Number(diagram.length) || 8;
+      const w = Number(diagram.width) || 4;
+      const unit = diagram.unit || "cm";
+      return diagramSvg(`<rect x="66" y="44" width="188" height="96" rx="6" fill="#dff2ff" stroke="#31424f" stroke-width="3"/><text x="160" y="34" text-anchor="middle">长 ${l} ${escapeHTML(unit)}</text><text x="270" y="96" text-anchor="middle" transform="rotate(90 270 96)">宽 ${w} ${escapeHTML(unit)}</text>`, diagram.caption || "长方形示意图");
+    }
+    function renderDiagramSquare(diagram) {
+      const side = Number(diagram.side) || 6;
+      const unit = diagram.unit || "cm";
+      return diagramSvg(`<rect x="96" y="34" width="128" height="128" rx="6" fill="#e7f8dc" stroke="#31424f" stroke-width="3"/><text x="160" y="24" text-anchor="middle">边长 ${side} ${escapeHTML(unit)}</text><text x="235" y="102" transform="rotate(90 235 102)" text-anchor="middle">边长 ${side} ${escapeHTML(unit)}</text>`, diagram.caption || "正方形示意图");
+    }
+    function renderDiagramCompositeRect(diagram) {
+      const a = Number(diagram.a) || 12;
+      const b = Number(diagram.b) || 8;
+      const c = Number(diagram.c) || 4;
+      const d = Number(diagram.d) || 3;
+      return diagramSvg(`<path d="M66 34H254V82H194V146H66Z" fill="#ffe5c7" stroke="#31424f" stroke-width="3" stroke-linejoin="round"/><path d="M194 82H254V146H194Z" fill="#fff" stroke="#9aa7b2" stroke-width="2" stroke-dasharray="6 5"/><text x="160" y="24" text-anchor="middle">总长 ${a} m</text><text x="47" y="92" text-anchor="middle" transform="rotate(-90 47 92)">总宽 ${b} m</text><text x="224" y="76" text-anchor="middle">挖去 ${c} m</text><text x="264" y="118" transform="rotate(90 264 118)" text-anchor="middle">${d} m</text>`, diagram.caption || "组合图形示意图");
+    }
+    function renderDiagramCuboid(diagram) {
+      const l = Number(diagram.length) || 8;
+      const w = Number(diagram.width) || 5;
+      const h = Number(diagram.height) || 4;
+      return diagramSvg(`<polygon points="78,68 202,68 246,38 122,38" fill="#e4f6ff" stroke="#31424f" stroke-width="3"/><polygon points="202,68 246,38 246,126 202,156" fill="#c9e9ff" stroke="#31424f" stroke-width="3"/><polygon points="78,68 202,68 202,156 78,156" fill="#f2fbff" stroke="#31424f" stroke-width="3"/><text x="140" y="176" text-anchor="middle">长 ${l} cm</text><text x="235" y="36" text-anchor="middle">宽 ${w} cm</text><text x="260" y="102" text-anchor="middle" transform="rotate(90 260 102)">高 ${h} cm</text>`, diagram.caption || "长方体示意图");
+    }
+    function renderDiagramCircle(diagram) {
+      const r = Number(diagram.radius) || Math.round((Number(diagram.diameter) || 8) / 2);
+      const diameter = Number(diagram.diameter) || r * 2;
+      const showDiameter = diagram.mode === "diameter";
+      const line = showDiameter ? `<path d="M82 92H238" stroke="#31424f" stroke-width="3"/><text x="160" y="80" text-anchor="middle">直径 ${diameter} cm</text>` : `<path d="M160 92H238" stroke="#31424f" stroke-width="3"/><text x="202" y="80" text-anchor="middle">半径 ${r} cm</text>`;
+      return diagramSvg(`<circle cx="160" cy="92" r="78" fill="#fff4d2" stroke="#31424f" stroke-width="3"/><circle cx="160" cy="92" r="4" fill="#31424f"/>${line}`, diagram.caption || "圆的示意图");
+    }
+    function renderQuestionDiagram(question) {
+      if (!els.questionDiagram) return;
+      const diagram = normalizeQuestionDiagram(question?.diagram);
+      const renderers = {
+        "shape-count": renderDiagramShapeCount,
+        "position-row": renderDiagramPositionRow,
+        "angle-set": renderDiagramAngleSet,
+        "segment-chain": renderDiagramSegmentChain,
+        rectangle: renderDiagramRectangle,
+        square: renderDiagramSquare,
+        "composite-rect": renderDiagramCompositeRect,
+        cuboid: renderDiagramCuboid,
+        circle: renderDiagramCircle
+      };
+      const html = diagram && renderers[diagram.type] ? renderers[diagram.type](diagram) : "";
+      els.questionDiagram.hidden = !html;
+      els.questionDiagram.innerHTML = html;
     }
     function stepHintContent(question) {
       const mode = question?.interaction?.mode || "input";
@@ -4116,6 +4252,7 @@ const STORE = {
             text: `图形卡片里有 ${circles} 个圆形和 ${squares} 个正方形，一共有多少个图形？`,
             answer: circles + squares,
             word: true,
+            diagram: { type: "shape-count", shapes: [{ kind: "circle", count: circles, label: "圆形" }, { kind: "square", count: squares, label: "正方形" }], caption: "数一数图形卡片" },
             explanation: `数图形时按种类分别数，再合起来。${circles} 个圆形加 ${squares} 个正方形，一共 ${circles + squares} 个。`,
             steps: [`圆形 ${circles} 个。`, `正方形 ${squares} 个。`, `${circles} + ${squares} = ${circles + squares} 个。`]
           });
@@ -4126,8 +4263,42 @@ const STORE = {
           text: `小猫排在队伍中，左边有 ${left} 人，右边有 ${right} 人。队伍一共有多少人？`,
           answer: left + right + 1,
           word: true,
+          diagram: { type: "position-row", left, right, caption: "排队时不要漏掉自己" },
           explanation: `位置题要把自己也算进去。左边 ${left} 人，右边 ${right} 人，再加小猫自己 1 人。`,
           steps: [`左边 ${left} 人。`, `右边 ${right} 人。`, `总人数：${left} + 1 + ${right} = ${left + right + 1}。`]
+        });
+      }
+      if (point.id === "g2-angle-view") {
+        const variant = rand(1, 3);
+        if (variant === 1) {
+          const right = rand(1, 3);
+          const acute = rand(1, 2);
+          const obtuse = rand(1, 2);
+          const angles = shuffle([
+            ...Array.from({ length: right }, () => ({ type: "right" })),
+            ...Array.from({ length: acute }, () => ({ type: "acute" })),
+            ...Array.from({ length: obtuse }, () => ({ type: "obtuse" }))
+          ]).map((angle, index) => ({ ...angle, label: String(index + 1) }));
+          return baseQuestion(point, {
+            text: `看图数一数，图中有几个直角？`,
+            answer: right,
+            word: true,
+            diagram: { type: "angle-set", angles, caption: "直角像方方正正的墙角" },
+            explanation: `直角的两条边像横线和竖线，角上能放进一个小正方形标记。图中这样的角有 ${right} 个。`,
+            steps: [`先找带小方角标记的角。`, `不要把锐角、钝角算进去。`, `直角一共有 ${right} 个。`],
+            templateType: "数直角"
+          });
+        }
+        const ab = rand(3, 8);
+        const bc = rand(2, 7);
+        return baseQuestion(point, {
+          text: `看线段图，AB 长 ${ab} cm，BC 长 ${bc} cm，AC 长多少厘米？`,
+          answer: ab + bc,
+          word: true,
+          diagram: { type: "segment-chain", length: ab, width: bc, caption: "AC 由 AB 和 BC 连起来" },
+          explanation: `线段 AC 被 B 点分成 AB 和 BC 两段，所以 AC = AB + BC。${ab} + ${bc} = ${ab + bc} cm。`,
+          steps: [`读图：AB 是 ${ab} cm，BC 是 ${bc} cm。`, `AC 是两段合起来。`, `${ab} + ${bc} = ${ab + bc} cm。`],
+          templateType: "线段合成"
         });
       }
       if (point.id === "g5-volume") {
@@ -4140,8 +4311,21 @@ const STORE = {
             text: `长方体长 ${length} cm，宽 ${width} cm，高 ${height} cm，体积是多少立方厘米？`,
             answer,
             word: true,
+            diagram: { type: "cuboid", length, width, height, caption: "长方体体积看三个方向" },
             explanation: `长方体体积 = 长 × 宽 × 高。把三个方向的长度相乘：${length} × ${width} × ${height} = ${answer}。`,
             steps: [`写公式：体积 = 长 × 宽 × 高。`, `代入：${length} × ${width} × ${height}。`, `结果是 ${answer} 立方厘米。`]
+          });
+        }
+        if (Math.random() > 0.55) {
+          const answer = 4 * (length + width + height);
+          return baseQuestion(point, {
+            text: `长方体长 ${length} cm，宽 ${width} cm，高 ${height} cm，棱长总和是多少厘米？`,
+            answer,
+            word: true,
+            diagram: { type: "cuboid", length, width, height, caption: "长方体有 4 组长、宽、高" },
+            explanation: `长方体有 4 条长、4 条宽、4 条高，棱长总和 =（长 + 宽 + 高）× 4。`,
+            steps: [`先算一组长宽高：${length} + ${width} + ${height} = ${length + width + height}。`, `共有 4 组。`, `${length + width + height} × 4 = ${answer} cm。`],
+            templateType: "棱长总和"
           });
         }
         const answer = 2 * (length * width + length * height + width * height);
@@ -4149,6 +4333,7 @@ const STORE = {
           text: `长方体长 ${length} cm，宽 ${width} cm，高 ${height} cm，表面积是多少平方厘米？`,
           answer,
           word: true,
+          diagram: { type: "cuboid", length, width, height, caption: "表面积要算 3 组相对的面" },
           explanation: `长方体表面积有 3 组相同的面。先算长×宽、长×高、宽×高，再把和乘 2。`,
           steps: [`三个不同面的面积：${length * width}、${length * height}、${width * height}。`, `和是 ${length * width + length * height + width * height}。`, `表面积：${length * width + length * height + width * height} × 2 = ${answer}。`]
         });
@@ -4161,8 +4346,22 @@ const STORE = {
             text: `圆的半径是 ${r} cm，周长约是多少 cm？（π取3.14）`,
             answer,
             word: true,
+            diagram: { type: "circle", radius: r, mode: "radius", caption: "半径是圆心到圆上一点" },
             explanation: `圆周长公式是 C = 2πr。代入半径 ${r}，2 × 3.14 × ${r} = ${formatAnswer(answer)}。`,
             steps: [`写公式：C = 2πr。`, `代入：2 × 3.14 × ${r}。`, `周长约 ${formatAnswer(answer)} cm。`]
+          });
+        }
+        if (Math.random() > 0.5) {
+          const diameter = r * 2;
+          const answer = round1(3.14 * diameter);
+          return baseQuestion(point, {
+            text: `圆的直径是 ${diameter} cm，周长约是多少 cm？（π取3.14）`,
+            answer,
+            word: true,
+            diagram: { type: "circle", diameter, mode: "diameter", caption: "直径穿过圆心" },
+            explanation: `已知直径时，圆周长 C = πd。3.14 × ${diameter} = ${formatAnswer(answer)} cm。`,
+            steps: [`找到直径 ${diameter} cm。`, `用公式 C = πd。`, `3.14 × ${diameter} = ${formatAnswer(answer)} cm。`],
+            templateType: "直径求周长"
           });
         }
         const answer = round1(3.14 * r * r);
@@ -4170,6 +4369,7 @@ const STORE = {
           text: `圆的半径是 ${r} cm，面积约是多少平方厘米？（π取3.14）`,
           answer,
           word: true,
+          diagram: { type: "circle", radius: r, mode: "radius", caption: "面积要用半径乘半径" },
           explanation: `圆面积公式是 S = πr²。半径 ${r}，所以面积是 3.14 × ${r} × ${r}。`,
           steps: [`写公式：S = πr²。`, `代入：3.14 × ${r} × ${r}。`, `面积约 ${formatAnswer(answer)} 平方厘米。`]
         });
@@ -4184,6 +4384,7 @@ const STORE = {
             text: `长方形长 ${length} cm，宽 ${width} cm，周长是多少 cm？`,
             answer,
             word: true,
+            diagram: { type: "rectangle", length, width, unit: "cm", caption: "周长是围图形一圈" },
             explanation: `周长是绕图形一圈的长度。长方形周长 =（长 + 宽）× 2，所以是（${length} + ${width}）× 2 = ${answer} cm。`,
             steps: [`先把长和宽加起来：${length} + ${width} = ${length + width}。`, `长方形有两组长和宽，所以乘 2。`, `${length + width} × 2 = ${answer} cm。`]
           });
@@ -4194,6 +4395,7 @@ const STORE = {
             text: `长方形的一组长和宽合起来是 ${half} cm，周长是多少 cm？`,
             answer: half * 2,
             word: true,
+            diagram: { type: "rectangle", length, width, unit: "cm", caption: "一组长宽和是周长的一半" },
             explanation: `长方形周长由两组"长 + 宽"组成。一组长宽和是 ${half} cm，所以周长是 ${half} × 2 = ${half * 2} cm。`,
             steps: [`一组长宽和是 ${half} cm。`, `长方形有两组长宽和。`, `${half} × 2 = ${half * 2} cm。`],
             templateType: "周长关系"
@@ -4204,8 +4406,25 @@ const STORE = {
           text: `正方形边长 ${side} cm，周长是多少 cm？`,
           answer: side * 4,
           word: true,
+          diagram: { type: "square", side, unit: "cm", caption: "正方形四条边相等" },
           explanation: `正方形四条边一样长，周长 = 边长 × 4。${side} × 4 = ${side * 4} cm。`,
           steps: [`正方形有 4 条相同的边。`, `每条边 ${side} cm。`, `${side} × 4 = ${side * 4} cm。`]
+        });
+      }
+      if (point.id === "g4-area" && Math.random() > 0.62) {
+        const outerLength = rand(10, 18);
+        const outerWidth = rand(6, 12);
+        const cutLength = rand(2, Math.min(6, outerLength - 5));
+        const cutWidth = rand(2, Math.min(5, outerWidth - 3));
+        const answer = outerLength * outerWidth - cutLength * cutWidth;
+        return baseQuestion(point, {
+          text: `看组合图形：外面长方形长 ${outerLength} m、宽 ${outerWidth} m，右下角挖去 ${cutLength} m × ${cutWidth} m 的小长方形，剩下面积是多少平方米？`,
+          answer,
+          word: true,
+          diagram: { type: "composite-rect", a: outerLength, b: outerWidth, c: cutLength, d: cutWidth, caption: "组合图形可以先补成长方形" },
+          explanation: `先算外面大长方形面积，再减去挖掉的小长方形面积。${outerLength} × ${outerWidth} - ${cutLength} × ${cutWidth} = ${answer}。`,
+          steps: [`大长方形面积：${outerLength} × ${outerWidth} = ${outerLength * outerWidth}。`, `挖去面积：${cutLength} × ${cutWidth} = ${cutLength * cutWidth}。`, `剩下面积：${outerLength * outerWidth} - ${cutLength * cutWidth} = ${answer} 平方米。`],
+          templateType: "组合图形面积"
         });
       }
       if (Math.random() > 0.45) {
@@ -4214,6 +4433,7 @@ const STORE = {
           text: `长方形长 ${length} m，宽 ${width} m，面积是多少平方米？`,
           answer,
           word: true,
+          diagram: { type: "rectangle", length, width, unit: "m", caption: "面积是铺满里面的大小" },
           explanation: `面积表示铺满里面有多大。长方形面积 = 长 × 宽，所以 ${length} × ${width} = ${answer} 平方米。`,
           steps: [`找到长 ${length} m、宽 ${width} m。`, `面积用长乘宽。`, `${length} × ${width} = ${answer} 平方米。`]
         });
@@ -4223,6 +4443,7 @@ const STORE = {
         text: `正方形边长 ${side} m，面积是多少平方米？`,
         answer: side * side,
         word: true,
+        diagram: { type: "square", side, unit: "m", caption: "正方形面积是边长乘边长" },
         explanation: `正方形面积 = 边长 × 边长。${side} × ${side} = ${side * side} 平方米。`,
         steps: [`写公式：正方形面积 = 边长 × 边长。`, `代入：${side} × ${side}。`, `结果是 ${side * side} 平方米。`]
       });
@@ -8933,6 +9154,7 @@ const STORE = {
       els.practiceCard.classList.add("question-enter");
       window.setTimeout(() => els.practiceCard.classList.remove("question-enter"), 360);
       renderQuestionTitle(current);
+      renderQuestionDiagram(current);
       els.answerInput.value = "";
       els.answerInput.disabled = false;
       els.answerInput.readOnly = false;

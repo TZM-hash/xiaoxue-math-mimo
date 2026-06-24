@@ -46,6 +46,7 @@ assertContains(html, 'id="desktopOverviewWeakList"', "desktop overview should in
 assertContains(html, 'id="desktopOverviewStartBtn"', "desktop overview should include a direct start-practice action");
 assertContains(html, 'data-jump="report"', "desktop overview should link to the learning report");
 assertContains(html, 'data-open-learning-map', "desktop overview should link to the knowledge map");
+assertContains(html, 'id="questionDiagram"', "practice card should include a mount for generated geometry diagrams");
 assertContains(html, 'id="knowledgeMapView"', "knowledge map should use a standalone report-style view");
 assertContains(html, 'id="learningKnowledgeMap"', "knowledge map view should include the knowledge map mount");
 assertContains(html, 'id="petStagePanelSlot"', "mobile pet growth modal should include a stage/quality slot");
@@ -117,6 +118,9 @@ assertContains(app, "function readingPointForGrade", "app should resolve grade-s
 assertContains(app, "function startLogicReadingTraining", "app should start logic reading training from the learning modal");
 assertContains(app, "data-start-logic-reading", "app should wire the logic reading training entry");
 assertContains(app, "makeReading", "app should generate dedicated logic reading questions");
+assertContains(app, "function normalizeQuestionDiagram", "app should sanitize generated geometry diagrams");
+assertContains(app, "function renderQuestionDiagram", "app should render generated geometry diagrams");
+assertContains(app, "renderQuestionDiagram(current)", "practice rendering should update the geometry diagram per question");
 assertContains(app, "function curriculumBrief", "app should render textbook unit metadata for knowledge points");
 assertContains(app, "function curriculumSelectLabel", "app should render textbook-aware knowledge labels");
 assertContains(app, "function curriculumSelectShortLabel", "knowledge selectors should use compact textbook labels");
@@ -193,6 +197,7 @@ assertContains(questionGenerator, "makeQuestion", "题目生成模块应导出 m
 assertContains(questionBank, 'reading: ["读题理解", "不会做", "计算粗心"]', "question bank should define reading cause tags");
 assertContains(questionBank, 'id: "g1-reading"', "question bank should include grade 1 logic reading");
 assertContains(questionBank, 'id: "g6-reading"', "question bank should include grade 6 logic reading");
+assertContains(questionBank, 'id: "g2-angle-view"', "question bank should include grade 2 geometry diagrams");
 assertContains(questionBank, "curriculumProfile", "question bank should expose textbook curriculum profile");
 assertContains(questionBank, 'region: "浙江省杭州市"', "question bank should align curriculum metadata to Hangzhou");
 assertContains(questionBank, 'textbook: "小学数学（按人教版单元线）"', "question bank should record the textbook line");
@@ -218,6 +223,7 @@ assertContains(css, ".home-route-list", "CSS 应包含首页路线网格");
 assertContains(css, ".home-cockpit-meter", "CSS should style the home task cockpit");
 assertContains(css, ".timer-progress-ring", "CSS should explicitly suppress the old timer ring overlay");
 assertContains(css, ".home-settings-card", "CSS should style the mobile home summary card");
+assertContains(css, ".question-diagram", "CSS should style generated geometry diagrams");
 assertContains(css, ".custom-select--wrongPointFilter .custom-select-option", "wrongbook knowledge filter should use compact option typography");
 assertContains(css, ".custom-select--printPoint .custom-select-option", "print knowledge selector should use compact option typography");
 assertContains(css, ".learning-map-panel", "CSS should style the learning knowledge map");

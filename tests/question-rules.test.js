@@ -943,6 +943,33 @@ function runLogicReadingQuestionTests() {
   });
 }
 
+function runGeometryDiagramQuestionTests() {
+  const debug = context.mathCampDebug;
+  const expectedTypes = new Set(["shape-count", "position-row", "angle-set", "segment-chain", "rectangle", "square", "composite-rect", "cuboid", "circle"]);
+  [1, 2, 3, 4, 5, 6].forEach((grade) => {
+    const geometryPoints = debug.availablePoints(grade).filter((point) => point.topic === "geometry");
+    assert(geometryPoints.length >= 1, `grade ${grade} should include a geometry point`);
+    const seenTypes = new Set();
+    geometryPoints.forEach((point) => {
+      for (let i = 0; i < 12; i += 1) {
+        const question = debug.makeQuestion(point, { strict: true });
+        assert(question.diagram, `${point.id} should generate a visible geometry diagram`);
+        assert(expectedTypes.has(question.diagram.type), `${point.id} should use a known diagram type: ${question.diagram.type}`);
+        assert.strictEqual(question.topic, "geometry", `${point.id} should stay in geometry topic`);
+        assert.strictEqual(question.pointId, point.id, `${point.id} should keep point id`);
+        assert.strictEqual(debug.questionRuleIssues(point, question, { strict: true }).length, 0, `${point.id} geometry diagram question should pass rule checks`);
+        seenTypes.add(question.diagram.type);
+      }
+    });
+    assert(seenTypes.size >= 1, `grade ${grade} should generate diagram types`);
+  });
+
+  assert(debug.pointMap["g2-angle-view"], "grade 2 should include an explicit angle and observation geometry point");
+  const grade2Samples = Array.from({ length: 20 }, () => debug.makeQuestion(debug.pointMap["g2-angle-view"], { strict: true }));
+  assert(grade2Samples.some((question) => question.diagram.type === "angle-set"), "grade 2 geometry should include angle counting diagrams");
+  assert(grade2Samples.some((question) => question.diagram.type === "segment-chain"), "grade 2 geometry should include line-segment diagrams");
+}
+
 function runHangzhouCurriculumMetadataTests() {
   const debug = context.mathCampDebug;
   const bank = context.MathCampQuestionBank;
@@ -1125,6 +1152,7 @@ runDecimalFormatTests();
 runGradeAndDecimalDisplayTests();
 runMultiStepWordProblemTests();
 runLogicReadingQuestionTests();
+runGeometryDiagramQuestionTests();
 runHangzhouCurriculumMetadataTests();
 
 console.log(`Question rule self-test passed: ${result.total} samples, 0 failures.`);
@@ -1142,4 +1170,5 @@ console.log("Decimal format tests passed.");
 console.log("Grade boundary and decimal display tests passed.");
 console.log("Multi-step word problem tests passed.");
 console.log("Logic reading question tests passed.");
+console.log("Geometry diagram question tests passed.");
 console.log("Hangzhou curriculum metadata tests passed.");
