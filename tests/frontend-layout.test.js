@@ -120,9 +120,10 @@ assertContains(app, "makeReading", "app should generate dedicated logic reading 
 assertContains(app, "function curriculumBrief", "app should render textbook unit metadata for knowledge points");
 assertContains(app, "function curriculumSelectGroup", "app should group knowledge selectors by textbook term");
 assertContains(app, "function curriculumSelectLabel", "app should render textbook-aware knowledge labels");
+assertContains(app, "function curriculumSelectShortLabel", "knowledge selectors should use compact textbook labels");
 assertContains(app, "function curriculumPointLabel", "selected knowledge summaries should use textbook-aware labels");
 assertContains(app, "pointOptionsHTML(wrongGrade, wrongPoint", "wrongbook knowledge filter should reuse textbook-aware point options");
-assertContains(app, "全部本年级教材知识点", "wrongbook knowledge filter should describe textbook-aligned all option");
+assertContains(app, "全部知识点", "wrongbook knowledge filter should keep the all option concise");
 assertContains(app, "custom-select-group", "custom select menus should render optgroup headings");
 assertContains(app, "withCurriculumProfile", "knowledge detail should include Hangzhou textbook alignment");
 assertContains(app, "curriculumHelperText(row.point)", "knowledge map should show textbook unit context");
@@ -218,6 +219,8 @@ assertContains(css, ".home-cockpit-meter", "CSS should style the home task cockp
 assertContains(css, ".timer-progress-ring", "CSS should explicitly suppress the old timer ring overlay");
 assertContains(css, ".home-settings-card", "CSS should style the mobile home summary card");
 assertContains(css, ".custom-select-group", "CSS should style textbook group headings in custom selects");
+assertContains(css, ".custom-select--wrongPointFilter .custom-select-option", "wrongbook knowledge filter should use compact option typography");
+assertContains(css, ".custom-select--printPoint .custom-select-option", "print knowledge selector should use compact option typography");
 assertContains(css, ".learning-map-panel", "CSS should style the learning knowledge map");
 assertContains(css, "#knowledgeMapView .learning-map-grid", "knowledge map page should have report-style page layout CSS");
 assertContains(css, ".pet-quality-panel", "CSS should style the pet learning quality panel");

@@ -2120,9 +2120,38 @@ const STORE = {
       const prefix = [curriculum.term, curriculum.unit].filter(Boolean).join(" · ");
       return prefix ? `${prefix} · ${point.label}` : point.label;
     }
+    function compactText(text, limit = 9) {
+      const chars = Array.from(String(text || "").trim());
+      return chars.length > limit ? `${chars.slice(0, limit).join("")}...` : chars.join("");
+    }
+    function compactCurriculumUnit(unit) {
+      const text = String(unit || "")
+        .replace(/[（(][^）)]{1,6}[）)]/g, "")
+        .replace(/100 以内/g, "100以内")
+        .replace(/20 以内/g, "20以内")
+        .replace(/10 以内/g, "10以内")
+        .replace(/加法和减法/g, "加减")
+        .replace(/乘法和除法/g, "乘除")
+        .replace(/认识时间/g, "时间")
+        .replace(/认识人民币/g, "人民币")
+        .replace(/数学广角[-－]/g, "")
+        .replace(/解决问题/g, "应用")
+        .replace(/小数的/g, "小数")
+        .replace(/分数的/g, "分数")
+        .replace(/、/g, "/")
+        .trim();
+      return compactText(text, 9);
+    }
+    function curriculumSelectShortLabel(point) {
+      const curriculum = point?.curriculum || {};
+      const term = compactText(String(curriculum.term || "").replace(/复习/g, "复"), 5);
+      const unit = compactCurriculumUnit(curriculum.unit);
+      const name = compactText(point?.short || point?.label || "", 7);
+      return [term, unit, name].filter(Boolean).join(" · ") || point?.label || "";
+    }
     function curriculumPointLabel(pointId) {
       const point = pointMap[pointId];
-      return point ? curriculumSelectLabel(point) : "按本年级教材混合 / 自适应";
+      return point ? curriculumSelectLabel(point) : "按教材混合";
     }
     function uniqueList(items, limit = 4) {
       const seen = new Set();
@@ -6195,7 +6224,7 @@ const STORE = {
     }
     function pointOptionsHTML(grade, selected = "auto", options = {}) {
       const autoValue = options.autoValue || "auto";
-      const autoLabel = options.autoLabel || "按本年级教材混合 / 自适应";
+      const autoLabel = options.autoLabel || "按教材混合";
       let safeSelected = selected === autoValue ? autoValue : safePointId(selected, grade);
       if (safeSelected === "auto" && autoValue !== "auto") safeSelected = autoValue;
       const opts = [`<option value="${escapeAttr(autoValue)}" ${safeSelected === autoValue ? "selected" : ""}>${escapeHTML(autoLabel)}</option>`];
@@ -6208,7 +6237,7 @@ const STORE = {
       groups.forEach((groupPoints, group) => {
         opts.push(`<optgroup label="${escapeAttr(group)}">`);
         groupPoints.forEach((point) => {
-          const label = curriculumSelectLabel(point);
+          const label = curriculumSelectShortLabel(point);
           opts.push(`<option value="${escapeAttr(point.id)}" data-group="${escapeAttr(group)}" title="${escapeAttr(curriculumHelperText(point))}" ${safeSelected === point.id ? "selected" : ""}>${escapeHTML(label)}</option>`);
         });
         opts.push("</optgroup>");
@@ -6233,7 +6262,7 @@ const STORE = {
       const wrongPoint = pointBelongsToGrade(currentWrongPoint, wrongGrade) ? currentWrongPoint : "all";
       els.wrongPointFilter.innerHTML = pointOptionsHTML(wrongGrade, wrongPoint, {
         autoValue: "all",
-        autoLabel: "全部本年级教材知识点"
+        autoLabel: "全部知识点"
       });
       els.wrongPointFilter.value = wrongPoint;
       els.adaptiveHint.textContent = state.pointId === "auto"
@@ -11212,6 +11241,7 @@ const STORE = {
         curriculumHelperText,
         curriculumSelectGroup,
         curriculumSelectLabel,
+        curriculumSelectShortLabel,
         curriculumPointRank,
         pointOptionsHTML,
         knowledgeProfileFor,

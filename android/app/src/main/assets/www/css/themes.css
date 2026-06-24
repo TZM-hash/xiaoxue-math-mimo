@@ -11132,6 +11132,27 @@
       opacity: .45;
       cursor: not-allowed;
     }
+    .custom-select--pointSelect .custom-select-button,
+    .custom-select--printPoint .custom-select-button,
+    .custom-select--wrongPointFilter .custom-select-button {
+      font-size: 12px;
+      line-height: 1.25;
+    }
+    .custom-select--pointSelect .custom-select-group,
+    .custom-select--printPoint .custom-select-group,
+    .custom-select--wrongPointFilter .custom-select-group {
+      padding: 6px 9px 2px;
+      font-size: 10px;
+    }
+    .custom-select--pointSelect .custom-select-option,
+    .custom-select--printPoint .custom-select-option,
+    .custom-select--wrongPointFilter .custom-select-option {
+      min-height: 34px;
+      padding: 7px 9px;
+      font-size: 12px;
+      font-weight: 750;
+      line-height: 1.25;
+    }
     .setup-step {
       display: contents;
     }
@@ -11779,6 +11800,11 @@
       .practice-workspace:not(.focus-mode) > .panel .custom-select--answerModeSelect .custom-select-option {
         min-height: 38px;
         font-size: 13px;
+      }
+      .practice-workspace:not(.focus-mode) > .panel .custom-select--pointSelect .custom-select-option {
+        min-height: 34px;
+        padding: 7px 9px;
+        font-size: 12px;
       }
       .practice-workspace:not(.focus-mode) > .panel .challenge-actions {
         gap: 7px;
