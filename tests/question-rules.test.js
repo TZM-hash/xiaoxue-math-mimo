@@ -849,6 +849,146 @@ function runGradeAndDecimalDisplayTests() {
   });
 }
 
+function runMultiStepWordProblemTests() {
+  const debug = context.mathCampDebug;
+  const targetPointIds = ["g2-simple-word", "g3-word-two-step", "g4-word", "g5-word", "g6-complex-word"];
+  let sawFishDistractor = false;
+  let sawShoppingDiscount = false;
+
+  targetPointIds.forEach((pointId) => {
+    const point = debug.pointMap[pointId];
+    assert(point, `${pointId} should exist for multi-step word problem checks`);
+    let sawDistractor = false;
+    let sawMultiStep = false;
+
+    for (let index = 0; index < 480 && (!sawDistractor || !sawMultiStep || !sawFishDistractor || !sawShoppingDiscount); index += 1) {
+      const question = debug.makeQuestion(point, { strict: true });
+      const steps = Array.isArray(question.steps) ? question.steps.filter(Boolean) : [];
+      const display = [
+        question.templateType,
+        question.text,
+        question.explanation,
+        ...steps
+      ].filter(Boolean).join(" ");
+
+      assert.strictEqual(question.word, true, `${pointId} should keep word problem marker`);
+      assert.strictEqual(debug.questionRuleIssues(point, question, { strict: true }).length, 0, `${pointId} should keep strict question rules`);
+
+      if (/干扰|其中|不用再|本次不能用|赠品|样品|书签|已经包含/.test(display)) sawDistractor = true;
+      if (steps.length >= 3 && /先|再|最后|还要|原来|优惠后|总数/.test(display)) sawMultiStep = true;
+
+      const fishMatch = question.text.match(/吃了 (\d+) 条小鱼，还剩 (\d+) 条鱼，其中有 (\d+) 条是鲤鱼。原来有多少条鱼/);
+      if (fishMatch) {
+        const [, eaten, left, carp] = fishMatch.map(Number);
+        assert(carp <= left, "fish distractor count should be part of the remaining fish");
+        assert.strictEqual(question.answer, eaten + left, "fish distractor problem should add eaten and remaining fish only");
+        sawFishDistractor = true;
+      }
+
+      const shoppingMatch = question.text.match(/原价 (\d+) 元的书包，店铺活动满 (\d+) 减 (\d+) 元，另需配送费 (\d+) 元/);
+      if (shoppingMatch) {
+        const [, price, threshold, discount, fee] = shoppingMatch.map(Number);
+        assert(price >= threshold, "shopping discount should meet the threshold");
+        assert.strictEqual(question.answer, price - discount + fee, "shopping problem should subtract discount and add delivery fee");
+        sawShoppingDiscount = true;
+      }
+    }
+
+    assert(sawDistractor, `${pointId} should generate word problems with distractor conditions`);
+    assert(sawMultiStep, `${pointId} should generate word problems requiring multiple reasoning steps`);
+  });
+
+  assert(sawFishDistractor, "word problem set should include the fish-count distractor style");
+  assert(sawShoppingDiscount, "word problem set should include the full-reduction plus delivery-fee style");
+}
+
+function runLogicReadingQuestionTests() {
+  const debug = context.mathCampDebug;
+  const readingPoints = Object.values(debug.pointMap).filter((point) => point.topic === "reading");
+  const globalTemplates = new Set();
+
+  assert.strictEqual(readingPoints.length, 6, "logic reading should provide one point for each grade");
+  [1, 2, 3, 4, 5, 6].forEach((grade) => {
+    assert(debug.pointMap[`g${grade}-reading`], `grade ${grade} should include a logic reading point`);
+  });
+
+  readingPoints.forEach((point) => {
+    const localTemplates = new Set();
+    for (let index = 0; index < 320; index += 1) {
+      const question = debug.makeQuestion(point, { strict: true });
+      const steps = Array.isArray(question.steps) ? question.steps.filter(Boolean) : [];
+      const display = [
+        question.templateType,
+        question.text,
+        question.explanation,
+        ...steps
+      ].filter(Boolean).join(" ");
+
+      assert.strictEqual(question.topic, "reading", `${point.id} should keep reading topic`);
+      assert.strictEqual(question.pointId, point.id, `${point.id} should keep selected point`);
+      assert.strictEqual(question.word, true, `${point.id} should keep word marker for reading comprehension`);
+      assert(Number.isFinite(Number(question.answer)), `${point.id} should produce a numeric answer`);
+      assert(steps.length >= 2, `${point.id} should provide reasoning steps`);
+      assert(/读题|有用|无关|干扰|先算|结论|判断|一定|条件|推理|序号/.test(display), `${point.id} should include reading and reasoning context: ${display}`);
+      assert.strictEqual(debug.questionRuleIssues(point, question, { strict: true }).length, 0, `${point.id} should pass strict question rules`);
+
+      localTemplates.add(question.templateType);
+      globalTemplates.add(question.templateType);
+    }
+    assert(localTemplates.size >= 5, `${point.id} should cover multiple logic reading templates`);
+  });
+
+  ["读题筛条件", "干扰条件识别", "步骤顺序判断", "购物逻辑", "比例阅读", "必要条件判断"].forEach((template) => {
+    assert(globalTemplates.has(template), `logic reading bank should include ${template}`);
+  });
+}
+
+function runHangzhouCurriculumMetadataTests() {
+  const debug = context.mathCampDebug;
+  const bank = context.MathCampQuestionBank;
+  assert(bank.curriculumProfile, "question bank should expose a curriculum profile");
+  assert.strictEqual(bank.curriculumProfile.region, "浙江省杭州市", "curriculum profile should target Hangzhou");
+  assert(bank.curriculumProfile.textbook.includes("人教版"), "curriculum profile should record the Renjiao textbook line");
+  [1, 2, 3, 4, 5, 6].forEach((grade) => {
+    const gradePlan = bank.gradeCurriculum[grade];
+    assert(gradePlan, `grade ${grade} should have textbook unit classification`);
+    assert(Array.isArray(gradePlan.first) && gradePlan.first.length >= 5, `grade ${grade} should list first-term units`);
+    assert(Array.isArray(gradePlan.second) && gradePlan.second.length >= 5, `grade ${grade} should list second-term units`);
+    assert(Array.isArray(gradePlan.focus) && gradePlan.focus.length >= 4, `grade ${grade} should list skill focus`);
+  });
+
+  Object.values(debug.pointMap).forEach((point) => {
+    const curriculum = point.curriculum;
+    assert(curriculum, `${point.id} should carry curriculum metadata`);
+    assert.strictEqual(curriculum.region, "浙江省杭州市", `${point.id} should target Hangzhou`);
+    assert(curriculum.textbook.includes("人教版"), `${point.id} should keep textbook version`);
+    assert(curriculum.term, `${point.id} should include term`);
+    assert(curriculum.unit, `${point.id} should include textbook unit`);
+    assert(curriculum.stage, `${point.id} should include learning stage`);
+    assert(curriculum.focus, `${point.id} should include lesson focus`);
+    assert(Array.isArray(curriculum.questionTypes) && curriculum.questionTypes.length >= 1, `${point.id} should include concrete question types`);
+    assert(curriculum.band.includes("浙江省杭州市"), `${point.id} curriculum band should include region`);
+  });
+
+  assert(debug.pointMap["g1-10-add"].curriculum.unit.includes("1-10"), "grade 1 add/sub should align to 1-10 recognition and calculation");
+  assert(debug.pointMap["g2-table-div"].curriculum.unit.includes("表内除法"), "grade 2 division should align to table division");
+  assert(debug.pointMap["g5-equation"].curriculum.unit.includes("简易方程"), "grade 5 equation should align to simple equations");
+  assert(debug.pointMap["g6-scale"].curriculum.term === "六下", "scale should be placed in grade 6 second term");
+  assert(debug.pointMap["g6-scale"].curriculum.unit.includes("比例"), "scale should align to the proportion unit");
+  assert(debug.pointMap["g5-percent"].curriculum.stage.includes("预习"), "early percent practice should be marked as preview");
+  assert(debug.pointMap["g3-remainder"].curriculum.stage.includes("复习"), "remainder in grade 3 should be marked as review");
+
+  const scaleQuestion = debug.makeQuestion(debug.pointMap["g6-scale"], { strict: true });
+  assert(scaleQuestion.curriculumBand.includes("浙江省杭州市"), "generated questions should carry Hangzhou curriculum band");
+  assert(scaleQuestion.curriculumBand.includes("比例-比例尺"), "generated scale questions should carry textbook unit band");
+
+  const equationProfile = debug.knowledgeProfileFor(debug.pointMap["g5-equation"]);
+  assert(equationProfile.rule.includes("简易方程"), "knowledge detail should mention the textbook unit");
+  assert(equationProfile.rule.includes("用 x 表示未知数"), "knowledge detail should include the lesson focus");
+  assert(equationProfile.subskills.some((item) => /方程|等量/.test(item)), "knowledge detail should include concrete textbook question types");
+  assert(debug.curriculumHelperText(debug.pointMap["g1-10-add"]).includes("一上"), "helper text should include term context");
+}
+
 function runFineGrainedCloudMergeTests() {
   const debug = context.mathCampDebug;
   const point = debug.availablePoints(4)[0];
@@ -966,6 +1106,9 @@ runVerticalQuestionTests();
 runSpecialSetPurityTests();
 runDecimalFormatTests();
 runGradeAndDecimalDisplayTests();
+runMultiStepWordProblemTests();
+runLogicReadingQuestionTests();
+runHangzhouCurriculumMetadataTests();
 
 console.log(`Question rule self-test passed: ${result.total} samples, 0 failures.`);
 console.log("Data boundary tests passed.");
@@ -980,3 +1123,6 @@ console.log("Vertical calculation tests passed.");
 console.log("Special practice set purity tests passed.");
 console.log("Decimal format tests passed.");
 console.log("Grade boundary and decimal display tests passed.");
+console.log("Multi-step word problem tests passed.");
+console.log("Logic reading question tests passed.");
+console.log("Hangzhou curriculum metadata tests passed.");

@@ -1289,7 +1289,7 @@ const STORE = {
         grade,
         correct: Boolean(item.correct),
         cause: normalizeCause(item.cause),
-        mode: ["practice", "wrongbook", "due-review", "similar", "weak", "timed", "appendix", "hard-word", "challenge"].includes(item.mode) ? item.mode : "practice",
+        mode: ["practice", "wrongbook", "due-review", "similar", "weak", "timed", "appendix", "hard-word", "logic-reading", "challenge"].includes(item.mode) ? item.mode : "practice",
         text: String(item.text || "").slice(0, 160)
       };
     }
@@ -2020,7 +2020,12 @@ const STORE = {
       };
       return pointMap[map[clamp(Number(grade) || 1, 1, 6)]] || pointMap["g6-complex-word"];
     }
+    function readingPointForGrade(grade = state.grade) {
+      return pointMap[`g${clamp(Number(grade) || 1, 1, 6)}-reading`] || pointMap["g6-reading"];
+    }
     function curriculumBandFor(point) {
+      const curriculum = point?.curriculum;
+      if (curriculum?.band) return curriculum.band;
       const grade = clamp(Number(point?.grade) || state.grade, 1, 6);
       const topicBands = {
         addsub: "计算基础",
@@ -2040,10 +2045,43 @@ const STORE = {
         statistics: "统计读图",
         equation: "方程入门",
         word: "应用建模",
+        reading: "思维阅读",
         appendix: "思维拓展"
       };
       const term = grade <= 2 ? "低年级" : grade <= 4 ? "中年级" : "高年级";
       return `${term} / ${topicBands[point?.topic] || "综合练习"}`;
+    }
+    function curriculumBrief(point) {
+      const curriculum = point?.curriculum;
+      if (!curriculum) return "";
+      return [curriculum.term, curriculum.unit].filter(Boolean).join(" / ");
+    }
+    function curriculumHelperText(point) {
+      const helper = point?.helper || point?.label || "";
+      const brief = curriculumBrief(point);
+      return brief ? `${brief} / ${helper}` : helper;
+    }
+    function uniqueList(items, limit = 4) {
+      const seen = new Set();
+      return items.filter((item) => {
+        const text = String(item || "").trim();
+        if (!text || seen.has(text)) return false;
+        seen.add(text);
+        return true;
+      }).slice(0, limit);
+    }
+    function withCurriculumProfile(point, profile) {
+      const curriculum = point?.curriculum;
+      if (!curriculum) return profile;
+      const scope = [curriculum.textbook, curriculum.term, curriculum.unit, curriculum.stage].filter(Boolean).join(" / ");
+      const rulePrefix = [scope, curriculum.focus].filter(Boolean).join(": ");
+      return {
+        rule: rulePrefix ? `${rulePrefix}。${profile.rule}` : profile.rule,
+        subskills: uniqueList([...(curriculum.questionTypes || []), ...(profile.subskills || [])], 4),
+        pitfalls: profile.pitfalls,
+        practice: profile.practice,
+        curriculum
+      };
     }
     function templateLabelFor(question) {
       if (!question) return "规则计算";
@@ -2053,6 +2091,7 @@ const STORE = {
       if (question.topic === "mixed") return "运算顺序";
       if (question.topic === "twostep") return "两步计算";
       if (question.topic === "vertical") return "竖式计算";
+      if (question.topic === "reading") return "思维阅读";
       return "规则计算";
     }
     function methodHintFor(question) {
@@ -2075,6 +2114,7 @@ const STORE = {
         statistics: "统计题先读清表格或数据，找总数、最多最少、平均数这些关键词。",
         equation: "方程题先把未知数看成 x，等式两边做相同的运算。",
         word: '应用题先找"已知什么、要求什么"，再把数量关系翻译成算式。',
+        reading: "思维阅读题先判断问题目标，再筛有用条件，最后看哪一步或哪条结论最合适。",
         appendix: "附加题不要急着算，先判断模型：规律、和差倍、植树、行程、比例或假设法。"
       };
       return hints[question.topic] || hints.word;
@@ -2198,6 +2238,12 @@ const STORE = {
           pitfalls: ["没看清题目", "不会列式", "只算一步"],
           practice: "优先用分步作答，再做同类题巩固。"
         },
+        reading: {
+          rule: "先判断题目到底问什么，再筛有用条件、排除干扰信息，最后选择正确的推理步骤或结论。",
+          subskills: ["读懂问题", "筛选条件", "排除干扰", "逻辑推理"],
+          pitfalls: ["见数字就算", "把干扰条件也加进去", "没有分清先后顺序"],
+          practice: "适合少量高质量练习：先说出理由，再输入选项序号或结果。"
+        },
         appendix: {
           rule: "先识别模型，再选择规律、和差倍、植树、行程、比例或假设法。",
           subskills: ["模型识别", "画图列表", "找规律", "逆向思考"],
@@ -2213,14 +2259,14 @@ const STORE = {
       };
       const profile = byTopic[point.topic] || fallback;
       if (point.id === "g2-100-add") {
-        return {
+        return withCurriculumProfile(point, {
           rule: "只练 100 以内进位加法和退位减法：加法个位满十要进 1，减法个位不够要向十位借 1。",
           subskills: ["个位进位", "十位加进位", "个位退位", "退位后再减"],
           pitfalls: ["进位后十位忘加 1", "退位后个位没有加 10", "结果超过 100"],
           practice: '建议先用直接输入，再用判断题检查"是否进退位"。'
-        };
+        });
       }
-      return profile;
+      return withCurriculumProfile(point, profile);
     }
     function renderKnowledgeDetail() {
       const point = state.pointId === "auto" ? null : pointMap[state.pointId];
@@ -2241,7 +2287,7 @@ const STORE = {
     function chooseInteractionMode(question, preferred = state.answerMode || "auto") {
       preferred = normalizeAnswerModeForViewport(preferred);
       if (preferred !== "auto") return preferred;
-      if (question.word || question.topic === "mixed" || question.topic === "twostep" || question.topic === "vertical" || question.topic === "geometry") return isMobilePracticeViewport() ? "input" : "step";
+      if (question.word || question.topic === "mixed" || question.topic === "twostep" || question.topic === "vertical" || question.topic === "geometry" || question.topic === "reading") return isMobilePracticeViewport() ? "input" : "step";
       if (question.topic === "compare" || question.topic === "muldiv") return Math.random() > 0.5 ? "choice" : "input";
       if (question.topic === "addsub" && Math.random() > 0.7) return "judge";
       return "input";
@@ -2404,6 +2450,7 @@ const STORE = {
           statistics: makeStatistics,
           equation: makeEquation,
           word: makeWord,
+          reading: makeReading,
           appendix: makeAppendix
         }
       }, point, options);
@@ -2418,7 +2465,7 @@ const STORE = {
         kind: point.label,
         subskills: kp.subskills.slice(0, 3),
         commonPitfalls: kp.pitfalls.slice(0, 3),
-        templateType: data?.templateType || (data?.word ? "情境应用" : point.topic === "appendix" ? "拓展思维" : point.topic === "mixed" ? "运算顺序" : point.topic === "twostep" ? "两步计算" : point.topic === "vertical" ? "竖式计算" : "规则计算"),
+        templateType: data?.templateType || (data?.word ? "情境应用" : point.topic === "appendix" ? "拓展思维" : point.topic === "reading" ? "思维阅读" : point.topic === "mixed" ? "运算顺序" : point.topic === "twostep" ? "两步计算" : point.topic === "vertical" ? "竖式计算" : "规则计算"),
         curriculumBand: curriculumBandFor(point),
         ...data
       });
@@ -2468,6 +2515,7 @@ const STORE = {
       if (point.topic === "statistics" && !textHas(question, /平均|统计|表|数据|最多|最少|合计/)) issues.push("统计题缺少统计语境");
       if (point.id === "g6-circle" && !textHas(question, /圆|半径|直径|π|3\.14/)) issues.push("圆题缺少圆的公式语境");
       if (point.id === "g5-volume" && !textHas(question, /长方体|正方体|体积|表面积|立方/)) issues.push("体积题缺少立体图形语境");
+      if (point.topic === "reading" && !textHas(question, /读题|有用|无关|干扰|先算|结论|判断|一定|条件|推理|序号/)) issues.push("思维阅读题缺少阅读推理语境");
       if (point.id === "g4-area" && !textHas(question, /面积|平方米|平方厘米/)) issues.push("面积专项混入非面积题");
       if (point.id === "g2-table-div" && !textHas(question, /÷|平均分|每人|分成|每 \d+ 个/)) issues.push("表内除法专项混入非除法题");
       if (point.id === "g5-decimal-add" && textHas(question, /[×÷]/)) issues.push("小数加减专项混入乘除题");
@@ -2552,6 +2600,7 @@ const STORE = {
           statistics: makeStatistics,
           equation: makeEquation,
           word: makeWord,
+          reading: makeReading,
           appendix: makeAppendix
         })[point.topic](point, Math.max(1, masteryFor(activeProfile(), point.id).level || 1));
         const retryIssues = questionRuleIssues(point, retry, options);
@@ -2567,6 +2616,8 @@ const STORE = {
       if (!point?.label || String(point.label).length < 3) warnings.push("知识点名称过短");
       if (!point?.short || String(point.short).length > 8) warnings.push("短标题缺失或过长");
       if (!point?.helper || String(point.helper).length < 6) warnings.push("练习说明不够明确");
+      if (!point?.curriculum?.term || !point.curriculum?.unit || !point.curriculum?.stage) warnings.push("缺少杭州教材单元定位");
+      if (!Array.isArray(point?.curriculum?.questionTypes) || !point.curriculum.questionTypes.length) warnings.push("缺少教材题型标签");
       if (idCounts.get(point.id) > 1) warnings.push("知识点 id 重复");
       if (labelCounts.get(`${point.grade}-${point.label}`) > 1) warnings.push("同年级知识点名称重复");
       return warnings;
@@ -4570,6 +4621,37 @@ const STORE = {
           });
         }
       ];
+      const distractorWord = [
+        () => {
+          const eaten = grade <= 2 ? rand(8, 26) : rand(18, 48);
+          const left = grade <= 2 ? rand(6, 24) : rand(9, 36);
+          const carp = rand(1, Math.max(1, Math.min(left - 1, 8)));
+          const answer = eaten + left;
+          return baseQuestion(point, {
+            text: `小猫们吃了 ${eaten} 条小鱼，还剩 ${left} 条鱼，其中有 ${carp} 条是鲤鱼。原来有多少条鱼？`,
+            answer,
+            word: true,
+            explanation: `要求原来有多少，只要把吃掉的和还剩的合起来；"其中 ${carp} 条是鲤鱼"只是在说明剩下鱼的种类，不用再单独计算。`,
+            steps: [`找真正有用的数量：吃了 ${eaten} 条，还剩 ${left} 条。`, `鲤鱼 ${carp} 条已经包含在剩下的 ${left} 条里，不用再加一次。`, `${eaten} + ${left} = ${answer} 条。`],
+            templateType: "干扰条件应用"
+          });
+        },
+        () => {
+          const total = grade <= 2 ? rand(60, 96) : rand(90, 180);
+          const classCount = rand(3, grade <= 2 ? 5 : 6);
+          const each = rand(5, Math.max(5, Math.floor((total - 12) / classCount)));
+          const answer = total - classCount * each;
+          const display = rand(1, Math.max(1, Math.min(answer, 12)));
+          return baseQuestion(point, {
+            text: `老师准备了 ${total} 张贴纸，发给 ${classCount} 个小组，每组 ${each} 张。剩下的贴纸里有 ${display} 张星星贴纸。还剩多少张贴纸？`,
+            answer,
+            word: true,
+            explanation: `先求发出多少张，再用总数减去发出的数量。"星星贴纸"只是剩下贴纸的一种，不影响还剩总数。`,
+            steps: [`发出：${classCount} × ${each} = ${classCount * each} 张。`, `剩下：${total} - ${classCount * each} = ${answer} 张。`, `${display} 张星星贴纸已经在剩下的 ${answer} 张里面。`],
+            templateType: "干扰条件应用"
+          });
+        }
+      ];
       const twoStep = [
         () => {
           const total = rand(60, 160 + level * 40);
@@ -4633,6 +4715,56 @@ const STORE = {
             explanation: `先求已经做了多少道，再用总题数减去已做题数。`,
             steps: [`已做：${each} × ${days} = ${each * days} 道。`, `剩下：${total} - ${each * days} = ${answer} 道。`],
             templateType: "两步应用"
+          });
+        }
+      ];
+      const multiReasoningWord = [
+        () => {
+          const price = rand(42, 96);
+          const threshold = 40;
+          const discount = pick([6, 8, 10, 12]);
+          const fee = rand(4, 9);
+          const futureCoupon = rand(3, 8);
+          const answer = price - discount + fee;
+          return baseQuestion(point, {
+            text: `爸爸在网上买了一个原价 ${price} 元的书包，店铺活动满 ${threshold} 减 ${discount} 元，另需配送费 ${fee} 元。页面还提示好评后返 ${futureCoupon} 元券，本次不能用。爸爸一共需要支付多少元？`,
+            answer,
+            word: true,
+            explanation: `先判断 ${price} 元已经满 ${threshold} 元，可以减 ${discount} 元；配送费要再加上，返券是以后才能用的干扰条件。`,
+            steps: [`商品优惠后：${price} - ${discount} = ${price - discount} 元。`, `加上配送费：${price - discount} + ${fee} = ${answer} 元。`, `${futureCoupon} 元返券本次不能用，不参与计算。`],
+            templateType: "多步干扰应用"
+          });
+        },
+        () => {
+          const boxes = rand(4, 9);
+          const each = rand(12, 24);
+          const groups = rand(3, 6);
+          const groupEach = rand(6, Math.floor((boxes * each - 10) / groups));
+          const reserve = rand(3, Math.max(3, boxes * each - groups * groupEach - 5));
+          const answer = boxes * each - groups * groupEach - reserve;
+          const red = rand(1, Math.max(1, Math.min(answer, 12)));
+          return baseQuestion(point, {
+            text: `活动室有 ${boxes} 盒奖品，每盒 ${each} 个。先发给 ${groups} 个班，每班 ${groupEach} 个，又留下 ${reserve} 个备用。其中有 ${red} 个是红色奖品。现在还可以发多少个奖品？`,
+            answer,
+            word: true,
+            explanation: `先求奖品总数，再依次减去已经发出的和备用的。"红色奖品"只是奖品颜色，不是额外数量。`,
+            steps: [`总数：${boxes} × ${each} = ${boxes * each} 个。`, `已发：${groups} × ${groupEach} = ${groups * groupEach} 个。`, `还可发：${boxes * each} - ${groups * groupEach} - ${reserve} = ${answer} 个。`],
+            templateType: "多步干扰应用"
+          });
+        },
+        () => {
+          const each = rand(6, 18);
+          const days = rand(3, 7);
+          const left = rand(12, 48);
+          const wrong = rand(2, 9);
+          const answer = each * days + left;
+          return baseQuestion(point, {
+            text: `一套口算题每天做 ${each} 道，已经做了 ${days} 天，还剩 ${left} 道没做，其中有 ${wrong} 道是昨天做错后重做的。原来这套题一共有多少道？`,
+            answer,
+            word: true,
+            explanation: `要求原来一共有多少，要把已经做的和还没做的合起来；重做题只是说明剩下题里的情况，不能再额外加一次。`,
+            steps: [`已经做：${each} × ${days} = ${each * days} 道。`, `原来总数：${each * days} + ${left} = ${answer} 道。`, `${wrong} 道重做题已经包含在还剩的 ${left} 道里。`],
+            templateType: "反向多步应用"
           });
         }
       ];
@@ -4719,6 +4851,56 @@ const STORE = {
           });
         }
       ];
+      const upperDistractorWord = [
+        () => {
+          const price = rand(12, 38) * 10;
+          const discountRate = pick([0.7, 0.8, 0.9]);
+          const coupon = rand(10, 35);
+          const packFee = rand(2, 8);
+          const giftValue = rand(8, 30);
+          const discounted = round1(price * discountRate);
+          const answer = round1(discounted - coupon + packFee);
+          return baseQuestion(point, {
+            text: `一件外套原价 ${price} 元，现在打 ${discountRate * 10} 折，再用 ${coupon} 元优惠券，包装费 ${packFee} 元。商家还送价值 ${giftValue} 元的小礼物。实际要支付多少元？`,
+            answer,
+            word: true,
+            explanation: `先求折后价，再减优惠券，最后加包装费。赠品价值不需要付款，是干扰条件。`,
+            steps: [`折后价：${price} × ${discountRate} = ${formatAnswer(discounted)} 元。`, `用券后：${formatAnswer(discounted)} - ${coupon} = ${formatAnswer(round1(discounted - coupon))} 元。`, `加包装费：${formatAnswer(round1(discounted - coupon))} + ${packFee} = ${formatAnswer(answer)} 元。`],
+            templateType: "多步干扰应用"
+          });
+        },
+        () => {
+          const known = rand(3, 7);
+          const each = rand(18, 42);
+          const target = known + rand(4, 9);
+          const stock = rand(12, Math.max(12, each * 2));
+          const display = rand(2, 8);
+          const answer = each * target - stock;
+          return baseQuestion(point, {
+            text: `${known} 箱矿泉水共有 ${known * each} 瓶。运动会需要准备 ${target} 箱同样的水，仓库已有 ${stock} 瓶，展台上另摆着 ${display} 瓶样品不发放。还要再买多少瓶？`,
+            answer,
+            word: true,
+            explanation: `先用已知箱数求每箱多少瓶，再求目标总瓶数，最后减去仓库已有的瓶数；样品不发放，不能算进库存。`,
+            steps: [`每箱：${known * each} ÷ ${known} = ${each} 瓶。`, `需要：${each} × ${target} = ${each * target} 瓶。`, `还要买：${each * target} - ${stock} = ${answer} 瓶。`],
+            templateType: "归一干扰应用"
+          });
+        },
+        () => {
+          const total = rand(240, 720);
+          const firstRate = pick([20, 25, 30, 40]);
+          const second = rand(30, 120);
+          const note = rand(5, 18);
+          const answer = round1(total - total * firstRate / 100 - second);
+          return baseQuestion(point, {
+            text: `一本资料共有 ${total} 页，第一周读了 ${firstRate}%，第二周又读了 ${second} 页，书签夹在第 ${note} 章。还剩多少页没读？`,
+            answer,
+            word: true,
+            explanation: `先把第一周读的百分数换成页数，再从总页数里减去两周读的页数；第几章是干扰信息。`,
+            steps: [`第一周：${total} × ${firstRate}% = ${formatAnswer(round1(total * firstRate / 100))} 页。`, `两周已读：${formatAnswer(round1(total * firstRate / 100))} + ${second} = ${formatAnswer(round1(total * firstRate / 100 + second))} 页。`, `还剩：${total} - ${formatAnswer(round1(total * firstRate / 100 + second))} = ${formatAnswer(answer)} 页。`],
+            templateType: "百分数干扰应用"
+          });
+        }
+      ];
       const decimalPercentWord = [
         () => {
           const price = round1(rand(120, 480) / 10);
@@ -4787,15 +4969,343 @@ const STORE = {
         }
       ];
       if (point.id === "g1-simple-word") return pick(lowAddSub)();
-      if (point.id === "g2-simple-word") return pick([...lowAddSub, ...equalGroup])();
-      if (point.id === "g3-word-two-step") return pick(twoStep)();
-      if (point.id === "g4-word") return pick([...twoStep, ...upperWord])();
-      if (point.id === "g5-word" || point.id === "g6-complex-word") return pick([...upperWord, ...decimalPercentWord])();
+      if (point.id === "g2-simple-word") return pick([...lowAddSub, ...equalGroup, ...distractorWord])();
+      if (point.id === "g3-word-two-step") return pick([...twoStep, ...distractorWord, ...multiReasoningWord])();
+      if (point.id === "g4-word") return pick([...twoStep, ...upperWord, ...multiReasoningWord, ...upperDistractorWord])();
+      if (point.id === "g5-word" || point.id === "g6-complex-word") return pick([...upperWord, ...multiReasoningWord, ...upperDistractorWord, ...decimalPercentWord])();
       if (grade <= 1) return pick(lowAddSub)();
-      if (grade <= 2) return pick([...lowAddSub, ...equalGroup])();
-      if (grade <= 3) return pick([...equalGroup, ...twoStep])();
-      if (grade <= 4) return pick([...twoStep, ...upperWord])();
-      return pick([...upperWord, ...decimalPercentWord])();
+      if (grade <= 2) return pick([...lowAddSub, ...equalGroup, ...distractorWord])();
+      if (grade <= 3) return pick([...equalGroup, ...twoStep, ...distractorWord, ...multiReasoningWord])();
+      if (grade <= 4) return pick([...twoStep, ...upperWord, ...multiReasoningWord, ...upperDistractorWord])();
+      return pick([...upperWord, ...multiReasoningWord, ...upperDistractorWord, ...decimalPercentWord])();
+    }
+
+    function makeReading(point, level) {
+      const grade = clamp(Number(point.grade) || state.grade, 1, 6);
+      const readingQuestion = (data) => baseQuestion(point, {
+        word: true,
+        subskills: ["读懂问题", "筛选条件", "逻辑推理"],
+        commonPitfalls: ["见数字就算", "忽略问题目标", "把干扰条件算进去"],
+        ...data
+      });
+      const lowTemplates = [
+        () => {
+          const total = rand(12, 30);
+          const red = rand(3, Math.floor(total / 2));
+          const used = rand(2, total - red);
+          return readingQuestion({
+            text: `读题判断：盒子里有 ${total} 张贴纸，其中红色贴纸 ${red} 张。小明用掉 ${used} 张，要求还剩多少张。真正有用的两个数字是哪一组？① ${total} 和 ${red} ② ${total} 和 ${used} ③ ${red} 和 ${used}`,
+            answer: 2,
+            explanation: `题目问还剩多少，要用总数减用掉的数量；红色贴纸只是种类信息。`,
+            steps: [`先看问题：要求还剩多少。`, `有用条件是总数 ${total} 和用掉 ${used}。`, `红色 ${red} 张不影响还剩总数，所以选 ②。`],
+            templateType: "读题筛条件"
+          });
+        },
+        () => {
+          const eaten = rand(5, 16);
+          const left = rand(4, 14);
+          const carp = rand(1, Math.max(1, left - 1));
+          return readingQuestion({
+            text: `小猫吃了 ${eaten} 条鱼，还剩 ${left} 条，其中有 ${carp} 条是鲤鱼。要问原来有多少条鱼，下面哪句话是干扰条件？① 吃了 ${eaten} 条 ② 还剩 ${left} 条 ③ 其中有 ${carp} 条是鲤鱼`,
+            answer: 3,
+            explanation: `原来有多少 = 吃了的 + 剩下的。"其中有几条鲤鱼"只是说明剩下鱼的种类。`,
+            steps: [`问题是求原来总数。`, `要用 ${eaten} 和 ${left}。`, `${carp} 条鲤鱼已经包含在剩下的 ${left} 条里，所以选 ③。`],
+            templateType: "干扰条件识别"
+          });
+        },
+        () => {
+          const start = rand(8, 20);
+          const add = rand(3, 10);
+          const give = rand(2, 8);
+          return readingQuestion({
+            text: `小丽有 ${start} 支铅笔，妈妈又给她 ${add} 支，她送给同桌 ${give} 支。题目问"现在有多少支"，第一步应该先算什么？① ${start} + ${add} ② ${start} - ${give} ③ ${add} + ${give}`,
+            answer: 1,
+            explanation: `事情发生的顺序是先得到，再送出，所以第一步先把原来的和新得到的合起来。`,
+            steps: [`先看顺序：原来有，再得到，然后送出。`, `第一步先算得到后的数量：${start} + ${add}。`, `所以选 ①。`],
+            templateType: "步骤顺序判断"
+          });
+        },
+        () => {
+          const a = rand(6, 18);
+          const b = a + rand(2, 9);
+          return readingQuestion({
+            text: `读题目标判断：小兔有 ${a} 个胡萝卜，小熊有 ${b} 个胡萝卜。题目问"小熊比小兔多多少个"，这是在求什么？① 两人一共有多少 ② 两人相差多少 ③ 小兔还剩多少`,
+            answer: 2,
+            explanation: `"比多多少"是在比较两个数量的差，不是求总数。`,
+            steps: [`先抓关键词：比……多多少。`, `这是比较差。`, `所以选 ②。`],
+            templateType: "问题目标识别"
+          });
+        },
+        () => {
+          const before = rand(1, 5);
+          const after = rand(2, 6);
+          const answer = before + 1 + after;
+          return readingQuestion({
+            text: `排队读题：小明前面有 ${before} 人，后面有 ${after} 人。这一队一共有多少人？`,
+            answer,
+            explanation: `排队总人数要把前面的人、小明自己、后面的人都算上。`,
+            steps: [`前面有 ${before} 人。`, `小明自己也要算 1 人。`, `总人数：${before} + 1 + ${after} = ${answer} 人。`],
+            templateType: "关系推理"
+          });
+        },
+        () => {
+          const page = rand(6, 14);
+          const line = rand(3, 8);
+          const words = rand(20, 60);
+          return readingQuestion({
+            text: `阅读信息筛选：小红今天读到第 ${page} 页，第 ${line} 行有 ${words} 个字。题目只问她读到第几页，应该填哪个数？`,
+            answer: page,
+            explanation: `问题只问第几页，行数和字数都是背景信息。`,
+            steps: [`先看问题：读到第几页。`, `直接找页码 ${page}。`, `第 ${line} 行和 ${words} 个字不用参与计算。`],
+            templateType: "直接信息定位"
+          });
+        },
+        () => {
+          const desk = rand(10, 24);
+          const chair = desk + rand(2, 8);
+          return readingQuestion({
+            text: `教室里有 ${desk} 张桌子，椅子比桌子多 ${chair - desk} 把。下面哪句话一定正确？① 椅子有 ${chair} 把 ② 桌子比椅子多 ③ 桌子和椅子一样多`,
+            answer: 1,
+            explanation: `椅子比桌子多，就用桌子数量加多出的数量。`,
+            steps: [`桌子有 ${desk} 张。`, `椅子多 ${chair - desk} 把。`, `椅子：${desk} + ${chair - desk} = ${chair}，所以选 ①。`],
+            templateType: "结论判断"
+          });
+        },
+        () => {
+          const apples = rand(8, 18);
+          const pears = rand(4, 12);
+          const bananas = rand(5, apples + pears - 1);
+          const answer = apples + pears - bananas;
+          return readingQuestion({
+            text: `水果记录：苹果 ${apples} 个，香蕉 ${bananas} 个，梨 ${pears} 个。问苹果和梨一共比香蕉多多少个？`,
+            answer,
+            explanation: `先把苹果和梨合起来，再和香蕉比较。`,
+            steps: [`先合并要比较的一边：${apples} + ${pears} = ${apples + pears}。`, `再和香蕉比较：${apples + pears} - ${bananas} = ${answer}。`],
+            templateType: "表格阅读"
+          });
+        }
+      ];
+      const middleTemplates = [
+        () => {
+          const price = rand(36, 85);
+          const threshold = 40;
+          const discount = pick([6, 8, 10]);
+          const fee = rand(4, 8);
+          return readingQuestion({
+            text: `购物读题：一个书包 ${price} 元，满 ${threshold} 减 ${discount} 元，配送费 ${fee} 元。要判断实际支付，下面哪一步最先做？① 判断是否满 ${threshold} 元 ② 先加配送费 ③ 忽略商品原价`,
+            answer: 1,
+            explanation: `满减题要先判断商品金额是否达到满减条件，再考虑减免和配送费。`,
+            steps: [`先看满减条件：满 ${threshold} 减 ${discount}。`, `商品 ${price} 元，已经满足条件。`, `所以第一步选 ①。`],
+            templateType: "条件判断"
+          });
+        },
+        () => {
+          const each = rand(5, 12);
+          const boxes = rand(4, 9);
+          const extra = rand(6, 18);
+          return readingQuestion({
+            text: `${boxes} 盒水彩笔，每盒 ${each} 支，另外还有 ${extra} 支散装。要求一共有多少支，下面哪个算式正确？① ${boxes} + ${each} + ${extra} ② ${boxes} × ${each} + ${extra} ③ ${each} × ${extra} - ${boxes}`,
+            answer: 2,
+            explanation: `盒装要先用盒数乘每盒支数，再加散装。`,
+            steps: [`盒装数量：${boxes} × ${each}。`, `再加散装 ${extra} 支。`, `正确算式是 ${boxes} × ${each} + ${extra}，选 ②。`],
+            templateType: "列式选择"
+          });
+        },
+        () => {
+          const first = rand(18, 40);
+          const second = first + rand(4, 18);
+          const third = second - rand(1, 6);
+          return readingQuestion({
+            text: `三位同学跳绳：小林 ${first} 下，小雨比小林多 ${second - first} 下，小安比小雨少 ${second - third} 下。谁跳得最多？① 小林 ② 小雨 ③ 小安`,
+            answer: 2,
+            explanation: `先推出小雨和小安的数量，再比较大小。`,
+            steps: [`小雨：${first} + ${second - first} = ${second} 下。`, `小安：${second} - ${second - third} = ${third} 下。`, `${second} 最大，所以选 ②。`],
+            templateType: "关系推理"
+          });
+        },
+        () => {
+          const total = rand(80, 160);
+          const days = rand(3, 6);
+          const daily = rand(8, 18);
+          return readingQuestion({
+            text: `练习册有 ${total} 道题，已经做了 ${days} 天，每天做 ${daily} 道。下面哪句话是解决"还剩多少道"必须先知道的中间量？① 已经做了多少道 ② 每道题多难 ③ 练习册封面颜色`,
+            answer: 1,
+            explanation: `要求还剩多少，必须先算已经做了多少，再用总数减掉。`,
+            steps: [`问题是还剩多少。`, `需要先知道已经完成的数量：${days} × ${daily}。`, `所以选 ①。`],
+            templateType: "中间量识别"
+          });
+        },
+        () => {
+          const a = rand(14, 32);
+          const b = rand(10, 28);
+          const c = rand(8, 24);
+          const max = Math.max(a, b, c);
+          const min = Math.min(a, b, c);
+          return readingQuestion({
+            text: `统计读题：一组收集 ${a} 张卡片，二组 ${b} 张，三组 ${c} 张。题目问最多的一组比最少的一组多多少张，第一步应该先做什么？① 找最大和最小 ② 三个数全加起来 ③ 随便选两组相减`,
+            answer: 1,
+            explanation: `问最多比最少多多少，第一步要找最大数和最小数。`,
+            steps: [`最大数是 ${max}。`, `最小数是 ${min}。`, `先找最大最小，所以选 ①。`],
+            templateType: "统计阅读"
+          });
+        },
+        () => {
+          const groups = rand(4, 8);
+          const quotient = rand(8, 16);
+          const remainder = rand(1, groups - 1);
+          const people = groups * quotient + remainder;
+          return readingQuestion({
+            text: `${people} 名同学坐车，每辆车坐 ${groups} 人。小华说只要算 ${people} ÷ ${groups} 的商就够了。这个判断对吗？① 对 ② 不对，因为有余下的人也需要车`,
+            answer: 2,
+            explanation: `坐车问题有余数时，余下的人也需要一辆车，不能只看商。`,
+            steps: [`${people} ÷ ${groups} 会有余数 ${remainder}。`, `余下的同学也要坐车。`, `所以小华的判断不对，选 ②。`],
+            templateType: "真假判断"
+          });
+        },
+        () => {
+          const start = rand(7, 10);
+          const minutes = pick([20, 25, 35, 45]);
+          const room = rand(2, 8);
+          return readingQuestion({
+            text: `通知写着：活动 ${start}:00 开始，经过 ${minutes} 分钟结束，地点在 ${room} 号教室。若只问结束时的分钟数，哪个条件最有用？① ${minutes} 分钟 ② ${room} 号教室 ③ ${start} 点里的 ${start}`,
+            answer: 1,
+            explanation: `题目只问分钟数，经过了多少分钟就是最直接的条件。`,
+            steps: [`先看问题：结束时的分钟数。`, `从整点开始，分钟数由经过的 ${minutes} 分钟决定。`, `教室号是干扰条件，所以选 ①。`],
+            templateType: "时间阅读"
+          });
+        },
+        () => {
+          const known = rand(3, 6);
+          const each = rand(8, 16);
+          const target = known + rand(2, 5);
+          return readingQuestion({
+            text: `${known} 袋糖共有 ${known * each} 颗，照这样装，要求 ${target} 袋有多少颗。下面哪一步应该先算？① 每袋有多少颗 ② ${target} - ${known} ③ ${known * each} + ${target}`,
+            answer: 1,
+            explanation: `"照这样装"是归一问题，要先求每袋数量，再求目标袋数。`,
+            steps: [`已知 ${known} 袋共有 ${known * each} 颗。`, `先求每袋：${known * each} ÷ ${known}。`, `所以选 ①。`],
+            templateType: "归一阅读"
+          });
+        }
+      ];
+      const upperTemplates = [
+        () => {
+          const price = rand(12, 45) * 10;
+          const discount = pick([0.7, 0.8, 0.85, 0.9]);
+          const coupon = rand(10, 40);
+          const fee = rand(3, 9);
+          return readingQuestion({
+            text: `一件外套原价 ${price} 元，打 ${discount * 10} 折后还可用 ${coupon} 元券，另付包装费 ${fee} 元。判断实际支付时，下面哪条算式结构正确？① 原价 × 折扣 - 优惠券 + 包装费 ② 原价 - 优惠券 × 折扣 ③ 原价 × 折扣 + 优惠券 - 包装费`,
+            answer: 1,
+            explanation: `折扣先作用在原价上，再减优惠券，最后加必须支付的包装费。`,
+            steps: [`先求折后价：原价 × 折扣。`, `再减优惠券。`, `包装费要支付，所以最后加，选 ①。`],
+            templateType: "购物逻辑"
+          });
+        },
+        () => {
+          const total = rand(240, 720);
+          const rate = pick([20, 25, 30, 40]);
+          const extra = rand(30, 120);
+          const chapter = rand(3, 12);
+          return readingQuestion({
+            text: `一本书 ${total} 页，第一周读了 ${rate}%，第二周读了 ${extra} 页，书签夹在第 ${chapter} 章。要求还剩多少页，哪条信息是干扰条件？① ${rate}% ② ${extra} 页 ③ 第 ${chapter} 章`,
+            answer: 3,
+            explanation: `还剩页数需要总页数、第一周百分数和第二周页数；第几章不参与页数计算。`,
+            steps: [`要算已读页数和剩余页数。`, `${rate}% 和 ${extra} 页都有用。`, `第 ${chapter} 章不影响页数，所以选 ③。`],
+            templateType: "百分数阅读"
+          });
+        },
+        () => {
+          const a = rand(2, 5);
+          const b = rand(3, 7);
+          const each = rand(12, 28);
+          const total = (a + b) * each;
+          return readingQuestion({
+            text: `把 ${total} 元按 ${a}:${b} 分给甲乙两人。要判断乙分到多少，下面哪一步最关键？① 先求总份数 ${a}+${b} ② 直接用 ${total} × ${b} ③ 只看甲的份数`,
+            answer: 1,
+            explanation: `按比例分配要先求总份数，再求每份是多少。`,
+            steps: [`比例是 ${a}:${b}。`, `第一步求总份数：${a} + ${b}。`, `所以选 ①。`],
+            templateType: "比例阅读"
+          });
+        },
+        () => {
+          const speedA = rand(45, 80);
+          const speedB = rand(35, 70);
+          const time = rand(2, 5);
+          return readingQuestion({
+            text: `甲乙两车相向而行，甲每小时 ${speedA} 千米，乙每小时 ${speedB} 千米，行驶 ${time} 小时后相遇。下面哪句话一定正确？① 总路程等于两车速度和 × 时间 ② 总路程只等于甲车路程 ③ 乙车速度不用看`,
+            answer: 1,
+            explanation: `相向而行相遇时，总路程等于两车共同走过的路程。`,
+            steps: [`一小时合起来接近：${speedA} + ${speedB}。`, `走 ${time} 小时，就乘 ${time}。`, `所以选 ①。`],
+            templateType: "行程结论"
+          });
+        },
+        () => {
+          const avg = rand(75, 92);
+          const count = 5;
+          const known = [avg - 3, avg + 1, avg + 2, avg - 1];
+          return readingQuestion({
+            text: `${count} 次测验平均 ${avg} 分，前 4 次分别是 ${known.join("、")} 分。要求第 5 次成绩，必须先算什么？① 5 次总分 ② 最高分 ③ 最低分`,
+            answer: 1,
+            explanation: `平均数反推最后一次，要先用平均数乘次数求总分。`,
+            steps: [`平均数 × 次数 = 总分。`, `总分再减前 4 次分数。`, `所以第一步选 ①。`],
+            templateType: "平均数反推阅读"
+          });
+        },
+        () => {
+          const rows = rand(5, 9);
+          const each = rand(8, 16);
+          const used = rand(10, 30);
+          const display = rand(2, 9);
+          return readingQuestion({
+            text: `会场有 ${rows} 排座位，每排 ${each} 个，已经坐了 ${used} 人，前排有 ${display} 个座位贴了号码。要求还空多少个座位，哪条信息不用参与计算？① ${rows} 排 ② 每排 ${each} 个 ③ ${display} 个座位贴了号码`,
+            answer: 3,
+            explanation: `空座位要用总座位数减已坐人数，座位是否贴号码不影响数量。`,
+            steps: [`总座位数由 ${rows} 排和每排 ${each} 个决定。`, `已坐 ${used} 人也有用。`, `贴号码只是描述，所以选 ③。`],
+            templateType: "干扰条件识别"
+          });
+        },
+        () => {
+          const salt = rand(8, 20);
+          const water = rand(80, 180);
+          const addWater = rand(20, 90);
+          return readingQuestion({
+            text: `盐水中有盐 ${salt} 克、水 ${water} 克，又加入 ${addWater} 克水。要判断新的浓度，哪句话最重要？① 盐的质量不变 ② 水的质量不变 ③ 加水后盐也增加`,
+            answer: 1,
+            explanation: `只加水时，盐没有增加也没有减少，所以盐的质量不变。`,
+            steps: [`题目说又加入的是水。`, `盐仍然是 ${salt} 克。`, `所以选 ①。`],
+            templateType: "必要条件判断"
+          });
+        },
+        () => {
+          const actual = rand(300, 1200);
+          const scale = pick([1000, 2000, 5000, 10000]);
+          return readingQuestion({
+            text: `实际距离 ${actual} 米，比例尺 1:${scale}。要求图上距离，下面哪一步不能省？① 先把米换成厘米 ② 直接用米除以 ${scale} ③ 只看比例尺不用看距离`,
+            answer: 1,
+            explanation: `比例尺 1:${scale} 用的是厘米对应关系，实际距离要先换成厘米。`,
+            steps: [`比例尺中的单位通常按厘米理解。`, `${actual} 米要先换成 ${actual * 100} 厘米。`, `所以选 ①。`],
+            templateType: "单位条件判断"
+          });
+        },
+        () => {
+          const x = rand(4, 18);
+          const factor = rand(2, 8);
+          const add = rand(5, 24);
+          return readingQuestion({
+            text: `方程 ${factor}x + ${add} = ${factor * x + add}。要先求 x，第一步应该做什么？① 两边先减 ${add} ② 两边先乘 ${factor} ③ 把 ${add} 加一次`,
+            answer: 1,
+            explanation: `两步方程先去掉加上的数，再处理乘法。`,
+            steps: [`先看 x 外面有乘 ${factor} 和加 ${add}。`, `要先去掉加上的 ${add}。`, `所以选 ①。`],
+            templateType: "方程阅读"
+          });
+        }
+      ];
+      const pool = grade <= 2
+        ? lowTemplates
+        : grade <= 4
+          ? [...lowTemplates.slice(0, 4), ...middleTemplates]
+          : [...middleTemplates.slice(0, 4), ...upperTemplates];
+      return pick(pool)();
     }
 
     function makeAppendix(point, level) {
@@ -5647,7 +6157,7 @@ const STORE = {
       els.wrongPointFilter.value = wrongPoint === "auto" ? "all" : wrongPoint;
       els.adaptiveHint.textContent = state.pointId === "auto"
         ? "当前会按年级混合出题；开启自适应时，会优先安排薄弱知识点。"
-        : `${pointLabel(state.pointId)}：${pointMap[state.pointId]?.helper || "专项练习"}。`;
+        : `${pointLabel(state.pointId)}：${curriculumHelperText(pointMap[state.pointId]) || "专项练习"}。`;
       renderKnowledgeDetail();
       renderHomeSettingsCard();
       syncCustomSelects();
@@ -7449,7 +7959,7 @@ const STORE = {
         <div class="learning-map-grid">
           ${rows.map((row) => `<button class="learning-map-node ${row.level}" type="button" data-map-practice="${escapeAttr(row.point.id)}">
             <strong>${escapeHTML(row.point.short || row.point.label)}</strong>
-            <span>${escapeHTML(row.point.helper || row.point.label)}</span>
+            <span>${escapeHTML(curriculumHelperText(row.point) || row.point.label)}</span>
             <em>${knowledgeMapLevelLabel(row.level)} · ${row.attempts ? `${row.rate}%` : "未练"}${row.due ? ` · 到期 ${row.due}` : row.wrong ? ` · 错题 ${row.wrong}` : ""}</em>
           </button>`).join("")}
         </div>`;
@@ -7928,7 +8438,7 @@ const STORE = {
       els.streakStat.textContent = state.streak;
       els.gradeTag.textContent = gradeNames[state.grade - 1];
       els.pointTag.textContent = current ? pointLabel(current.pointId) : pointLabel(state.pointId);
-      els.modeTag.textContent = state.mode === "due-review" ? "到期错题复习" : state.mode === "wrongbook" ? "错题复练" : state.mode === "similar" ? "同类巩固" : state.mode === "weak" ? "薄弱点练习" : state.mode === "timed" ? "限时小测" : state.mode === "appendix" ? "附加题挑战" : state.mode === "hard-word" ? "应用题强化" : state.mode === "challenge" ? `闯关第 ${state.challengeMeta?.level || 1} 关` : "普通练习";
+      els.modeTag.textContent = state.mode === "due-review" ? "到期错题复习" : state.mode === "wrongbook" ? "错题复练" : state.mode === "similar" ? "同类巩固" : state.mode === "weak" ? "薄弱点练习" : state.mode === "timed" ? "限时小测" : state.mode === "appendix" ? "附加题挑战" : state.mode === "hard-word" ? "应用题强化" : state.mode === "logic-reading" ? "思维阅读训练" : state.mode === "challenge" ? `闯关第 ${state.challengeMeta?.level || 1} 关` : "普通练习";
       els.progressDots.innerHTML = "";
       for (let i = 0; i < total; i += 1) {
         const dot = document.createElement("span");
@@ -8099,7 +8609,7 @@ const STORE = {
       state.mode = mode;
       state.challengeMeta = null;
       state.pointId = point.id;
-      state.currentSet = buildQuestionSetForPoint(point, count, mode === "hard-word" ? "step" : state.answerMode);
+      state.currentSet = buildQuestionSetForPoint(point, count, mode === "hard-word" || mode === "logic-reading" ? "step" : state.answerMode);
       state.index = 0;
       state.checked = false;
       state.correct = 0;
@@ -9072,6 +9582,12 @@ const STORE = {
       const weak = weakestPoints(1)[0] || availablePoints(state.grade)[0];
       startPointSet(weak.id, Math.min(10, state.setSize), "weak");
     }
+    function startLogicReadingTraining() {
+      const point = readingPointForGrade(activeProfile().grade || state.grade);
+      const count = Math.max(8, Math.min(12, Number(state.setSize) || 10));
+      closeHubModals();
+      startPointSet(point.id, count, "logic-reading");
+    }
     function startCausePractice(cause) {
       const profile = activeProfile();
       const grade = Number(profile.grade || state.grade);
@@ -9429,6 +9945,7 @@ const STORE = {
           addsub: "加减",
           muldiv: "乘除",
           word: "应用题",
+          reading: "思维阅读",
           geometry: "图形",
           mixed: "综合",
           appendix: "附加",
@@ -9440,7 +9957,7 @@ const STORE = {
         const topTopics = Object.entries(topicCounts).sort((a, b) => b[1] - a[1]).slice(0, 4);
         els.reportTopicBars.innerHTML = topTopics.length ? topTopics.map(([topic, count]) => {
           const width = Math.max(10, Math.round(count / total * 100));
-          const label = topic === "vertical" ? "竖式计算" : topic === "twostep" ? "两步计算" : (topicLabels[topic] || topic);
+          const label = topic === "vertical" ? "竖式计算" : topic === "twostep" ? "两步计算" : topic === "reading" ? "思维阅读" : (topicLabels[topic] || topic);
           return `<div class="report-bar-row"><span>${escapeHTML(label)}</span><div class="report-bar-track"><i style="width:${width}%"></i></div><b>${width}%</b></div>`;
         }).join("") : `<div class="empty-state">暂无题型构成数据。</div>`;
       }
@@ -9906,6 +10423,7 @@ const STORE = {
     }));
     document.querySelectorAll("[data-open-learning]").forEach((btn) => btn.addEventListener("click", () => openHubModal(els.learningModal)));
     document.querySelectorAll("[data-open-learning-map]").forEach((btn) => btn.addEventListener("click", () => openLearningKnowledgeMap(activeProfile())));
+    document.querySelectorAll("[data-start-logic-reading]").forEach((btn) => btn.addEventListener("click", startLogicReadingTraining));
     document.querySelectorAll("[data-close-learning]").forEach((btn) => btn.addEventListener("click", closeHubModals));
     document.querySelectorAll("[data-open-system]").forEach((btn) => btn.addEventListener("click", () => openHubModal(els.systemModal)));
     document.querySelectorAll("[data-close-system]").forEach((btn) => btn.addEventListener("click", closeHubModals));
@@ -10608,6 +11126,10 @@ const STORE = {
         todayKey,
         availablePoints,
         pointMap,
+        curriculumBandFor,
+        curriculumBrief,
+        curriculumHelperText,
+        knowledgeProfileFor,
         state,
         els
       };
