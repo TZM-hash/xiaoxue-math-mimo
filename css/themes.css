@@ -11138,12 +11138,6 @@
       font-size: 12px;
       line-height: 1.25;
     }
-    .custom-select--pointSelect .custom-select-group,
-    .custom-select--printPoint .custom-select-group,
-    .custom-select--wrongPointFilter .custom-select-group {
-      padding: 6px 9px 2px;
-      font-size: 10px;
-    }
     .custom-select--pointSelect .custom-select-option,
     .custom-select--printPoint .custom-select-option,
     .custom-select--wrongPointFilter .custom-select-option {

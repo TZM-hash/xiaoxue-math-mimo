@@ -2076,33 +2076,6 @@ const STORE = {
       const brief = curriculumBrief(point);
       return brief ? `${brief} / ${helper}` : helper;
     }
-    function curriculumSelectGroup(point) {
-      const curriculum = point?.curriculum || {};
-      const stage = String(curriculum.stage || "");
-      const term = String(curriculum.term || "");
-      if (stage.includes("专项")) return "读题与专项能力";
-      if (stage.includes("拓展")) return "拓展思维";
-      if (stage.includes("预习")) return "预习拓展";
-      if (stage.includes("复习") || stage.includes("衔接") || term.includes("复习") || term.includes("衔接")) return "复习衔接";
-      const hasUp = term.includes("上");
-      const hasDown = term.includes("下");
-      if (hasUp && !hasDown) return "上册同步";
-      if (hasDown && !hasUp) return "下册同步";
-      if (hasUp && hasDown) return "跨册核心";
-      return "同步知识点";
-    }
-    function curriculumSelectGroupRank(group) {
-      return {
-        "上册同步": 10,
-        "下册同步": 20,
-        "跨册核心": 30,
-        "复习衔接": 40,
-        "读题与专项能力": 50,
-        "预习拓展": 60,
-        "拓展思维": 70,
-        "同步知识点": 80
-      }[group] || 90;
-    }
     function curriculumUnitRank(point) {
       const curriculum = point?.curriculum || {};
       const plan = gradeCurriculum?.[Number(point?.grade) || 1];
@@ -2112,8 +2085,7 @@ const STORE = {
       return index >= 0 ? index : 999;
     }
     function curriculumPointRank(point) {
-      const group = curriculumSelectGroup(point);
-      return curriculumSelectGroupRank(group) * 1000 + curriculumUnitRank(point);
+      return curriculumUnitRank(point);
     }
     function curriculumSelectLabel(point) {
       const curriculum = point?.curriculum || {};
@@ -2144,10 +2116,9 @@ const STORE = {
     }
     function curriculumSelectShortLabel(point) {
       const curriculum = point?.curriculum || {};
-      const term = compactText(String(curriculum.term || "").replace(/复习/g, "复"), 5);
       const unit = compactCurriculumUnit(curriculum.unit);
       const name = compactText(point?.short || point?.label || "", 7);
-      return [term, unit, name].filter(Boolean).join(" · ") || point?.label || "";
+      return [unit, name].filter(Boolean).join(" · ") || point?.label || "";
     }
     function curriculumPointLabel(pointId) {
       const point = pointMap[pointId];
@@ -6228,19 +6199,9 @@ const STORE = {
       let safeSelected = selected === autoValue ? autoValue : safePointId(selected, grade);
       if (safeSelected === "auto" && autoValue !== "auto") safeSelected = autoValue;
       const opts = [`<option value="${escapeAttr(autoValue)}" ${safeSelected === autoValue ? "selected" : ""}>${escapeHTML(autoLabel)}</option>`];
-      const groups = new Map();
       availablePoints(grade).forEach((point) => {
-        const group = curriculumSelectGroup(point);
-        if (!groups.has(group)) groups.set(group, []);
-        groups.get(group).push(point);
-      });
-      groups.forEach((groupPoints, group) => {
-        opts.push(`<optgroup label="${escapeAttr(group)}">`);
-        groupPoints.forEach((point) => {
-          const label = curriculumSelectShortLabel(point);
-          opts.push(`<option value="${escapeAttr(point.id)}" data-group="${escapeAttr(group)}" title="${escapeAttr(curriculumHelperText(point))}" ${safeSelected === point.id ? "selected" : ""}>${escapeHTML(label)}</option>`);
-        });
-        opts.push("</optgroup>");
+        const label = curriculumSelectShortLabel(point);
+        opts.push(`<option value="${escapeAttr(point.id)}" title="${escapeAttr(curriculumHelperText(point))}" ${safeSelected === point.id ? "selected" : ""}>${escapeHTML(label)}</option>`);
       });
       return opts.join("");
     }
@@ -11239,7 +11200,6 @@ const STORE = {
         curriculumBandFor,
         curriculumBrief,
         curriculumHelperText,
-        curriculumSelectGroup,
         curriculumSelectLabel,
         curriculumSelectShortLabel,
         curriculumPointRank,
