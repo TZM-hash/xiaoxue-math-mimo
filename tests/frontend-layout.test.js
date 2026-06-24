@@ -120,6 +120,14 @@ assertContains(app, "data-start-logic-reading", "app should wire the logic readi
 assertContains(app, "makeReading", "app should generate dedicated logic reading questions");
 assertContains(app, "function normalizeQuestionDiagram", "app should sanitize generated geometry diagrams");
 assertContains(app, "function renderQuestionDiagram", "app should render generated geometry diagrams");
+assertContains(app, '"grid-shape"', "app should allow grid-shape geometry diagrams");
+assertContains(app, '"block-view"', "app should allow block-view geometry diagrams");
+assertContains(app, '"motion-grid"', "app should allow motion-grid geometry diagrams");
+assertContains(app, '"circle-ring"', "app should allow circle-ring geometry diagrams");
+assertContains(app, "function renderDiagramGridShape", "app should render grid counting diagrams");
+assertContains(app, "function renderDiagramBlockView", "app should render observation-object diagrams");
+assertContains(app, "function renderDiagramMotionGrid", "app should render shape motion diagrams");
+assertContains(app, "function renderDiagramCircleRing", "app should render circle ring diagrams");
 assertContains(app, "renderQuestionDiagram(current)", "practice rendering should update the geometry diagram per question");
 assertContains(app, "function makeThinking", "app should generate classified thinking-skill questions");
 assertContains(app, "thinking: makeThinking", "question generation should route thinking points to the thinking maker");

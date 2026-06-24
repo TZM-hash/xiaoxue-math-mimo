@@ -569,13 +569,13 @@ const STORE = {
     function normalizeQuestionDiagram(diagram) {
       if (!isPlainObject(diagram)) return null;
       const type = String(diagram.type || "");
-      const allowedTypes = new Set(["shape-count", "position-row", "angle-set", "segment-chain", "rectangle", "square", "composite-rect", "cuboid", "circle"]);
+      const allowedTypes = new Set(["shape-count", "position-row", "angle-set", "segment-chain", "rectangle", "square", "composite-rect", "cuboid", "circle", "circle-ring", "grid-shape", "block-view", "motion-grid"]);
       if (!allowedTypes.has(type)) return null;
       const clean = { type };
       ["caption", "unit", "mode", "angleType"].forEach((key) => {
         if (diagram[key] !== undefined) clean[key] = String(diagram[key] || "").slice(0, 24);
       });
-      ["length", "width", "height", "side", "radius", "diameter", "left", "right", "a", "b", "c", "d"].forEach((key) => {
+      ["length", "width", "height", "side", "radius", "innerRadius", "diameter", "left", "right", "a", "b", "c", "d", "rows", "cols", "startX", "startY", "endX", "endY", "moveX", "moveY"].forEach((key) => {
         if (diagram[key] !== undefined) clean[key] = clamp(Number(diagram[key]) || 0, 0, 999);
       });
       if (Array.isArray(diagram.shapes)) {
@@ -593,6 +593,15 @@ const STORE = {
       }
       if (Array.isArray(diagram.columns)) {
         clean.columns = diagram.columns.slice(0, 5).map((value) => clamp(Number(value) || 1, 1, 4));
+      }
+      if (Array.isArray(diagram.cells)) {
+        clean.cells = diagram.cells.slice(0, 80).map((cell) => {
+          if (typeof cell === "string") {
+            const parts = cell.split(",").map((value) => Number(value));
+            return { x: clamp(parts[0] || 0, 0, 12), y: clamp(parts[1] || 0, 0, 12) };
+          }
+          return { x: clamp(Number(cell?.x) || 0, 0, 12), y: clamp(Number(cell?.y) || 0, 0, 12) };
+        });
       }
       return clean;
     }
@@ -2334,6 +2343,69 @@ const STORE = {
       const line = showDiameter ? `<path d="M82 92H238" stroke="#31424f" stroke-width="3"/><text x="160" y="80" text-anchor="middle">直径 ${diameter} cm</text>` : `<path d="M160 92H238" stroke="#31424f" stroke-width="3"/><text x="202" y="80" text-anchor="middle">半径 ${r} cm</text>`;
       return diagramSvg(`<circle cx="160" cy="92" r="78" fill="#fff4d2" stroke="#31424f" stroke-width="3"/><circle cx="160" cy="92" r="4" fill="#31424f"/>${line}`, diagram.caption || "圆的示意图");
     }
+    function renderDiagramCircleRing(diagram) {
+      const outer = clamp(Number(diagram.radius) || 8, 2, 20);
+      const inner = clamp(Number(diagram.innerRadius) || Math.max(1, outer - 3), 1, outer - 1);
+      return diagramSvg(`<circle cx="160" cy="92" r="78" fill="#ffe8a8" stroke="#31424f" stroke-width="3"/><circle cx="160" cy="92" r="40" fill="#fff" stroke="#31424f" stroke-width="3"/><path d="M160 92H238" stroke="#31424f" stroke-width="3"/><path d="M160 92H200" stroke="#71808b" stroke-width="3"/><text x="205" y="82" text-anchor="middle">外半径 ${outer} cm</text><text x="148" y="116" text-anchor="middle">内半径 ${inner} cm</text>`, diagram.caption || "圆环面积示意图");
+    }
+    function renderDiagramGridShape(diagram) {
+      const rows = clamp(Number(diagram.rows) || 4, 1, 8);
+      const cols = clamp(Number(diagram.cols) || 5, 1, 10);
+      const size = Math.min(28, Math.floor(210 / cols), Math.floor(118 / rows));
+      const originX = Math.round((320 - cols * size) / 2);
+      const originY = 26;
+      const filled = new Set((diagram.cells || []).map((cell) => `${cell.x},${cell.y}`));
+      const cells = [];
+      for (let y = 0; y < rows; y += 1) {
+        for (let x = 0; x < cols; x += 1) {
+          const isFilled = filled.has(`${x},${y}`);
+          cells.push(`<rect x="${originX + x * size}" y="${originY + y * size}" width="${size}" height="${size}" fill="${isFilled ? "#bfe6a8" : "#fff"}" stroke="#71808b" stroke-width="1.5"/>`);
+        }
+      }
+      const note = diagram.unit ? `<text x="160" y="${originY + rows * size + 24}" text-anchor="middle">每小格边长 1 ${escapeHTML(diagram.unit)}</text>` : "";
+      return diagramSvg(`${cells.join("")}${note}`, diagram.caption || "数格子图形");
+    }
+    function renderDiagramBlockView(diagram) {
+      const columns = (diagram.columns || [2, 3, 1]).slice(0, 5);
+      const size = 24;
+      const totalWidth = columns.length * size;
+      const originX = Math.round((320 - totalWidth) / 2);
+      const baseY = 140;
+      const blocks = [];
+      columns.forEach((height, column) => {
+        for (let layer = 0; layer < height; layer += 1) {
+          const x = originX + column * size;
+          const y = baseY - (layer + 1) * size;
+          blocks.push(`<rect x="${x}" y="${y}" width="${size}" height="${size}" fill="${layer % 2 ? "#dff2ff" : "#f6fbff"}" stroke="#31424f" stroke-width="2"/>`);
+        }
+        blocks.push(`<text x="${originX + column * size + size / 2}" y="164" text-anchor="middle">${column + 1}</text>`);
+      });
+      return diagramSvg(`${blocks.join("")}<text x="160" y="22" text-anchor="middle">正面看到的方块列</text>`, diagram.caption || "观察物体示意图");
+    }
+    function renderDiagramMotionGrid(diagram) {
+      const rows = clamp(Number(diagram.rows) || 4, 2, 8);
+      const cols = clamp(Number(diagram.cols) || 6, 2, 10);
+      const size = Math.min(28, Math.floor(220 / cols), Math.floor(118 / rows));
+      const originX = Math.round((320 - cols * size) / 2);
+      const originY = 28;
+      const startX = clamp(Number(diagram.startX) || 0, 0, cols - 1);
+      const startY = clamp(Number(diagram.startY) || 0, 0, rows - 1);
+      const endX = clamp(Number(diagram.endX) || startX, 0, cols - 1);
+      const endY = clamp(Number(diagram.endY) || startY, 0, rows - 1);
+      const grid = [];
+      for (let y = 0; y < rows; y += 1) {
+        for (let x = 0; x < cols; x += 1) {
+          grid.push(`<rect x="${originX + x * size}" y="${originY + y * size}" width="${size}" height="${size}" fill="#fff" stroke="#8b99a5" stroke-width="1.5"/>`);
+        }
+      }
+      const cellRect = (x, y, fill, label) => `<rect x="${originX + x * size + 4}" y="${originY + y * size + 4}" width="${size - 8}" height="${size - 8}" rx="4" fill="${fill}" stroke="#31424f" stroke-width="2"/><text x="${originX + x * size + size / 2}" y="${originY + y * size + size / 2 + 5}" text-anchor="middle">${label}</text>`;
+      const sx = originX + startX * size + size / 2;
+      const sy = originY + startY * size + size / 2;
+      const ex = originX + endX * size + size / 2;
+      const ey = originY + endY * size + size / 2;
+      const arrow = `<defs><marker id="motionArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#31424f"/></marker></defs><path d="M${sx} ${sy}L${ex} ${ey}" stroke="#31424f" stroke-width="3" stroke-linecap="round" marker-end="url(#motionArrow)"/>`;
+      return diagramSvg(`${grid.join("")}${arrow}${cellRect(startX, startY, "#a9d6ff", "前")}${cellRect(endX, endY, "#ffd36e", "后")}`, diagram.caption || "平移示意图");
+    }
     function renderQuestionDiagram(question) {
       if (!els.questionDiagram) return;
       const diagram = normalizeQuestionDiagram(question?.diagram);
@@ -2346,7 +2418,11 @@ const STORE = {
         square: renderDiagramSquare,
         "composite-rect": renderDiagramCompositeRect,
         cuboid: renderDiagramCuboid,
-        circle: renderDiagramCircle
+        circle: renderDiagramCircle,
+        "circle-ring": renderDiagramCircleRing,
+        "grid-shape": renderDiagramGridShape,
+        "block-view": renderDiagramBlockView,
+        "motion-grid": renderDiagramMotionGrid
       };
       const html = diagram && renderers[diagram.type] ? renderers[diagram.type](diagram) : "";
       els.questionDiagram.hidden = !html;
@@ -4254,6 +4330,29 @@ const STORE = {
       ];
       return pick(variants)();
     }
+    function rectangleGridCells(rows, cols) {
+      const cells = [];
+      for (let y = 0; y < rows; y += 1) {
+        for (let x = 0; x < cols; x += 1) cells.push({ x, y });
+      }
+      return cells;
+    }
+    function lShapeGridCells(rows, cols, cutRows, cutCols) {
+      const cells = [];
+      for (let y = 0; y < rows; y += 1) {
+        for (let x = 0; x < cols; x += 1) {
+          const inCut = x >= cols - cutCols && y >= rows - cutRows;
+          if (!inCut) cells.push({ x, y });
+        }
+      }
+      return cells;
+    }
+    function gridPerimeter(cells) {
+      const filled = new Set(cells.map((cell) => `${cell.x},${cell.y}`));
+      return cells.reduce((total, cell) => {
+        return total + [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => !filled.has(`${cell.x + dx},${cell.y + dy}`)).length;
+      }, 0);
+    }
     function makeGeometry(point, level) {
       if (point.id === "g1-shape") {
         if (Math.random() > 0.5) {
@@ -4280,7 +4379,7 @@ const STORE = {
         });
       }
       if (point.id === "g2-angle-view") {
-        const variant = rand(1, 3);
+        const variant = rand(1, 4);
         if (variant === 1) {
           const right = rand(1, 3);
           const acute = rand(1, 2);
@@ -4300,6 +4399,36 @@ const STORE = {
             templateType: "数直角"
           });
         }
+        if (variant === 2) {
+          const cols = 6;
+          const rows = 4;
+          const startX = rand(0, 2);
+          const startY = rand(1, 2);
+          const move = rand(2, 3);
+          const endX = startX + move;
+          return baseQuestion(point, {
+            text: `看平移图，蓝色图形向右平移到黄色位置，一共平移了几格？`,
+            answer: move,
+            word: true,
+            diagram: { type: "motion-grid", rows, cols, startX, startY, endX, endY: startY, caption: "平移时形状和大小不变，只看移动了几格" },
+            explanation: `平移要数同一个点移动了几格。图中从蓝色位置到黄色位置，向右数 ${move} 格，所以平移了 ${move} 格。`,
+            steps: [`先找到平移前的蓝色图形。`, `再看平移后的黄色图形。`, `横向数出移动了 ${move} 格。`],
+            templateType: "图形运动"
+          });
+        }
+        if (variant === 3) {
+          const columns = Array.from({ length: rand(3, 5) }, () => rand(1, 4));
+          const answer = Math.max(...columns);
+          return baseQuestion(point, {
+            text: `看正方体小积木图，从正面看，最高的一列有几层？`,
+            answer,
+            word: true,
+            diagram: { type: "block-view", columns, caption: "从正面观察，先看每一列有几层" },
+            explanation: `观察物体时先按列看。图中每列层数是 ${columns.join("、")}，最高的一列有 ${answer} 层。`,
+            steps: [`从左到右读出每列层数：${columns.join("、")}。`, `比较这些层数。`, `最高是 ${answer} 层。`],
+            templateType: "观察物体"
+          });
+        }
         const ab = rand(3, 8);
         const bc = rand(2, 7);
         return baseQuestion(point, {
@@ -4316,6 +4445,19 @@ const STORE = {
         const length = rand(4, 12 + level);
         const width = rand(3, 9 + level);
         const height = rand(2, 8 + level);
+        if (Math.random() > 0.72) {
+          const columns = Array.from({ length: rand(3, 5) }, () => rand(1, 4));
+          const answer = columns.reduce((sum, value) => sum + value, 0);
+          return baseQuestion(point, {
+            text: `看正方体小积木搭成的立体图形，每个小正方体体积是 1 立方厘米，一共有多少立方厘米？`,
+            answer,
+            word: true,
+            diagram: { type: "block-view", columns, caption: "每一层小正方体都要数到" },
+            explanation: `这个立体图形按列数小正方体：${columns.join("、")}，合起来是 ${columns.join(" + ")} = ${answer} 个小正方体，所以体积是 ${answer} 立方厘米。`,
+            steps: [`从左到右数每列小正方体：${columns.join("、")}。`, `把每列个数相加。`, `${columns.join(" + ")} = ${answer} 立方厘米。`],
+            templateType: "观察物体"
+          });
+        }
         if (Math.random() > 0.45) {
           const answer = length * width * height;
           return baseQuestion(point, {
@@ -4351,6 +4493,19 @@ const STORE = {
       }
       if (point.id === "g6-circle") {
         const r = rand(3, 12);
+        if (Math.random() > 0.78) {
+          const inner = rand(2, Math.max(2, r - 1));
+          const answer = round1(3.14 * (r * r - inner * inner));
+          return baseQuestion(point, {
+            text: `圆环外半径是 ${r} cm，内半径是 ${inner} cm，圆环面积约是多少平方厘米？（π取3.14）`,
+            answer,
+            word: true,
+            diagram: { type: "circle-ring", radius: r, innerRadius: inner, caption: "圆环面积 = 外圆面积 - 内圆面积" },
+            explanation: `圆环面积要用外圆面积减内圆面积。3.14 × (${r} × ${r} - ${inner} × ${inner}) = ${formatAnswer(answer)} 平方厘米。`,
+            steps: [`外圆半径是 ${r} cm，内圆半径是 ${inner} cm。`, `先算半径平方差：${r * r} - ${inner * inner} = ${r * r - inner * inner}。`, `3.14 × ${r * r - inner * inner} = ${formatAnswer(answer)} 平方厘米。`],
+            templateType: "圆环面积"
+          });
+        }
         if (Math.random() > 0.5) {
           const answer = round1(2 * 3.14 * r);
           return baseQuestion(point, {
@@ -4388,7 +4543,7 @@ const STORE = {
       const length = rand(5, 18 + level * 4);
       const width = rand(3, Math.max(4, length - 1));
       if (point.id.includes("perimeter")) {
-        const variant = rand(1, 3);
+        const variant = rand(1, 4);
         if (variant === 1) {
           const answer = (length + width) * 2;
           return baseQuestion(point, {
@@ -4412,6 +4567,21 @@ const STORE = {
             templateType: "周长关系"
           });
         }
+        if (variant === 3) {
+          const rows = rand(2, 4);
+          const cols = rand(3, 6);
+          const cells = rectangleGridCells(rows, cols);
+          const answer = gridPerimeter(cells);
+          return baseQuestion(point, {
+            text: `看方格图，每个小方格边长 1 cm，涂色长方形的周长是多少 cm？`,
+            answer,
+            word: true,
+            diagram: { type: "grid-shape", rows, cols, cells, unit: "cm", caption: "数外边一圈，不数里面的线" },
+            explanation: `周长只数涂色图形外面一圈。这个长方形有 ${rows} 行、${cols} 列，长是 ${cols} cm，宽是 ${rows} cm，周长是 (${cols} + ${rows}) × 2 = ${answer} cm。`,
+            steps: [`数出长是 ${cols} cm，宽是 ${rows} cm。`, `周长是围一圈，不能数内部格线。`, `(${cols} + ${rows}) × 2 = ${answer} cm。`],
+            templateType: "数格子周长"
+          });
+        }
         const side = rand(4, 18);
         return baseQuestion(point, {
           text: `正方形边长 ${side} cm，周长是多少 cm？`,
@@ -4421,6 +4591,69 @@ const STORE = {
           explanation: `正方形四条边一样长，周长 = 边长 × 4。${side} × 4 = ${side * 4} cm。`,
           steps: [`正方形有 4 条相同的边。`, `每条边 ${side} cm。`, `${side} × 4 = ${side * 4} cm。`]
         });
+      }
+      if (point.id === "g4-area") {
+        const areaVariant = rand(1, 5);
+        if (areaVariant === 1) {
+          const rows = rand(3, 5);
+          const cols = rand(4, 7);
+          const cells = rectangleGridCells(rows, cols);
+          const answer = cells.length;
+          return baseQuestion(point, {
+            text: `看方格图，每个小方格表示 1 平方厘米，涂色部分的面积是多少平方厘米？`,
+            answer,
+            word: true,
+            diagram: { type: "grid-shape", rows, cols, cells, unit: "cm", caption: "面积是里面铺了多少个小方格" },
+            explanation: `面积看图形里面铺了多少个 1 平方厘米的小方格。图中有 ${rows} 行、${cols} 列，所以面积是 ${rows} × ${cols} = ${answer} 平方厘米。`,
+            steps: [`数出一共有 ${rows} 行。`, `每行有 ${cols} 个小方格。`, `${rows} × ${cols} = ${answer} 平方厘米。`],
+            templateType: "数格子面积"
+          });
+        }
+        if (areaVariant === 2) {
+          const rows = rand(4, 6);
+          const cols = rand(5, 7);
+          const cutRows = rand(1, 2);
+          const cutCols = rand(1, 2);
+          const cells = lShapeGridCells(rows, cols, cutRows, cutCols);
+          const answer = cells.length;
+          return baseQuestion(point, {
+            text: `看组合方格图，每个小方格表示 1 平方厘米，涂色部分面积是多少平方厘米？`,
+            answer,
+            word: true,
+            diagram: { type: "grid-shape", rows, cols, cells, unit: "cm", caption: "可以先补成长方形，再减去缺口" },
+            explanation: `先看外面大长方形面积是 ${rows} × ${cols} = ${rows * cols} 平方厘米，再减去右下角缺口 ${cutRows} × ${cutCols} = ${cutRows * cutCols} 平方厘米，剩下 ${answer} 平方厘米。`,
+            steps: [`大长方形面积：${rows} × ${cols} = ${rows * cols}。`, `缺口面积：${cutRows} × ${cutCols} = ${cutRows * cutCols}。`, `${rows * cols} - ${cutRows * cutCols} = ${answer} 平方厘米。`],
+            templateType: "组合图形拆分"
+          });
+        }
+        if (areaVariant === 3) {
+          const useArea = Math.random() > 0.5;
+          return baseQuestion(point, {
+            text: `给长方形花坛${useArea ? "铺满草皮" : "围一圈栏杆"}，应该主要计算哪一个？输入 1 表示周长，输入 2 表示面积。`,
+            answer: useArea ? 2 : 1,
+            word: true,
+            diagram: { type: "rectangle", length, width, unit: "m", caption: "周长看外圈，面积看里面" },
+            explanation: `${useArea ? "铺满草皮要看里面有多大，所以计算面积。" : "围栏杆要绕外面一圈，所以计算周长。"}周长和面积都和图形有关，但用途不同。`,
+            steps: [`先读动作：${useArea ? "铺满" : "围一圈"}。`, `${useArea ? "铺满里面对应面积。" : "围外圈对应周长。"}`, `所以答案选 ${useArea ? 2 : 1}。`],
+            templateType: "周长面积辨析"
+          });
+        }
+        if (areaVariant === 4) {
+          const outerLength = rand(10, 18);
+          const outerWidth = rand(6, 12);
+          const cutLength = rand(2, Math.min(6, outerLength - 5));
+          const cutWidth = rand(2, Math.min(5, outerWidth - 3));
+          const answer = outerLength * outerWidth - cutLength * cutWidth;
+          return baseQuestion(point, {
+            text: `看组合图形：外面长方形长 ${outerLength} m、宽 ${outerWidth} m，右下角挖去 ${cutLength} m × ${cutWidth} m 的小长方形，剩下面积是多少平方米？`,
+            answer,
+            word: true,
+            diagram: { type: "composite-rect", a: outerLength, b: outerWidth, c: cutLength, d: cutWidth, caption: "组合图形可以先补成长方形" },
+            explanation: `先算外面大长方形面积，再减去挖掉的小长方形面积。${outerLength} × ${outerWidth} - ${cutLength} × ${cutWidth} = ${answer}。`,
+            steps: [`大长方形面积：${outerLength} × ${outerWidth} = ${outerLength * outerWidth}。`, `挖去面积：${cutLength} × ${cutWidth} = ${cutLength * cutWidth}。`, `剩下面积：${outerLength * outerWidth} - ${cutLength * cutWidth} = ${answer} 平方米。`],
+            templateType: "组合图形拆分"
+          });
+        }
       }
       if (point.id === "g4-area" && Math.random() > 0.62) {
         const outerLength = rand(10, 18);

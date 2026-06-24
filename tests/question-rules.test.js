@@ -979,13 +979,15 @@ function runThinkingSkillQuestionTests() {
 
 function runGeometryDiagramQuestionTests() {
   const debug = context.mathCampDebug;
-  const expectedTypes = new Set(["shape-count", "position-row", "angle-set", "segment-chain", "rectangle", "square", "composite-rect", "cuboid", "circle"]);
+  const expectedTypes = new Set(["shape-count", "position-row", "angle-set", "segment-chain", "rectangle", "square", "composite-rect", "cuboid", "circle", "circle-ring", "grid-shape", "block-view", "motion-grid"]);
+  const globalTypes = new Set();
+  const globalTemplates = new Set();
   [1, 2, 3, 4, 5, 6].forEach((grade) => {
     const geometryPoints = debug.availablePoints(grade).filter((point) => point.topic === "geometry");
     assert(geometryPoints.length >= 1, `grade ${grade} should include a geometry point`);
     const seenTypes = new Set();
     geometryPoints.forEach((point) => {
-      for (let i = 0; i < 12; i += 1) {
+      for (let i = 0; i < 40; i += 1) {
         const question = debug.makeQuestion(point, { strict: true });
         assert(question.diagram, `${point.id} should generate a visible geometry diagram`);
         assert(expectedTypes.has(question.diagram.type), `${point.id} should use a known diagram type: ${question.diagram.type}`);
@@ -993,15 +995,25 @@ function runGeometryDiagramQuestionTests() {
         assert.strictEqual(question.pointId, point.id, `${point.id} should keep point id`);
         assert.strictEqual(debug.questionRuleIssues(point, question, { strict: true }).length, 0, `${point.id} geometry diagram question should pass rule checks`);
         seenTypes.add(question.diagram.type);
+        globalTypes.add(question.diagram.type);
+        if (question.templateType) globalTemplates.add(question.templateType);
       }
     });
     assert(seenTypes.size >= 1, `grade ${grade} should generate diagram types`);
   });
 
   assert(debug.pointMap["g2-angle-view"], "grade 2 should include an explicit angle and observation geometry point");
-  const grade2Samples = Array.from({ length: 20 }, () => debug.makeQuestion(debug.pointMap["g2-angle-view"], { strict: true }));
+  const grade2Samples = Array.from({ length: 120 }, () => debug.makeQuestion(debug.pointMap["g2-angle-view"], { strict: true }));
   assert(grade2Samples.some((question) => question.diagram.type === "angle-set"), "grade 2 geometry should include angle counting diagrams");
   assert(grade2Samples.some((question) => question.diagram.type === "segment-chain"), "grade 2 geometry should include line-segment diagrams");
+  assert(grade2Samples.some((question) => question.diagram.type === "motion-grid"), "grade 2 geometry should include shape motion diagrams");
+  assert(grade2Samples.some((question) => question.diagram.type === "block-view"), "grade 2 geometry should include observation-object diagrams");
+  ["grid-shape", "block-view", "motion-grid", "circle-ring"].forEach((type) => {
+    assert(globalTypes.has(type), `geometry bank should include ${type} diagrams`);
+  });
+  ["数格子周长", "数格子面积", "组合图形拆分", "周长面积辨析", "观察物体", "图形运动", "圆环面积"].forEach((template) => {
+    assert(globalTemplates.has(template), `geometry bank should classify ${template} questions`);
+  });
 }
 
 function runHangzhouCurriculumMetadataTests() {
