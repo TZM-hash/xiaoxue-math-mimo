@@ -7,7 +7,7 @@
   'use strict';
 
   const EffectsControl = {
-    settings: {
+    settings: window.MathCampRuntime?.defaultEffectSettings?.() || {
       cursorEffects: true,
       seasonEffects: true,
       themeBackgrounds: true,
@@ -33,6 +33,7 @@
      */
     loadSettings() {
       try {
+        this.settings = { ...(window.MathCampRuntime?.defaultEffectSettings?.() || this.settings), ...this.settings };
         const saved = localStorage.getItem('mathcamp-effects-settings');
         if (saved) {
           this.settings = { ...this.settings, ...JSON.parse(saved) };

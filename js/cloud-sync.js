@@ -3,8 +3,12 @@
 
   var SYNC_DEBOUNCE_MS = 3000;
   var SYNC_RETRY_MS = 30000;
+  var SUPABASE_SDK_URL = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js";
+  var SUPABASE_SDK_TIMEOUT_MS = 12000;
   var syncTimer = null;
   var retryTimer = null;
+  var sdkTimer = null;
+  var sdkPromise = null;
   var client = null;
   var deviceId = null;
   var syncCode = "";
@@ -19,6 +23,58 @@
 
   function onSyncStatus(fn) {
     if (typeof fn === "function") syncStatusListeners.push(fn);
+  }
+
+  function debugLog() {
+    if (window.MathCampRuntime && typeof window.MathCampRuntime.debugLog === "function") {
+      window.MathCampRuntime.debugLog.apply(window.MathCampRuntime, arguments);
+    }
+  }
+
+  function hasSupabaseSdk() {
+    return Boolean(window.supabase && window.supabase.createClient);
+  }
+
+  function loadSupabaseSdk() {
+    if (hasSupabaseSdk()) return Promise.resolve(true);
+    if (sdkPromise) return sdkPromise;
+    if (typeof document === "undefined" || !document.createElement) return Promise.resolve(false);
+
+    sdkPromise = new Promise(function (resolve) {
+      var target = document.head || document.documentElement || document.body;
+      if (!target || !target.appendChild) {
+        sdkPromise = null;
+        resolve(false);
+        return;
+      }
+
+      var script = document.createElement("script");
+      var done = false;
+      function finish(ok) {
+        if (done) return;
+        done = true;
+        if (sdkTimer) {
+          clearTimeout(sdkTimer);
+          sdkTimer = null;
+        }
+        if (!ok) sdkPromise = null;
+        resolve(Boolean(ok));
+      }
+
+      setSyncStatus("loading-sdk");
+      script.src = SUPABASE_SDK_URL;
+      script.async = true;
+      script.onload = function () { finish(hasSupabaseSdk()); };
+      script.onerror = function () { finish(false); };
+      sdkTimer = setTimeout(function () { finish(hasSupabaseSdk()); }, SUPABASE_SDK_TIMEOUT_MS);
+      target.appendChild(script);
+    });
+    return sdkPromise;
+  }
+
+  async function ensureSupabaseSdk() {
+    if (hasSupabaseSdk()) return true;
+    return loadSupabaseSdk();
   }
 
   function getConfig() {
@@ -84,7 +140,8 @@
     }
 
     try {
-      if (!window.supabase || !window.supabase.createClient) {
+      if (!await ensureSupabaseSdk()) {
+        setSyncStatus("offline");
         console.warn("[CloudSync] Supabase SDK 未加载。");
         return false;
       }
@@ -101,7 +158,7 @@
       }
 
       syncEnabled = true;
-      console.log("[CloudSync] 初始化成功，owner:", getOwnerId());
+      debugLog("[CloudSync] 初始化成功，owner:", getOwnerId());
       setSyncStatus("ready");
       return true;
     } catch (err) {
@@ -532,6 +589,7 @@
 
   window.MathCampCloudSync = {
     initSupabase: initSupabase,
+    ensureSupabaseSdk: ensureSupabaseSdk,
     getConfig: getConfig,
     saveConfig: saveConfig,
     getSyncCode: getSyncCode,

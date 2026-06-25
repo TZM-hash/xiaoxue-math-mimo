@@ -6358,14 +6358,29 @@
       body.practice-view-active.practice-focus-mode .companion {
         min-height: 0;
         max-height: 100%;
-        overflow: hidden;
       }
       body.practice-view-active.practice-focus-mode .answer-panel {
+        overflow: hidden;
         justify-content: space-between;
       }
       body.practice-view-active.practice-focus-mode .companion {
         display: grid;
-        align-content: stretch;
+        grid-template-rows: auto auto auto auto auto;
+        align-content: start;
+        align-items: stretch;
+        gap: 10px;
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-gutter: stable;
+      }
+      body.practice-view-active.practice-focus-mode .companion-card,
+      body.practice-view-active.practice-focus-mode .method-card,
+      body.practice-view-active.practice-focus-mode .appendix-card {
+        min-height: 0;
+        max-height: none;
+        overflow: visible;
       }
       body.practice-view-active.practice-focus-mode .status-strip {
         gap: 6px;
@@ -6545,7 +6560,11 @@
         max-height: 100%;
         padding: 8px 10px;
         align-self: stretch;
-        overflow: hidden;
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-gutter: stable;
       }
       body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel h2 {
         margin: 0 0 6px;
@@ -7709,6 +7728,73 @@
         body.practice-view-active:not(.practice-focus-mode) .desktop-overview-card button {
           min-height: 30px;
           font-size: 11px;
+        }
+      }
+
+      @media (max-height: 860px) {
+        html:has(body.practice-view-active),
+        body.practice-view-active {
+          height: auto;
+          min-height: 100%;
+          overflow-x: hidden;
+          overflow-y: auto;
+        }
+        body.practice-view-active .app,
+        body.practice-view-active.practice-focus-mode .app,
+        body.practice-view-active:not(.practice-focus-mode) .app {
+          height: auto;
+          min-height: 100dvh;
+          overflow: visible;
+          align-items: start;
+        }
+        body.practice-view-active.practice-focus-mode .app {
+          grid-template-rows: auto auto auto;
+          padding-bottom: 14px;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .app {
+          grid-template-rows: auto auto auto;
+          padding-bottom: 14px;
+        }
+        body.practice-view-active #practiceView,
+        body.practice-view-active.practice-focus-mode #practiceView,
+        body.practice-view-active:not(.practice-focus-mode) #practiceView,
+        body.practice-view-active .practice-workspace,
+        body.practice-view-active .practice-workspace > .main-stack {
+          height: auto;
+          min-height: 0;
+          overflow: visible;
+        }
+        body.practice-view-active.practice-focus-mode .practice-workspace,
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace {
+          align-items: start;
+        }
+        body.practice-view-active.practice-focus-mode .practice-workspace > .main-stack {
+          grid-template-rows: auto auto auto;
+        }
+        body.practice-view-active.practice-focus-mode .practice-card {
+          height: auto;
+          max-height: none;
+          overflow: visible;
+        }
+        body.practice-view-active.practice-focus-mode .answer-panel,
+        body.practice-view-active.practice-focus-mode .companion {
+          max-height: none;
+          overflow: visible;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel {
+          height: auto;
+          max-height: none;
+          overflow: visible;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .main-stack {
+          grid-template-rows: auto auto;
+        }
+        body.practice-view-active:not(.practice-focus-mode) .desktop-practice-overview {
+          height: auto;
+          grid-template-rows: repeat(3, minmax(118px, auto));
+        }
+        body.practice-view-active:not(.practice-focus-mode) .desktop-overview-card {
+          overflow: visible;
         }
       }
 
@@ -12607,6 +12693,289 @@
     @media (max-width: 380px) {
       body.practice-view-active:not(.practice-focus-mode):not(.type-settings-open) .home-mode-grid {
         grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    @media (min-width: 981px) {
+      body.practice-view-active.practice-focus-mode .app {
+        padding: 4px 0;
+        gap: 4px;
+      }
+      body.practice-view-active.practice-focus-mode .home-dashboard {
+        padding: 7px 9px;
+      }
+      body.practice-view-active.practice-focus-mode .today-plan-card {
+        gap: 5px 8px;
+      }
+      body.practice-view-active.practice-focus-mode .home-dashboard h1 {
+        margin-top: 1px;
+        font-size: 20px;
+        line-height: 1.08;
+      }
+      body.practice-view-active.practice-focus-mode .home-dashboard .lead {
+        font-size: 11px;
+        line-height: 1.22;
+      }
+      body.practice-view-active.practice-focus-mode .home-cockpit-meter {
+        gap: 4px;
+      }
+      body.practice-view-active.practice-focus-mode .home-cockpit-meter span {
+        min-height: 34px;
+        padding: 5px 6px;
+      }
+      body.practice-view-active.practice-focus-mode .home-route-list {
+        gap: 5px;
+      }
+      body.practice-view-active.practice-focus-mode .home-route-step {
+        padding: 5px 6px;
+        gap: 3px;
+      }
+      body.practice-view-active.practice-focus-mode .home-route-step > span {
+        min-height: 20px;
+        line-height: 1.18;
+      }
+      body.practice-view-active.practice-focus-mode .practice-workspace > .main-stack {
+        gap: 4px;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel {
+        min-height: 0;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        overscroll-behavior: contain;
+        scrollbar-gutter: stable;
+      }
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .knowledge-card,
+      body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel .knowledge-card-body {
+        max-height: none;
+        overflow: visible;
+      }
+      body.practice-view-active.practice-focus-mode .answer-panel {
+        min-height: 0;
+        max-height: 100%;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-gutter: stable;
+        padding-right: 4px;
+        padding-bottom: 12px;
+      }
+      body.practice-view-active.practice-focus-mode .practice-card {
+        min-height: 0;
+        max-height: 100%;
+        padding: clamp(14px, 1.6vw, 18px);
+        gap: 12px;
+        overflow: hidden;
+      }
+      body.practice-view-active.practice-focus-mode .question {
+        min-height: 88px;
+        margin-bottom: 10px;
+        font-size: clamp(34px, 5.3vw, 60px);
+        line-height: 1.08;
+      }
+      body.practice-view-active.practice-focus-mode .question.word {
+        min-height: 76px;
+        margin-bottom: 8px;
+        font-size: clamp(23px, 3vw, 36px);
+        line-height: 1.28;
+      }
+      body.practice-view-active.practice-focus-mode .question.vertical-question {
+        gap: 14px;
+      }
+      body.practice-view-active.practice-focus-mode .vertical-stack {
+        padding: 14px 18px 12px;
+      }
+      body.practice-view-active.practice-focus-mode .question-diagram {
+        margin: -4px 0 10px;
+      }
+      body.practice-view-active.practice-focus-mode .question-diagram svg {
+        max-height: 180px;
+      }
+      body.practice-view-active.practice-focus-mode .answer-panel > * {
+        flex: 0 0 auto;
+      }
+      body.practice-view-active.practice-focus-mode .answer-panel,
+      body.practice-view-active.practice-focus-mode .answer-control-slot {
+        gap: 7px;
+      }
+      body.practice-view-active.practice-focus-mode .answer-row {
+        gap: 8px;
+      }
+      body.practice-view-active.practice-focus-mode .answer-input,
+      body.practice-view-active.practice-focus-mode .answer-row .primary {
+        min-height: 52px;
+      }
+      body.practice-view-active.practice-focus-mode .answer-mode-panel,
+      body.practice-view-active.practice-focus-mode .choice-options,
+      body.practice-view-active.practice-focus-mode .judge-options,
+      body.practice-view-active.practice-focus-mode .cause-panel {
+        min-height: 0;
+      }
+      body.practice-view-active.practice-focus-mode .choice-options,
+      body.practice-view-active.practice-focus-mode .judge-options {
+        gap: 6px;
+      }
+      body.practice-view-active.practice-focus-mode .answer-option {
+        min-height: 46px;
+        padding: 8px 10px;
+        font-size: 16px;
+      }
+      body.practice-view-active.practice-focus-mode .judge-options .answer-option {
+        min-height: 40px;
+      }
+      body.practice-view-active.practice-focus-mode .number-pad {
+        gap: 6px;
+        margin-top: 4px;
+      }
+      body.practice-view-active.practice-focus-mode .number-pad button {
+        min-height: 44px;
+        border-radius: 10px;
+      }
+      body.practice-view-active.practice-focus-mode .cause-panel {
+        gap: 7px;
+        padding: 10px;
+      }
+      body.practice-view-active.practice-focus-mode .practice-actions {
+        margin-top: 6px;
+      }
+      body.practice-view-active.practice-focus-mode .practice-actions button {
+        min-height: 40px;
+        padding-top: 0;
+        padding-bottom: 0;
+      }
+      body.practice-view-active.practice-focus-mode .answer-control-slot,
+      body.practice-view-active.practice-focus-mode .number-pad,
+      body.practice-view-active.practice-focus-mode .practice-actions {
+        flex: 0 0 auto;
+      }
+      body.practice-view-active.practice-focus-mode .companion {
+        display: flex !important;
+        flex-direction: column;
+        align-items: stretch;
+        align-content: stretch;
+        gap: 8px;
+        min-height: 0;
+        max-height: 100%;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-gutter: stable;
+      }
+      body.practice-view-active.practice-focus-mode .companion-art,
+      body.practice-view-active.practice-focus-mode .companion-body,
+      body.practice-view-active.practice-focus-mode .method-card,
+      body.practice-view-active.practice-focus-mode .appendix-card,
+      body.practice-view-active.practice-focus-mode .paw-row {
+        flex: 0 0 auto;
+      }
+      body.practice-view-active.practice-focus-mode .companion-body {
+        height: auto !important;
+        max-height: none !important;
+        min-height: 0;
+        overflow: visible;
+      }
+      body.practice-view-active.practice-focus-mode .method-card,
+      body.practice-view-active.practice-focus-mode .appendix-card {
+        display: block !important;
+        min-height: 0;
+        max-height: none !important;
+        overflow: visible !important;
+      }
+      body.practice-view-active.practice-focus-mode .method-card p,
+      body.practice-view-active.practice-focus-mode .appendix-card p {
+        display: block;
+        max-height: none;
+        overflow: visible;
+        -webkit-line-clamp: initial;
+        -webkit-box-orient: initial;
+      }
+      body.practice-view-active.practice-focus-mode .speech {
+        max-height: none;
+        overflow: visible;
+      }
+      body.practice-view-active.practice-focus-mode .status-strip {
+        gap: 5px;
+      }
+      body.practice-view-active.practice-focus-mode .status-strip .stat {
+        min-height: 31px;
+        padding: 4px 7px;
+      }
+      body.practice-view-active.practice-focus-mode .status-strip .stat strong {
+        font-size: 16px;
+      }
+      body.practice-view-active.practice-focus-mode .status-strip .stat span {
+        margin-top: 1px;
+        font-size: 9.5px;
+      }
+      body.practice-view-active.practice-focus-mode .mission-strip {
+        gap: 5px;
+      }
+      body.practice-view-active.practice-focus-mode .mission-card {
+        min-height: 34px;
+        padding: 5px 8px;
+        gap: 4px 8px;
+      }
+      body.practice-view-active.practice-focus-mode .mission-card span {
+        font-size: 9.5px;
+      }
+      body.practice-view-active.practice-focus-mode .mission-card strong {
+        font-size: 12.5px;
+      }
+      body.practice-view-active.practice-focus-mode .paw-row {
+        margin-top: 0;
+      }
+    }
+
+    @media (max-width: 1180px) {
+      html:has(body.practice-view-active.practice-focus-mode),
+      body.practice-view-active.practice-focus-mode {
+        height: auto;
+        min-height: 100%;
+        overflow-x: hidden;
+        overflow-y: auto;
+      }
+      body.practice-view-active.practice-focus-mode .app {
+        height: auto;
+        min-height: 100dvh;
+        overflow: visible;
+        align-items: start;
+      }
+      body.practice-view-active.practice-focus-mode #practiceView,
+      body.practice-view-active.practice-focus-mode .practice-workspace,
+      body.practice-view-active.practice-focus-mode .practice-workspace.focus-mode > .main-stack,
+      body.practice-view-active.practice-focus-mode .practice-workspace > .main-stack {
+        height: auto;
+        min-height: 0;
+        max-height: none;
+        overflow: visible;
+      }
+      body.practice-view-active.practice-focus-mode .practice-workspace {
+        align-items: start;
+      }
+      body.practice-view-active.practice-focus-mode .practice-workspace.focus-mode > .main-stack,
+      body.practice-view-active.practice-focus-mode .practice-workspace > .main-stack {
+        grid-template-rows: auto auto auto !important;
+        padding-bottom: max(16px, env(safe-area-inset-bottom));
+      }
+      body.practice-view-active.practice-focus-mode .practice-card {
+        height: auto;
+        min-height: 0;
+        max-height: none;
+        overflow: visible;
+      }
+      body.practice-view-active.practice-focus-mode .answer-panel {
+        min-height: 0;
+        max-height: none;
+        overflow: visible;
+      }
+      body.practice-view-active.practice-focus-mode .answer-mode-panel,
+      body.practice-view-active.practice-focus-mode .choice-options,
+      body.practice-view-active.practice-focus-mode .judge-options,
+      body.practice-view-active.practice-focus-mode .cause-panel,
+      body.practice-view-active.practice-focus-mode .practice-actions,
+      body.practice-view-active.practice-focus-mode .mobile-challenge-result:not([hidden]) {
+        flex: 0 0 auto;
       }
     }
 

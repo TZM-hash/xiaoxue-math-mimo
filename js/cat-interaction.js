@@ -7,6 +7,7 @@
   'use strict';
 
   function effectSettingEnabled(key) {
+    if (window.MathCampRuntime?.effectSettingEnabled) return window.MathCampRuntime.effectSettingEnabled(key);
     try {
       const saved = JSON.parse(localStorage.getItem('mathcamp-effects-settings') || '{}');
       return saved[key] !== false;

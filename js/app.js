@@ -39,10 +39,13 @@ const STORE = {
     const PetEconomy = window.MathCampPetEconomy || {};
     const HomeRoute = window.MathCampHomeRoute || {};
     const PetDressupMeta = window.MathCampPetDressupMeta || {};
+    const LearningInsights = window.MathCampLearningInsights || {};
+    const QuestionBankCoverage = window.MathCampQuestionBankCoverage || {};
     const { grades, gradeNames, causes, causeTagsByTopic, gradeCurriculum, points, pointMap } = window.MathCampQuestionBank;
     const isAndroidWebView = () => document.documentElement.classList.contains("android-webview");
     const isLowMotionMode = () => isAndroidWebView();
     function effectSettingEnabled(key) {
+      if (window.MathCampRuntime?.effectSettingEnabled) return window.MathCampRuntime.effectSettingEnabled(key);
       try {
         const saved = JSON.parse(localStorage.getItem("mathcamp-effects-settings") || "{}");
         return saved[key] !== false;
@@ -1978,8 +1981,15 @@ const STORE = {
     function saveProfiles() {
       const profile = activeProfile();
       if (profile) profile.updatedAt = Date.now();
-      const savedProfiles = storageSet(STORE.profiles, JSON.stringify(state.profiles));
-      const savedActive = storageSet(STORE.active, state.activeId);
+      const profilesForSave = state.profiles
+        .map((item) => normalizeProfile(JSON.parse(JSON.stringify(item || {}))))
+        .filter(Boolean);
+      const payloadProfiles = profilesForSave.length ? profilesForSave : state.profiles;
+      const payloadActiveId = payloadProfiles.some((item) => item.id === state.activeId)
+        ? state.activeId
+        : payloadProfiles[0]?.id || state.activeId;
+      const savedProfiles = storageSet(STORE.profiles, JSON.stringify(payloadProfiles));
+      const savedActive = storageSet(STORE.active, payloadActiveId);
       const ok = Boolean(savedProfiles && savedActive);
       if (!savedProfiles || !savedActive) {
         console.warn("学习数据暂时无法写入本地存储，请导出备份后再继续大量练习。");
@@ -1987,7 +1997,7 @@ const STORE = {
       } else {
         updateSaveStatus(true);
         if (window.MathCampCloudSync && window.MathCampCloudSync.isSyncEnabled()) {
-          window.MathCampCloudSync.scheduleSync(state.profiles, state.activeId);
+          window.MathCampCloudSync.scheduleSync(payloadProfiles, payloadActiveId);
         }
       }
       renderChrome();
@@ -2027,6 +2037,8 @@ const STORE = {
         synced: "✅ 已同步",
         error: "⚠️ 同步出错，稍后重试",
         retrying: "🔄 重试中…",
+        "loading-sdk": "正在加载云同步组件…",
+        offline: "离线模式，本地练习可正常使用",
         disconnected: "📴 离线模式"
       };
       el.textContent = labels[status] || status;
@@ -2160,6 +2172,13 @@ const STORE = {
       const unit = compactCurriculumUnit(curriculum.unit);
       const name = compactText(point?.short || point?.label || "", 7);
       return [unit, name].filter(Boolean).join(" · ") || point?.label || "";
+    }
+    function knowledgeDetailTitle(point) {
+      if (!point) return "按年级混合";
+      const name = compactText(point.short || point.label || "", 6);
+      const unit = compactCurriculumUnit(point.curriculum?.unit || "");
+      if (!unit || unit === name || unit.includes(name) || name.includes(unit)) return name || point.label;
+      return `${compactText(unit, 6)} · ${name}`;
     }
     function curriculumPointLabel(pointId) {
       const point = pointMap[pointId];
@@ -2683,7 +2702,7 @@ const STORE = {
       els.knowledgeDetail.innerHTML = `
         <summary>知识点详情说明</summary>
         <div class="knowledge-card-body">
-        <strong>${point ? escapeHTML(curriculumSelectLabel(point)) : "按年级混合 / 自适应"}</strong>
+        <strong>${escapeHTML(knowledgeDetailTitle(point))}</strong>
         <p>${escapeHTML(profile.rule)}</p>
         <div class="chip-row">${profile.subskills.map((item) => `<span class="mini-chip">${escapeHTML(item)}</span>`).join("")}</div>
         <div class="chip-row">${profile.pitfalls.slice(0, 3).map((item) => `<span class="mini-chip">易错：${escapeHTML(item)}</span>`).join("")}</div>
@@ -11033,30 +11052,34 @@ const STORE = {
     function renderReportWeakSummary(profile, weakPoints, rows = []) {
       if (!els.reportWeakList) return;
       const rowMap = Object.fromEntries(rows.map((row) => [row.pointId, row]));
+      const insightMap = Object.fromEntries((LearningInsights.buildWeakPointInsights?.({ points, pointMap }, profile, {
+        points: weakPoints.length ? weakPoints : availablePoints(profile.grade),
+        pointMap,
+        grade: profile.grade,
+        limit: 3
+      }) || []).map((item) => [item.pointId, item]));
       const points = (weakPoints.length ? weakPoints : availablePoints(profile.grade)).slice(0, 3);
       els.reportWeakList.innerHTML = points.length ? points.map((point) => {
         const row = rowMap[point.id];
         const mastery = masteryFor(profile, point.id);
         const rate = row ? row.rate : (mastery.attempts ? Math.round(mastery.correct / mastery.attempts * 100) : 0);
+        const insight = insightMap[point.id];
+        const tag = row ? `${rate}%` : (insight?.mainCause || "待练");
+        const copy = insight?.advice || point.helper;
         return `<div class="report-item compact-report-item">
-          <div class="item-top"><h3>${escapeHTML(point.label)}</h3><span class="tag">${row ? rate + "%" : "待练"}</span></div>
-          <p>${escapeHTML(point.helper)}</p>
+          <div class="item-top"><h3>${escapeHTML(point.label)}</h3><span class="tag">${escapeHTML(tag)}</span></div>
+          <p>${escapeHTML(copy)}</p>
         </div>`;
       }).join("") : `<div class="empty-state">暂无明显薄弱点，继续保持当前节奏。</div>`;
     }
 
     function renderReportCauseSummary(profile) {
       if (!els.reportCauseSummary) return;
-      const counts = {};
-      (profile.history || []).filter((item) => !item.correct).forEach((item) => {
-        const cause = normalizeCause(item.cause);
-        counts[cause] = (counts[cause] || 0) + 1;
-      });
-      const rows = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 3);
-      els.reportCauseSummary.innerHTML = rows.length ? rows.map(([cause, count]) => `
+      const rows = LearningInsights.causeBreakdown?.(profile, pointMap, { limit: 120 }) || [];
+      els.reportCauseSummary.innerHTML = rows.length ? rows.slice(0, 3).map(({ cause, count }) => `
         <div class="report-item compact-report-item">
           <div class="item-top"><h3>${escapeHTML(cause)}</h3><span class="tag">${count} 次</span></div>
-          <p>下次练习时重点检查这一类错误。</p>
+          <p>${escapeHTML(LearningInsights.adviceForCause?.(cause, null) || "下次练习时重点检查这一类错误。")}</p>
         </div>`).join("") : `<div class="empty-state">暂时没有明显错因。</div>`;
     }
 
@@ -12104,6 +12127,7 @@ const STORE = {
     var saveSupabaseConfigBtnEl = document.getElementById("saveSupabaseConfigBtn");
     var syncNowBtnEl = document.getElementById("syncNowBtn");
     if (supabaseUrlEl && window.MathCampCloudSync) {
+      window.MathCampCloudSync.onSyncStatus(updateCloudSyncStatus);
       var savedCfg = window.MathCampCloudSync.getConfig();
       if (savedCfg) {
         supabaseUrlEl.value = savedCfg.url || "";
@@ -12263,6 +12287,10 @@ const STORE = {
         safeThemeId,
         themeRegistry: THEME_REGISTRY,
         currentWeekItems,
+        learningInsights: LearningInsights,
+        questionBankCoverage: QuestionBankCoverage,
+        buildQuestionBankCoverage: () => QuestionBankCoverage.buildCoverageReport?.(window.MathCampQuestionBank),
+        buildWeakPointInsights: (profile, options = {}) => LearningInsights.buildWeakPointInsights?.({ points, pointMap }, profile || activeProfile(), { pointMap, ...options }),
         renderChrome,
         renderPetSpace,
         renderWrongbook,
@@ -12285,6 +12313,7 @@ const STORE = {
         curriculumHelperText,
         curriculumSelectLabel,
         curriculumSelectShortLabel,
+        knowledgeDetailTitle,
         curriculumPointRank,
         pointOptionsHTML,
         knowledgeProfileFor,

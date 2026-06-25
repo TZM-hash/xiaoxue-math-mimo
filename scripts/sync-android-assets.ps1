@@ -43,26 +43,60 @@ if (-not $Check) {
   }
 }
 
-$pairs = @(
-  @("index.html", "index.html"),
-  @("manifest.webmanifest", "manifest.webmanifest"),
-  @("css/themes.css", "css/themes.css"),
-  @("js/app.js", "js/app.js"),
-  @("js/home-route.js", "js/home-route.js"),
-  @("js/pet-dressup-meta.js", "js/pet-dressup-meta.js"),
-  @("js/pet-economy.js", "js/pet-economy.js"),
-  @("js/question-bank.js", "js/question-bank.js")
-)
+function Get-RelativePath {
+  param(
+    [Parameter(Mandatory = $true)][string]$BasePath,
+    [Parameter(Mandatory = $true)][string]$FilePath
+  )
+
+  $baseFull = [System.IO.Path]::GetFullPath($BasePath).TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
+  $fileFull = [System.IO.Path]::GetFullPath($FilePath)
+  if (-not $fileFull.StartsWith($baseFull, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "Path is outside base path: $fileFull"
+  }
+  return $fileFull.Substring($baseFull.Length).Replace('\', '/')
+}
+
+function Get-MirroredFiles {
+  $files = @()
+  foreach ($item in $items) {
+    $sourcePath = Join-Path $root $item.Source
+    if ($item.Directory) {
+      $files += Get-ChildItem -LiteralPath $sourcePath -Recurse -File | ForEach-Object {
+        Get-RelativePath -BasePath $root -FilePath $_.FullName
+      }
+    } else {
+      $files += $item.Source
+    }
+  }
+  return $files | Sort-Object -Unique
+}
 
 $mismatches = @()
-foreach ($pair in $pairs) {
-  $webFile = Join-Path $root $pair[0]
-  $androidFile = Join-Path $target $pair[1]
+foreach ($relativeFile in Get-MirroredFiles) {
+  $webFile = Join-Path $root $relativeFile
+  $androidFile = Join-Path $target $relativeFile
+  if (-not (Test-Path -LiteralPath $androidFile)) {
+    $mismatches += "$relativeFile -> missing from Android assets"
+    continue
+  }
   $webHash = (Get-FileHash -LiteralPath $webFile -Algorithm SHA256).Hash
   $androidHash = (Get-FileHash -LiteralPath $androidFile -Algorithm SHA256).Hash
   if ($webHash -ne $androidHash) {
-    $mismatches += "$($pair[0]) -> $($pair[1])"
+    $mismatches += "$relativeFile -> $relativeFile"
   }
+}
+
+$expected = @(Get-MirroredFiles)
+$expectedSet = @{}
+$expected | ForEach-Object { $expectedSet[$_] = $true }
+$allowedTargetOnlyFiles = @(".gitignore")
+$extraFiles = Get-ChildItem -LiteralPath $target -Recurse -File | ForEach-Object {
+  Get-RelativePath -BasePath $target -FilePath $_.FullName
+} | Where-Object { -not $expectedSet.ContainsKey($_) -and $allowedTargetOnlyFiles -notcontains $_ }
+
+foreach ($extraFile in $extraFiles) {
+  $mismatches += "$extraFile -> stale Android-only asset"
 }
 
 if ($mismatches.Count) {

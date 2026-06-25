@@ -21,9 +21,18 @@ function assertNotContains(source, fragment, message) {
   assert(!source.includes(fragment), message || `Expected source not to contain ${fragment}`);
 }
 
+function functionBody(source, name) {
+  const start = source.indexOf(`function ${name}(`);
+  assert(start >= 0, `Expected source to contain function ${name}`);
+  const next = source.indexOf("\n    function ", start + 1);
+  return source.slice(start, next >= 0 ? next : source.length);
+}
+
 const html = read("index.html");
 const css = read("css/themes.css");
 const app = read("js/app.js");
+const runtimeConfig = read("js/runtime-config.js");
+const cloudSync = read("js/cloud-sync.js");
 const homeRoute = read("js/home-route.js");
 const dressupMeta = read("js/pet-dressup-meta.js");
 const questionEnhancements = read("js/question-enhancements.js");
@@ -31,6 +40,8 @@ const cursorEffects = read("js/cursor-effects.js");
 const timerFix = read("js/timer-fix.js");
 const questionGenerator = read("js/question-generator.js");
 const questionBank = read("js/question-bank.js");
+const questionBankCoverage = read("js/question-bank-coverage.js");
+const learningInsights = read("js/learning-insights.js");
 const practiceEngine = read("js/practice-engine.js");
 const reportModule = read("js/report.js");
 const petModule = read("js/pet.js");
@@ -74,6 +85,10 @@ assertContains(html, 'id="closeTypeSettingsBtn"', "type settings page should inc
 assertNotContains(html, 'id="systemProfileGradeInput"', "system settings should not expose a separate grade selector");
 assertContains(html, 'src="js/home-route.js"', "页面应加载今日学习路线模块");
 assertContains(html, 'src="js/pet-dressup-meta.js"', "页面应加载装扮馆来源文案模块");
+assertContains(html, 'src="js/runtime-config.js"', "page should load runtime defaults before feature modules");
+assertContains(html, 'src="js/question-bank-coverage.js"', "page should load the question-bank coverage module");
+assertContains(html, 'src="js/learning-insights.js"', "page should load learning insight diagnostics");
+assertNotContains(html, "supabase.min.js", "Supabase SDK should not be loaded during offline-first startup");
 assertContains(html, 'id="cloudSyncDetail"', "云同步设置应包含同步详情页");
 assertNotContains(html, 'id="reportGoal"', "学习报告顶部应移除重复的今日目标指标");
 assertNotContains(html, 'id="reportChallenge"', "学习报告顶部应移除重复的关卡指标");
@@ -179,8 +194,16 @@ assertContains(app, 'startNewSet({ autoFocus: false })', "initial practice shoul
 assertNotContains(app, 'startNewSet({ focus: window.matchMedia("(max-width: 1180px)").matches })', "cold launch should not auto-enter the focused question mode");
 assertContains(app, 'document.body.classList.toggle("practice-return-visible", layer === "focus")', "all focused practice modes should use the challenge-style return bar");
 assertContains(app, 'state.view === "practice" && window.matchMedia("(max-width: 1180px)").matches', "mobile/tablet practice rounds should default to focus layout");
+assertContains(app, 'els.startSetBtn.addEventListener("click", () => startNewSet({ focus: true }))', "primary generated practice should enter focused layout on desktop");
+assertContains(app, 'els.desktopOverviewStartBtn?.addEventListener("click", () => startNewSet({ focus: true }))', "desktop overview generated practice should enter focused layout");
+assertContains(app, 'els.homeStartPracticeBtn?.addEventListener("click", () => startNewSet({ focus: true }))', "home practice card should enter focused layout");
 assertContains(app, 'isCompactPracticeViewport() && mode === "step"', "tablet practice should hide step answering like mobile");
 assertContains(app, "stepOption.hidden = compact", "custom answer mode picker should omit step answering on compact viewports");
+assertContains(functionBody(app, "startPointSet"), "enterPracticeFocus();", "knowledge, weak-point, appendix, hard-word, and logic-reading practice should enter focused layout");
+assertContains(functionBody(app, "startWrongbookPractice"), "enterPracticeFocus();", "wrongbook and review practice should enter focused layout");
+assertContains(functionBody(app, "resumeChallengeSet"), "enterPracticeFocus();", "resumed challenge practice should enter focused layout");
+assertContains(functionBody(app, "startChallengeSet"), "enterPracticeFocus();", "challenge practice should enter focused layout");
+assertContains(functionBody(app, "startTimedQuizSet"), "enterPracticeFocus();", "timed quiz practice should enter focused layout");
 assertContains(app, "function returnToPracticeSetup()", "practice return flow should be explicit");
 assertContains(app, "setTypeSettingsOpen(false);", "practice return should restore the default online-practice home layout");
 assertContains(app, "function closeTypeSettings()", "type settings return flow should be explicit");
@@ -230,6 +253,14 @@ assertContains(dressupMeta, "unlockSourceText", "装扮馆文案模块应导出�
 assertContains(dressupMeta, "unlockProgressText", "装扮馆文案模块应导出进度函数");
 assertContains(questionGenerator, "window.MathCampQuestionGenerator", "题目生成模块应暴露全局接口");
 assertContains(questionGenerator, "makeQuestion", "题目生成模块应导出 makeQuestion");
+assertContains(runtimeConfig, "ANDROID_DEFAULT_EFFECTS", "runtime config should define Android-specific effect defaults");
+assertContains(runtimeConfig, "cursorEffects: false", "Android defaults should disable cursor effects");
+assertContains(cloudSync, "ensureSupabaseSdk", "cloud sync should lazy-load the Supabase SDK");
+assertContains(cloudSync, "loading-sdk", "cloud sync should expose SDK loading status");
+assertContains(questionBankCoverage, "buildCoverageReport", "question coverage module should export a coverage report builder");
+assertContains(learningInsights, "buildWeakPointInsights", "learning insight module should export weak-point recommendations");
+assertContains(app, "LearningInsights", "app should consume the learning insight module");
+assertContains(app, "buildQuestionBankCoverage", "app debug API should expose the question-bank coverage report");
 assertContains(questionBank, 'reading: ["读题理解", "不会做", "计算粗心"]', "question bank should define reading cause tags");
 assertContains(questionBank, 'thinking: ["读题理解", "概念单位", "不会做"]', "question bank should define thinking cause tags");
 assertContains(questionBank, 'id: "g1-reading"', "question bank should include grade 1 logic reading");
@@ -305,8 +336,29 @@ assertContains(css, "body.practice-view-active.practice-focus-mode .home-dashboa
 assertContains(css, "body.practice-view-active.practice-focus-mode .app", "desktop focused practice should be constrained to the viewport");
 assertContains(css, "body.practice-view-active.practice-focus-mode .app-header {\n        display: grid;", "desktop focused practice should keep the top header visible");
 assertContains(css, "body.practice-view-active.practice-focus-mode #practiceView", "desktop focused practice view should not require page scrolling");
+assertContains(css, "body.practice-view-active.practice-focus-mode .companion {\n        display: grid;\n        grid-template-rows: auto auto auto auto auto;\n        align-content: start;", "desktop focused practice companion should stack cards naturally instead of squeezing them");
+assertContains(css, "body.practice-view-active.practice-focus-mode .companion-card,\n      body.practice-view-active.practice-focus-mode .method-card,\n      body.practice-view-active.practice-focus-mode .appendix-card {\n        min-height: 0;\n        max-height: none;\n        overflow: visible;", "desktop focused practice companion cards should rely on the companion scroll area");
+assertContains(css, "body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel {\n        min-height: 0;\n        overflow-x: hidden !important;\n        overflow-y: auto !important;", "final desktop practice setup override should keep the settings panel scrollable");
+assertContains(css, "body.practice-view-active.practice-focus-mode .answer-panel {\n        min-height: 0;\n        max-height: 100%;\n        overflow-x: hidden !important;\n        overflow-y: auto !important;", "desktop focused practice answer panel should scroll when diagrams and number pad exceed the viewport");
+assertContains(css, "body.practice-view-active.practice-focus-mode .app {\n        padding: 4px 0;\n        gap: 4px;", "desktop focused practice should reduce outer vertical whitespace");
+assertContains(css, "body.practice-view-active.practice-focus-mode .home-dashboard {\n        padding: 7px 9px;", "desktop focused practice route header should be compact");
+assertContains(css, "body.practice-view-active.practice-focus-mode .practice-card {\n        min-height: 0;\n        max-height: 100%;\n        padding: clamp(14px, 1.6vw, 18px);\n        gap: 12px;\n        overflow: hidden;", "desktop focused practice card should leave vertical overflow to the inner answer panel");
+assertContains(css, "body.practice-view-active.practice-focus-mode .question {\n        min-height: 88px;\n        margin-bottom: 10px;\n        font-size: clamp(34px, 5.3vw, 60px);", "desktop focused practice question should be moderately compressed");
+assertContains(css, "body.practice-view-active.practice-focus-mode .question-diagram svg {\n        max-height: 180px;", "desktop focused geometry diagrams should stay inside shorter screens");
+assertContains(css, "body.practice-view-active.practice-focus-mode .number-pad button {\n        min-height: 44px;", "desktop focused number pad should be shorter without becoming tiny");
+assertContains(css, "body.practice-view-active.practice-focus-mode .answer-panel > * {\n        flex: 0 0 auto;", "desktop focused practice children should not be compressed into overlap");
+assertContains(css, "body.practice-view-active.practice-focus-mode .answer-mode-panel,\n      body.practice-view-active.practice-focus-mode .choice-options,\n      body.practice-view-active.practice-focus-mode .judge-options,\n      body.practice-view-active.practice-focus-mode .cause-panel {\n        min-height: 0;", "desktop focused choice, judge, step, and cause panels should be allowed to scroll with the answer panel");
+assertContains(css, "body.practice-view-active.practice-focus-mode .answer-control-slot,\n      body.practice-view-active.practice-focus-mode .number-pad,\n      body.practice-view-active.practice-focus-mode .practice-actions {\n        flex: 0 0 auto;", "desktop focused practice controls should not be compressed or clipped at the bottom");
+assertContains(css, "body.practice-view-active.practice-focus-mode .companion {\n        display: flex !important;\n        flex-direction: column;", "final desktop focused practice override should prevent companion grid row compression");
+assertContains(css, "body.practice-view-active.practice-focus-mode .method-card,\n      body.practice-view-active.practice-focus-mode .appendix-card {\n        display: block !important;\n        min-height: 0;\n        max-height: none !important;\n        overflow: visible !important;", "desktop companion method and appendix cards should not overlap when content grows");
 assertContains(css, "body.practice-view-active.practice-focus-mode .status-strip .stat {\n        min-height: 34px;", "desktop focused practice status strip should stay compact across practice modes");
 assertContains(css, "body.practice-view-active.practice-focus-mode .mission-card {\n        min-height: 38px;", "desktop focused practice mission cards should not reserve a large block");
+assertContains(css, "body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel {\n        box-sizing: border-box;\n        min-height: 0;\n        height: 100%;\n        max-height: 100%;\n        padding: 8px 10px;\n        align-self: stretch;\n        overflow-x: hidden;\n        overflow-y: auto;", "desktop practice setup panel should scroll when knowledge details expand");
+assertContains(css, "@media (max-height: 860px)", "desktop practice should have a low-height scroll fallback");
+assertContains(css, "html:has(body.practice-view-active),\n        body.practice-view-active {\n          height: auto;", "low-height desktop practice should release the fixed body height");
+assertContains(css, "overflow-y: auto;", "low-height desktop practice should allow vertical page scrolling");
+assertContains(css, "body.practice-view-active.practice-focus-mode .practice-card {\n          height: auto;\n          max-height: none;\n          overflow: visible;", "low-height focused practice should not clip the question card");
+assertContains(css, "body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel {\n          height: auto;\n          max-height: none;\n          overflow: visible;", "low-height practice setup should not clip the settings panel");
 assertContains(css, ".tab-btn[data-top-mode-action] {\n        display: none !important;", "desktop top challenge shortcut should be hidden");
 assertContains(css, "body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel #challengePanel", "desktop type settings panel should expose the challenge mode entry");
 assertContains(css, "body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel #challengePanel #startTimedQuizBtn", "desktop challenge entry should keep the left panel focused on challenge mode");
@@ -330,6 +382,10 @@ assertContains(css, ".tab-btn[data-top-mode-action]", "tablet navigation should 
 assertContains(css, "grid-template-columns: repeat(4, minmax(0, 1fr));", "tablet top navigation should fit the remaining four buttons in one row");
 assertContains(css, ".practice-focus-mode .method-card,\n      .practice-focus-mode .appendix-card", "tablet practice companion should show method and appendix cards");
 assertContains(css, "body.practice-view-active #practiceView.view.active.view-enter", "tablet practice view should not animate itself below the viewport on first load");
+assertContains(css, "@media (max-width: 1180px) {\n      html:has(body.practice-view-active.practice-focus-mode),\n      body.practice-view-active.practice-focus-mode {\n        height: auto;\n        min-height: 100%;\n        overflow-x: hidden;\n        overflow-y: auto;", "mobile and tablet focused practice should allow page scrolling");
+assertContains(css, "body.practice-view-active.practice-focus-mode .app {\n        height: auto;\n        min-height: 100dvh;\n        overflow: visible;", "mobile and tablet focused practice app should grow with content");
+assertContains(css, "body.practice-view-active.practice-focus-mode .practice-workspace.focus-mode > .main-stack,\n      body.practice-view-active.practice-focus-mode .practice-workspace > .main-stack {\n        grid-template-rows: auto auto auto !important;\n        padding-bottom: max(16px, env(safe-area-inset-bottom));", "mobile and tablet focused practice stack should expose all lower controls");
+assertContains(css, "body.practice-view-active.practice-focus-mode .answer-panel {\n        min-height: 0;\n        max-height: none;\n        overflow: visible;", "mobile and tablet focused practice answers should scroll with the page");
 assertContains(css, "#petBagModal .pet-bag-grid", "tablet bag grid should avoid item overlap");
 assertContains(css, "grid-template-columns: repeat(2, minmax(0, 1fr));", "tablet bag should use a stable two-column grid");
 assertContains(css, ".pet-collection-source", "CSS 应包含装扮馆来源文案样式");
@@ -375,6 +431,9 @@ assertContains(css, "#reportView .report-visual-panel:first-child {\n        gri
   "css/themes.css",
   "js/app.js",
   "js/cloud-sync.js",
+  "js/runtime-config.js",
+  "js/question-bank-coverage.js",
+  "js/learning-insights.js",
   "js/pet-economy.js",
   "js/question-generator.js",
   "js/practice-engine.js",
@@ -393,8 +452,12 @@ assertContains(css, "#reportView .report-visual-panel:first-child {\n        gri
   "manifest.webmanifest",
   "css/themes.css",
   "js/app.js",
+  "js/runtime-config.js",
+  "js/cloud-sync.js",
   "js/cursor-effects.js",
   "js/home-route.js",
+  "js/question-bank-coverage.js",
+  "js/learning-insights.js",
   "js/question-enhancements.js",
   "js/pet-dressup-meta.js",
   "js/pet-economy.js",

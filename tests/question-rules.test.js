@@ -141,9 +141,12 @@ context.__MATHCAMP_TEST__ = true;
 vm.createContext(context);
 [
   "js/storage.js",
+  "js/runtime-config.js",
   "js/print-layout.js",
   "js/ui-feedback.js",
   "js/question-bank.js",
+  "js/question-bank-coverage.js",
+  "js/learning-insights.js",
   "js/pet-economy.js",
   "js/question-generator.js",
   "js/practice-engine.js",
@@ -570,14 +573,34 @@ function runArchiveCloudCoverageTests() {
     lastCareDate: today,
     runaway: { status: "away", awayDate: today, lostDate: "" }
   };
+  const readingPoint = debug.pointMap["g4-reading"];
+  const thinkingPoint = debug.pointMap["g4-thinking"];
+  const geometryPoint = debug.pointMap["g4-angle-triangle"];
+  const geometryQuestion = debug.makeQuestion(geometryPoint, { strict: true });
+  const masteredGeometryQuestion = debug.makeQuestion(geometryPoint, { strict: true });
   const profile = debug.normalizeProfile({
     id: "pet-archive-rich",
     name: "Pet Archive",
     grade: 4,
     settings: { pointId: point.id, setSize: 12, adaptive: false, dailyGoal: 33, answerMode: "judge" },
-    history: [{ date: today, time: Date.now(), grade: 4, pointId: point.id, text: "1 + 1 = ?", answer: 2, correct: true }],
-    wrongbook: [{ id: "wrong-rich", question: { id: "q-rich", grade: 4, pointId: point.id, topic: point.topic, text: "3 + 5 = ?", answer: 8 }, cause: "careless" }],
-    masteredWrong: [{ id: "mastered-rich", question: { id: "q-mastered", grade: 4, pointId: point.id, topic: point.topic, text: "2 + 6 = ?", answer: 8 }, masteredAt: Date.now() }],
+    history: [
+      { date: today, time: Date.now(), grade: 4, pointId: point.id, text: "1 + 1 = ?", answer: 2, correct: true },
+      { date: today, time: Date.now() + 1, grade: 4, pointId: readingPoint.id, text: "读题训练记录", correct: false, mode: "logic-reading" },
+      { date: today, time: Date.now() + 2, grade: 4, pointId: thinkingPoint.id, text: "思维精进记录", correct: true, mode: "practice" }
+    ],
+    wrongbook: [
+      { id: "wrong-rich", question: { id: "q-rich", grade: 4, pointId: point.id, topic: point.topic, text: "3 + 5 = ?", answer: 8 }, cause: "careless" },
+      { id: "wrong-geometry-rich", question: geometryQuestion, cause: "读题理解" }
+    ],
+    masteredWrong: [
+      { id: "mastered-rich", question: { id: "q-mastered", grade: 4, pointId: point.id, topic: point.topic, text: "2 + 6 = ?", answer: 8 }, masteredAt: Date.now() },
+      { id: "mastered-geometry-rich", question: masteredGeometryQuestion, masteredAt: Date.now() + 3 }
+    ],
+    mastery: {
+      [readingPoint.id]: { attempts: 3, correct: 1, level: 2, streak: 0 },
+      [thinkingPoint.id]: { attempts: 4, correct: 4, level: 3, streak: 4 },
+      [geometryPoint.id]: { attempts: 2, correct: 1, level: 2, streak: 1 }
+    },
     rewards: { pet: richPet }
   });
 
@@ -623,6 +646,7 @@ function runArchiveCloudCoverageTests() {
   }));
   context.MathCampCloudSync.setSyncCode("family-sync");
   debug.saveSystemSettingsSnapshot({ updatedAt: 123456 }, { touch: false, sync: false });
+  assert.strictEqual(debug.saveProfiles(), true, "saveProfiles should persist the rich archive profile locally before export");
 
   const archive = debug.buildArchiveData();
   const archivedProfile = archive.profiles.find((item) => item.id === profile.id);
@@ -636,10 +660,22 @@ function runArchiveCloudCoverageTests() {
   assert.strictEqual(Object.prototype.hasOwnProperty.call(archive.systemSettings, "supabaseAnonKey"), false, "archive should not export Supabase anon key");
   assert.strictEqual(archivedProfile.settings.pointId, point.id, "archive should include type settings");
   assert.strictEqual(archivedProfile.settings.dailyGoal, 33, "archive should include daily goal");
-  assert.strictEqual(archivedProfile.history.length, 1, "archive should include practice history");
-  assert.strictEqual(archivedProfile.wrongbook.length, 1, "archive should include wrongbook");
-  assert.strictEqual(archivedProfile.masteredWrong.length, 1, "archive should include mastered wrongbook");
+  assert.strictEqual(archivedProfile.history.length, 3, "archive should include practice, reading, and thinking history");
+  assert(archivedProfile.history.some((item) => item.pointId === readingPoint.id && item.mode === "logic-reading"), "archive should include logic reading practice history");
+  assert(archivedProfile.history.some((item) => item.pointId === thinkingPoint.id), "archive should include thinking skill practice history");
+  assert.strictEqual(archivedProfile.wrongbook.length, 2, "archive should include wrongbook, including generated geometry questions");
+  assert.strictEqual(archivedProfile.masteredWrong.length, 2, "archive should include mastered wrongbook, including generated geometry questions");
+  const archivedGeometryWrong = archivedProfile.wrongbook.find((item) => item.question.pointId === geometryPoint.id);
+  assert(archivedGeometryWrong?.question.diagram, "archive should keep geometry diagram data in wrongbook questions");
+  assert(archivedGeometryWrong.question.curriculumBand.includes("浙江省杭州市"), "archive should keep Hangzhou curriculum band on generated questions");
+  assert.strictEqual(archivedProfile.mastery[readingPoint.id].attempts, 3, "archive should include reading mastery");
+  assert.strictEqual(archivedProfile.mastery[thinkingPoint.id].correct, 4, "archive should include thinking mastery");
   assertRichPet(archivedProfile.rewards.pet, "export");
+  const savedProfiles = JSON.parse(context.localStorage.getItem("mathcamp-profiles-v4") || "[]");
+  const savedProfile = savedProfiles.find((item) => item.id === profile.id);
+  assert(savedProfile, "saveProfiles should persist the normalized rich profile locally");
+  assert(savedProfile.wrongbook.some((item) => item.question.pointId === geometryPoint.id && item.question.diagram), "local save should include new geometry diagram questions");
+  assert(savedProfile.history.some((item) => item.pointId === readingPoint.id && item.mode === "logic-reading"), "local save should include logic reading history");
 
   debug.els.importText.value = JSON.stringify(archive);
   const imported = debug.parseImportBackup();
@@ -648,6 +684,9 @@ function runArchiveCloudCoverageTests() {
   assert.strictEqual(importedProfile.settings.answerMode, "judge", "import should keep type settings");
   assert.strictEqual(imported.systemSettings.theme, "eye-care", "import preview should keep system theme");
   assert.strictEqual(imported.systemSettings.effects.ambientAnimations, false, "import preview should keep effect toggles");
+  assert(importedProfile.history.some((item) => item.pointId === readingPoint.id && item.mode === "logic-reading"), "import should keep logic reading history");
+  assert(importedProfile.wrongbook.some((item) => item.question.pointId === geometryPoint.id && item.question.diagram), "import should keep generated geometry diagram wrongbook data");
+  assert.strictEqual(importedProfile.mastery[thinkingPoint.id].level, 3, "import should keep thinking mastery state");
   assertRichPet(importedProfile.rewards.pet, "import");
 
   const cloudProfile = JSON.parse(JSON.stringify(archivedProfile));
@@ -659,6 +698,9 @@ function runArchiveCloudCoverageTests() {
     [{ device_id: "cloud", profiles: [cloudProfile], active_id: profile.id }]
   );
   const mergedPet = debug.petState(merged[0]);
+  assert(merged[0].history.some((item) => item.pointId === readingPoint.id && item.mode === "logic-reading"), "cloud sync should keep logic reading history");
+  assert(merged[0].wrongbook.some((item) => item.question.pointId === geometryPoint.id && item.question.diagram), "cloud sync should keep generated geometry diagram wrongbook data");
+  assert.strictEqual(merged[0].mastery[thinkingPoint.id].correct, 4, "cloud sync should keep thinking mastery state");
   assert.strictEqual(mergedPet.coins, 777, "cloud sync should prefer newer full pet data");
   assert.strictEqual(mergedPet.inventory.basicFood, 9, "cloud sync should keep newer bag inventory");
   assertRichPet({ ...mergedPet, coins: 321, inventory: { ...mergedPet.inventory, basicFood: 3 } }, "cloud");
@@ -1059,6 +1101,10 @@ function runHangzhouCurriculumMetadataTests() {
   assert(grade2Labels.some((label) => label.includes("二下") && label.includes("表内除法")), "grade 2 selector labels should include second-term textbook units");
   assert.strictEqual(debug.curriculumSelectShortLabel(debug.pointMap["g2-100-add"]), "100以内加减 · 100以内", "selector short labels should keep compact unit context without semester labels");
   assert.strictEqual(debug.curriculumSelectShortLabel(debug.pointMap["g2-table-div"]), "表内除法 · 表内除", "selector short labels should keep division context concise without semester labels");
+  assert.strictEqual(debug.knowledgeDetailTitle(debug.pointMap["g2-100-add"]), "100以内", "knowledge detail title should prefer concise point short labels");
+  assert.strictEqual(debug.knowledgeDetailTitle(debug.pointMap["g2-table-div"]), "表内除", "knowledge detail title should prefer concise point short labels");
+  assert(!debug.knowledgeDetailTitle(debug.pointMap["g2-table-div"]).includes("二下"), "knowledge detail title should not include semester labels");
+  assert(!debug.knowledgeDetailTitle(debug.pointMap["g2-table-div"]).includes("（"), "knowledge detail title should not include long textbook unit suffixes");
   assert(debug.curriculumPointRank(debug.pointMap["g2-100-add"]) < debug.curriculumPointRank(debug.pointMap["g2-table-div"]), "textbook unit order should still be available without semester groups");
   const grade2Options = debug.pointOptionsHTML(2, "g2-table-div");
   assert(!grade2Options.includes("<optgroup"), "selector options should not split knowledge points into semester groups");
@@ -1168,8 +1214,40 @@ function runArchiveVersionTests() {
   assert(parsed.repairNotes.some((note) => /v5|v6/.test(note)), "older archives should report an upgrade note");
 }
 
+function runCoverageAndInsightTests() {
+  const debug = context.mathCampDebug;
+  const coverage = debug.buildQuestionBankCoverage();
+  assert(coverage && coverage.totalPoints >= 60, "coverage report should include the expanded question bank");
+  assert.strictEqual(coverage.gaps.filter((gap) => gap.level === "high").length, 0, "each grade should keep geometry, reading, and thinking coverage");
+  coverage.grades.forEach((grade) => {
+    assert(grade.geometryPoints >= 1, `grade ${grade.grade} should include geometry coverage`);
+    assert(grade.readingPoints >= 1, `grade ${grade.grade} should include reading coverage`);
+    assert(grade.thinkingPoints >= 1, `grade ${grade.grade} should include thinking coverage`);
+  });
+
+  const profile = debug.normalizeProfile({
+    id: "insight-profile",
+    name: "Insight",
+    grade: 4,
+    wrongbook: [{
+      id: "insight-wrong",
+      question: { id: "q-insight", grade: 4, pointId: "g4-word", topic: "word", text: "题中有会员折扣，但问题只问原价购买。实际要排除折扣这个干扰条件。", answer: 48 },
+      cause: "干扰条件",
+      wrongCount: 1
+    }],
+    history: [
+      { grade: 4, pointId: "g4-word", correct: false, cause: "干扰条件", text: "多余条件导致列式错误" },
+      { grade: 4, pointId: "g4-word", correct: true, cause: "", text: "应用题" }
+    ]
+  });
+  const insights = debug.buildWeakPointInsights(profile, { grade: 4, points: [debug.pointMap["g4-word"]], limit: 1 });
+  assert.strictEqual(insights.length, 1, "weak-point insight should return a recommendation");
+  assert.strictEqual(insights[0].mainCause, "干扰条件", "insight should detect distractor-condition mistakes");
+  assert(insights[0].advice.includes("不用") || insights[0].advice.includes("无关"), "insight advice should tell the child to filter distractors");
+}
+
 function runUtf8EncodingTests() {
-  const files = ["js/app.js", "js/cloud-sync.js", "js/pet-economy.js", "index.html", "tests/question-rules.test.js", "tests/frontend-layout.test.js"];
+  const files = ["js/app.js", "js/cloud-sync.js", "js/runtime-config.js", "js/question-bank-coverage.js", "js/learning-insights.js", "js/pet-economy.js", "index.html", "tests/question-rules.test.js", "tests/frontend-layout.test.js"];
   const mojibakeTokens = ["\u93c1", "\u93b7", "\u7edb", "\u95bf", "\u9983", "\u8133", "\u923f", "\u9241", "\u9286", "\u4fd9", "\u6992", "\u5744", "\u6624", "\ufffd"];
   const mojibake = new RegExp(mojibakeTokens.join("|"));
   files.forEach((file) => {
@@ -1192,6 +1270,7 @@ runArchiveCloudCoverageTests();
 runFineGrainedCloudMergeTests();
 runAdaptiveRouteTests();
 runArchiveVersionTests();
+runCoverageAndInsightTests();
 runUtf8EncodingTests();
 runInteractionBoundaryTests();
 runTwoStepMulDivTests();
@@ -1212,6 +1291,7 @@ console.log("Pet reward claim tests passed.");
 console.log("Pet economy tests passed.");
 console.log("Type settings persistence tests passed.");
 console.log("Archive and cloud coverage tests passed.");
+console.log("Question coverage and insight tests passed.");
 console.log("Interaction boundary tests passed.");
 console.log("Two-step multiplication/division tests passed.");
 console.log("Vertical calculation tests passed.");
