@@ -569,13 +569,13 @@ const STORE = {
     function normalizeQuestionDiagram(diagram) {
       if (!isPlainObject(diagram)) return null;
       const type = String(diagram.type || "");
-      const allowedTypes = new Set(["shape-count", "position-row", "angle-set", "segment-chain", "rectangle", "square", "composite-rect", "cuboid", "circle", "circle-ring", "grid-shape", "block-view", "motion-grid"]);
+      const allowedTypes = new Set(["shape-count", "position-row", "angle-set", "segment-chain", "rectangle", "square", "composite-rect", "cuboid", "circle", "circle-ring", "grid-shape", "block-view", "motion-grid", "angle-measure", "polygon-shape", "polygon-area", "symmetry-grid", "rotation-grid", "solid-net", "three-view", "route-map", "cylinder-cone", "sector-shape"]);
       if (!allowedTypes.has(type)) return null;
       const clean = { type };
       ["caption", "unit", "mode", "angleType"].forEach((key) => {
         if (diagram[key] !== undefined) clean[key] = String(diagram[key] || "").slice(0, 24);
       });
-      ["length", "width", "height", "side", "radius", "innerRadius", "diameter", "left", "right", "a", "b", "c", "d", "rows", "cols", "startX", "startY", "endX", "endY", "moveX", "moveY"].forEach((key) => {
+      ["length", "width", "height", "side", "radius", "innerRadius", "diameter", "angle", "angle2", "base", "base2", "scale", "distance", "east", "north", "left", "right", "a", "b", "c", "d", "rows", "cols", "startX", "startY", "endX", "endY", "moveX", "moveY"].forEach((key) => {
         if (diagram[key] !== undefined) clean[key] = clamp(Number(diagram[key]) || 0, 0, 999);
       });
       if (Array.isArray(diagram.shapes)) {
@@ -2406,6 +2406,120 @@ const STORE = {
       const arrow = `<defs><marker id="motionArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#31424f"/></marker></defs><path d="M${sx} ${sy}L${ex} ${ey}" stroke="#31424f" stroke-width="3" stroke-linecap="round" marker-end="url(#motionArrow)"/>`;
       return diagramSvg(`${grid.join("")}${arrow}${cellRect(startX, startY, "#a9d6ff", "前")}${cellRect(endX, endY, "#ffd36e", "后")}`, diagram.caption || "平移示意图");
     }
+    function renderDiagramAngleMeasure(diagram) {
+      const angle = clamp(Number(diagram.angle) || 60, 10, 170);
+      const rad = -angle * Math.PI / 180;
+      const x2 = 160 + Math.cos(rad) * 90;
+      const y2 = 118 + Math.sin(rad) * 90;
+      const mark = angle === 90 ? `<path d="M178 118V100H160" fill="none" stroke="#31424f" stroke-width="2"/>` : `<path d="M190 118A30 30 0 0 0 ${160 + Math.cos(rad) * 30} ${118 + Math.sin(rad) * 30}" fill="none" stroke="#31424f" stroke-width="2"/>`;
+      return diagramSvg(`<path d="M160 118H260" stroke="#31424f" stroke-width="4" stroke-linecap="round"/><path d="M160 118L${x2.toFixed(1)} ${y2.toFixed(1)}" stroke="#31424f" stroke-width="4" stroke-linecap="round"/><circle cx="160" cy="118" r="5" fill="#31424f"/>${mark}<text x="178" y="92">${angle}°</text><text x="205" y="148" text-anchor="middle">边长 ${Number(diagram.length) || 6} cm</text>`, diagram.caption || "角的度量示意图");
+    }
+    function renderDiagramPolygonShape(diagram) {
+      const mode = diagram.mode || "triangle";
+      if (mode === "trapezoid") {
+        return diagramSvg(`<polygon points="92,48 218,48 258,142 62,142" fill="#fff1cf" stroke="#31424f" stroke-width="3"/><path d="M92 48H218M62 142H258" stroke="#31424f" stroke-width="4"/><text x="155" y="38" text-anchor="middle">上底 ${Number(diagram.base) || 6} cm</text><text x="160" y="164" text-anchor="middle">下底 ${Number(diagram.base2) || 12} cm</text><text x="268" y="96" transform="rotate(90 268 96)" text-anchor="middle">腰 ${Number(diagram.side) || 5} cm</text>`, diagram.caption || "梯形特征图");
+      }
+      if (mode === "parallelogram") {
+        return diagramSvg(`<polygon points="82,142 222,142 252,50 112,50" fill="#dff2ff" stroke="#31424f" stroke-width="3"/><path d="M112 50V142" stroke="#d35f5f" stroke-width="3" stroke-dasharray="6 5"/><text x="152" y="164" text-anchor="middle">底 ${Number(diagram.base) || 10} cm</text><text x="126" y="98" text-anchor="middle" transform="rotate(-90 126 98)">高 ${Number(diagram.height) || 6} cm</text>`, diagram.caption || "平行四边形示意图");
+      }
+      return diagramSvg(`<polygon points="160,34 58,144 262,144" fill="#e7f8dc" stroke="#31424f" stroke-width="3"/><text x="160" y="28" text-anchor="middle">${Number(diagram.angle) || 60}°</text><text x="76" y="136">${Number(diagram.angle2) || 60}°</text><text x="232" y="136">${Number(diagram.a) || 60}°</text><text x="160" y="166" text-anchor="middle">边 ${Number(diagram.side) || 8} cm</text>`, diagram.caption || "三角形示意图");
+    }
+    function renderDiagramPolygonArea(diagram) {
+      const mode = diagram.mode || "parallelogram";
+      const base = Number(diagram.base) || Number(diagram.length) || 10;
+      const height = Number(diagram.height) || Number(diagram.width) || 6;
+      if (mode === "triangle") {
+        return diagramSvg(`<polygon points="160,36 70,144 250,144" fill="#e7f8dc" stroke="#31424f" stroke-width="3"/><path d="M160 36V144" stroke="#d35f5f" stroke-width="3" stroke-dasharray="6 5"/><text x="160" y="166" text-anchor="middle">底 ${base} cm</text><text x="176" y="94">高 ${height} cm</text><text x="244" y="92" transform="rotate(48 244 92)">斜边 ${Number(diagram.side) || base - 1} cm</text>`, diagram.caption || "三角形面积示意图");
+      }
+      if (mode === "trapezoid") {
+        const top = Number(diagram.base2) || Math.max(2, base - 4);
+        return diagramSvg(`<polygon points="110,48 210,48 260,144 60,144" fill="#fff1cf" stroke="#31424f" stroke-width="3"/><path d="M110 48V144" stroke="#d35f5f" stroke-width="3" stroke-dasharray="6 5"/><text x="160" y="38" text-anchor="middle">上底 ${top} cm</text><text x="160" y="166" text-anchor="middle">下底 ${base} cm</text><text x="126" y="100">高 ${height} cm</text>`, diagram.caption || "梯形面积示意图");
+      }
+      return diagramSvg(`<polygon points="82,144 222,144 252,48 112,48" fill="#dff2ff" stroke="#31424f" stroke-width="3"/><path d="M112 48V144" stroke="#d35f5f" stroke-width="3" stroke-dasharray="6 5"/><text x="152" y="166" text-anchor="middle">底 ${base} cm</text><text x="126" y="100">高 ${height} cm</text><text x="244" y="94" transform="rotate(-72 244 94)">邻边 ${Number(diagram.side) || height + 2} cm</text>`, diagram.caption || "平行四边形面积示意图");
+    }
+    function renderDiagramSymmetryGrid(diagram) {
+      const rows = clamp(Number(diagram.rows) || 5, 3, 8);
+      const cols = clamp(Number(diagram.cols) || 7, 5, 10);
+      const size = Math.min(24, Math.floor(210 / cols), Math.floor(118 / rows));
+      const originX = Math.round((320 - cols * size) / 2);
+      const originY = 28;
+      const axis = Math.floor(cols / 2);
+      const x = clamp(Number(diagram.startX) || 1, 0, cols - 1);
+      const y = clamp(Number(diagram.startY) || Math.floor(rows / 2), 0, rows - 1);
+      const mirrorX = clamp(Number(diagram.endX) || (cols - 1 - x), 0, cols - 1);
+      const grid = [];
+      for (let r = 0; r < rows; r += 1) {
+        for (let c = 0; c < cols; c += 1) {
+          grid.push(`<rect x="${originX + c * size}" y="${originY + r * size}" width="${size}" height="${size}" fill="#fff" stroke="#8b99a5" stroke-width="1.2"/>`);
+        }
+      }
+      const block = (c, fill, label) => `<rect x="${originX + c * size + 4}" y="${originY + y * size + 4}" width="${size - 8}" height="${size - 8}" rx="4" fill="${fill}" stroke="#31424f" stroke-width="2"/><text x="${originX + c * size + size / 2}" y="${originY + y * size + size / 2 + 5}" text-anchor="middle">${label}</text>`;
+      return diagramSvg(`${grid.join("")}<path d="M${originX + (axis + 0.5) * size} ${originY - 8}V${originY + rows * size + 8}" stroke="#d35f5f" stroke-width="3" stroke-dasharray="7 5"/>${block(x, "#a9d6ff", "前")}${block(mirrorX, "#ffd36e", "后")}`, diagram.caption || "轴对称示意图");
+    }
+    function renderDiagramRotationGrid(diagram) {
+      const rows = 5;
+      const cols = 5;
+      const size = 24;
+      const originX = 100;
+      const originY = 28;
+      const startX = clamp(Number(diagram.startX) || 2, 0, 4);
+      const startY = clamp(Number(diagram.startY) || 1, 0, 4);
+      const endX = clamp(Number(diagram.endX) || 3, 0, 4);
+      const endY = clamp(Number(diagram.endY) || 2, 0, 4);
+      const grid = [];
+      for (let y = 0; y < rows; y += 1) {
+        for (let x = 0; x < cols; x += 1) grid.push(`<rect x="${originX + x * size}" y="${originY + y * size}" width="${size}" height="${size}" fill="#fff" stroke="#8b99a5" stroke-width="1.2"/>`);
+      }
+      const dot = (x, y, fill, label) => `<circle cx="${originX + x * size + size / 2}" cy="${originY + y * size + size / 2}" r="9" fill="${fill}" stroke="#31424f" stroke-width="2"/><text x="${originX + x * size + size / 2}" y="${originY + y * size + size / 2 + 5}" text-anchor="middle">${label}</text>`;
+      return diagramSvg(`<defs><marker id="rotationArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#31424f"/></marker></defs>${grid.join("")}<circle cx="${originX + 2.5 * size}" cy="${originY + 2.5 * size}" r="4" fill="#31424f"/><path d="M174 68A38 38 0 0 1 214 108" fill="none" stroke="#31424f" stroke-width="3" marker-end="url(#rotationArrow)"/>${dot(startX, startY, "#a9d6ff", "前")}${dot(endX, endY, "#ffd36e", "后")}`, diagram.caption || "旋转示意图");
+    }
+    function renderDiagramSolidNet(diagram) {
+      const size = 30;
+      const ox = 82;
+      const oy = 34;
+      const cells = diagram.mode === "cube5" ? [[1, 0], [0, 1], [1, 1], [2, 1], [1, 2]] : [[1, 0], [0, 1], [1, 1], [2, 1], [1, 2], [1, 3]];
+      const pieces = cells.map(([x, y], index) => `<rect x="${ox + x * size}" y="${oy + y * size}" width="${size}" height="${size}" fill="${index === 2 ? "#ffd36e" : "#dff2ff"}" stroke="#31424f" stroke-width="2"/><text x="${ox + x * size + size / 2}" y="${oy + y * size + 20}" text-anchor="middle">${index + 1}</text>`).join("");
+      return diagramSvg(`${pieces}<text x="226" y="68">正方体展开图</text><text x="226" y="94">编号只帮助读图</text>`, diagram.caption || "展开图示意图");
+    }
+    function renderDiagramThreeView(diagram) {
+      const columns = (diagram.columns || [2, 3, 1]).slice(0, 5);
+      const size = 14;
+      const front = columns.map((height, index) => Array.from({ length: height }, (_, layer) => `<rect x="${34 + index * size}" y="${94 - layer * size}" width="${size}" height="${size}" fill="#dff2ff" stroke="#31424f" stroke-width="1.4"/>`).join("")).join("");
+      const top = columns.map((_, index) => `<rect x="${166 + index * size}" y="80" width="${size}" height="${size}" fill="#fff1cf" stroke="#31424f" stroke-width="1.4"/>`).join("");
+      const rightHeight = Math.max(...columns);
+      const right = Array.from({ length: rightHeight }, (_, layer) => `<rect x="238" y="${94 - layer * size}" width="${size}" height="${size}" fill="#e7f8dc" stroke="#31424f" stroke-width="1.4"/>`).join("");
+      return diagramSvg(`<text x="60" y="28" text-anchor="middle">正面</text>${front}<text x="198" y="28" text-anchor="middle">上面</text>${top}<text x="250" y="28" text-anchor="middle">右面</text>${right}`, diagram.caption || "三视图示意图");
+    }
+    function renderDiagramRouteMap(diagram) {
+      const east = Number(diagram.east) || 300;
+      const north = Number(diagram.north) || 400;
+      const distance = Number(diagram.distance) || 0;
+      if (north <= 0) {
+        const label = distance ? `图上距离 ${distance} cm` : `向东 ${east} m`;
+        return diagramSvg(`<defs><marker id="routeArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#31424f"/></marker></defs><path d="M70 104H250" fill="none" stroke="#31424f" stroke-width="4" marker-end="url(#routeArrow)"/><circle cx="70" cy="104" r="6" fill="#31424f"/><circle cx="250" cy="104" r="6" fill="#ffd36e" stroke="#31424f" stroke-width="2"/><text x="70" y="132" text-anchor="middle">甲地</text><text x="250" y="132" text-anchor="middle">乙地</text><text x="160" y="88" text-anchor="middle">${escapeHTML(label)}</text><text x="160" y="48" text-anchor="middle">比例尺 1:${Number(diagram.scale) || 1000}</text>`, diagram.caption || "比例尺路线图");
+      }
+      return diagramSvg(`<defs><marker id="routeArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#31424f"/></marker></defs><path d="M70 136H230V48" fill="none" stroke="#31424f" stroke-width="4" marker-end="url(#routeArrow)"/><circle cx="70" cy="136" r="6" fill="#31424f"/><circle cx="230" cy="48" r="6" fill="#ffd36e" stroke="#31424f" stroke-width="2"/><text x="70" y="158" text-anchor="middle">学校</text><text x="240" y="40">图书馆</text><text x="150" y="126" text-anchor="middle">向东 ${east} m</text><text x="248" y="92" transform="rotate(90 248 92)" text-anchor="middle">向北 ${north} m</text><text x="278" y="34">北↑</text>`, diagram.caption || "位置方向路线图");
+    }
+    function renderDiagramCylinderCone(diagram) {
+      const r = Number(diagram.radius) || 4;
+      const h = Number(diagram.height) || 9;
+      if (diagram.mode === "cone") {
+        return diagramSvg(`<path d="M160 34L88 132Q160 164 232 132Z" fill="#fff1cf" stroke="#31424f" stroke-width="3"/><ellipse cx="160" cy="132" rx="72" ry="22" fill="none" stroke="#31424f" stroke-width="3"/><path d="M160 132H232" stroke="#31424f" stroke-width="3"/><path d="M160 34V132" stroke="#d35f5f" stroke-width="3" stroke-dasharray="6 5"/><text x="198" y="124">半径 ${r} cm</text><text x="142" y="84">高 ${h} cm</text>`, diagram.caption || "圆锥示意图");
+      }
+      return diagramSvg(`<ellipse cx="160" cy="48" rx="72" ry="22" fill="#dff2ff" stroke="#31424f" stroke-width="3"/><rect x="88" y="48" width="144" height="92" fill="#f6fbff" stroke="#31424f" stroke-width="3"/><ellipse cx="160" cy="140" rx="72" ry="22" fill="#dff2ff" stroke="#31424f" stroke-width="3"/><path d="M160 140H232" stroke="#31424f" stroke-width="3"/><text x="198" y="132">半径 ${r} cm</text><text x="246" y="94" transform="rotate(90 246 94)">高 ${h} cm</text>`, diagram.caption || "圆柱示意图");
+    }
+    function renderDiagramSectorShape(diagram) {
+      const r = Number(diagram.radius) || 6;
+      const angle = clamp(Number(diagram.angle) || 90, 30, 180);
+      const large = angle > 180 ? 1 : 0;
+      const end = angle * Math.PI / 180;
+      const x = 160 + Math.cos(end) * 78;
+      const y = 92 - Math.sin(end) * 78;
+      if (diagram.mode === "semicircle") {
+        return diagramSvg(`<path d="M82 104A78 78 0 0 1 238 104H82Z" fill="#fff4d2" stroke="#31424f" stroke-width="3"/><path d="M82 104H238" stroke="#31424f" stroke-width="3"/><text x="160" y="122" text-anchor="middle">直径 ${r * 2} cm</text>`, diagram.caption || "半圆示意图");
+      }
+      return diagramSvg(`<path d="M160 92H238A78 78 0 ${large} 0 ${x.toFixed(1)} ${y.toFixed(1)}Z" fill="#fff4d2" stroke="#31424f" stroke-width="3"/><path d="M160 92H238" stroke="#31424f" stroke-width="3"/><circle cx="160" cy="92" r="4" fill="#31424f"/><text x="198" y="84">半径 ${r} cm</text><text x="164" y="122">${angle}°</text>`, diagram.caption || "扇形示意图");
+    }
     function renderQuestionDiagram(question) {
       if (!els.questionDiagram) return;
       const diagram = normalizeQuestionDiagram(question?.diagram);
@@ -2422,7 +2536,17 @@ const STORE = {
         "circle-ring": renderDiagramCircleRing,
         "grid-shape": renderDiagramGridShape,
         "block-view": renderDiagramBlockView,
-        "motion-grid": renderDiagramMotionGrid
+        "motion-grid": renderDiagramMotionGrid,
+        "angle-measure": renderDiagramAngleMeasure,
+        "polygon-shape": renderDiagramPolygonShape,
+        "polygon-area": renderDiagramPolygonArea,
+        "symmetry-grid": renderDiagramSymmetryGrid,
+        "rotation-grid": renderDiagramRotationGrid,
+        "solid-net": renderDiagramSolidNet,
+        "three-view": renderDiagramThreeView,
+        "route-map": renderDiagramRouteMap,
+        "cylinder-cone": renderDiagramCylinderCone,
+        "sector-shape": renderDiagramSectorShape
       };
       const html = diagram && renderers[diagram.type] ? renderers[diagram.type](diagram) : "";
       els.questionDiagram.hidden = !html;
@@ -2800,7 +2924,7 @@ const STORE = {
       if (point.id === "g6-circle" && !textHas(question, /圆|半径|直径|π|3\.14/)) issues.push("圆题缺少圆的公式语境");
       if (point.id === "g5-volume" && !textHas(question, /长方体|正方体|体积|表面积|立方/)) issues.push("体积题缺少立体图形语境");
       if (point.topic === "reading" && !textHas(question, /读题|有用|无关|干扰|先算|结论|判断|一定|条件|推理|序号/)) issues.push("思维阅读题缺少阅读推理语境");
-      if (point.topic === "thinking" && !textHas(question, /估算|合理|策略|量感|改错|错误|开放|可能|表|票据|课程|规律|至少|分类|算式|表达|序号|选择|例如/)) issues.push("思维精进题缺少分类训练语境");
+      if (point.topic === "thinking" && !textHas(question, /估算|合理|策略|量感|改错|错误|开放|可能|表|票据|课程|规律|至少|分类|算式|表达|序号|选择|例如|干扰|有用|无关/)) issues.push("思维精进题缺少分类训练语境");
       if (point.id === "g4-area" && !textHas(question, /面积|平方米|平方厘米/)) issues.push("面积专项混入非面积题");
       if (point.id === "g2-table-div" && !textHas(question, /÷|平均分|每人|分成|每 \d+ 个/)) issues.push("表内除法专项混入非除法题");
       if (point.id === "g5-decimal-add" && textHas(question, /[×÷]/)) issues.push("小数加减专项混入乘除题");
@@ -4353,7 +4477,268 @@ const STORE = {
         return total + [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => !filled.has(`${cell.x + dx},${cell.y + dy}`)).length;
       }, 0);
     }
+    function makeAngleTriangleGeometry(point, level) {
+      const variant = rand(1, 5);
+      if (variant === 1) {
+        const angle = pick([35, 60, 90, 115, 140]);
+        const answer = angle < 90 ? 1 : angle === 90 ? 2 : 3;
+        return baseQuestion(point, {
+          text: `看角的度量图，图中角是 ${angle}°。旁边标出的边长只是干扰条件。输入 1=锐角，2=直角，3=钝角，这个角属于哪一类？`,
+          answer,
+          word: true,
+          diagram: { type: "angle-measure", angle, length: rand(5, 9), caption: "分类看角度大小，不看边画得多长" },
+          explanation: `判断角的类型只看角的大小。小于 90° 是锐角，等于 90° 是直角，大于 90° 小于 180° 是钝角，所以答案是 ${answer}。`,
+          steps: [`先读角度：${angle}°。`, `忽略边长，边长不决定角的类型。`, `按锐角、直角、钝角的标准选择 ${answer}。`],
+          templateType: "角的分类"
+        });
+      }
+      if (variant === 2) {
+        const known = rand(35, 145);
+        const answer = 180 - known;
+        return baseQuestion(point, {
+          text: `一条直线上有两个相邻的角，其中一个角是 ${known}°，线段长 ${rand(4, 12)} cm 是干扰条件。另一个角是多少度？`,
+          answer,
+          word: true,
+          diagram: { type: "angle-measure", angle: known, length: rand(4, 12), caption: "一条直线上的相邻角合起来是 180°" },
+          explanation: `直线上的相邻两个角组成平角，合起来是 180°。所以另一个角是 180 - ${known} = ${answer}°。`,
+          steps: [`先判断是平角关系。`, `平角总度数是 180°。`, `180 - ${known} = ${answer}°。`],
+          templateType: "平角求角"
+        });
+      }
+      if (variant === 3) {
+        const a = rand(35, 70);
+        const b = rand(45, 85);
+        const answer = 180 - a - b;
+        return baseQuestion(point, {
+          text: `三角形中两个内角分别是 ${a}° 和 ${b}°，一条边长 ${rand(5, 13)} cm 是干扰条件。第三个内角是多少度？`,
+          answer,
+          word: true,
+          diagram: { type: "polygon-shape", mode: "triangle", angle: a, angle2: b, a: answer, side: rand(5, 13), caption: "三角形三个内角和是 180°" },
+          explanation: `三角形内角和是 180°。已知两个角后，用 180° 减去这两个角：180 - ${a} - ${b} = ${answer}°。`,
+          steps: [`写出内角和：180°。`, `先减去 ${a}° 和 ${b}°。`, `第三个角是 ${answer}°。`],
+          templateType: "三角形内角和"
+        });
+      }
+      if (variant === 4) {
+        const mode = rand(1, 3);
+        const side = rand(4, 9);
+        const side2 = mode <= 2 ? side : side + rand(1, 4);
+        const side3 = mode === 1 ? side : mode === 2 ? side + rand(1, 4) : side2 + rand(1, 3);
+        const answer = mode === 1 ? 2 : mode === 2 ? 1 : 3;
+        return baseQuestion(point, {
+          text: `按边分类：三角形三条边分别是 ${side} cm、${side2} cm、${side3} cm，旁边写的周长标签不用先算。输入 1=等腰，2=等边，3=普通三角形。它属于哪类？`,
+          answer,
+          word: true,
+          diagram: { type: "polygon-shape", mode: "triangle", angle: 60, angle2: 60, a: 60, side, caption: "分类先看边是否相等" },
+          explanation: `按边分类先比较三条边。${answer === 2 ? "三条边都相等，是等边三角形。" : answer === 1 ? "有两条边相等，是等腰三角形。" : "三条边都不相等，是普通三角形。"}所以选择 ${answer}。`,
+          steps: [`比较 ${side}、${side2}、${side3}。`, `不要先被周长标签带走。`, `按边相等情况选择 ${answer}。`],
+          templateType: "三角形分类"
+        });
+      }
+      const top = rand(5, 9);
+      const bottom = top + rand(3, 7);
+      return baseQuestion(point, {
+        text: `看梯形图，图中上底和下底互相平行，腰长数字是干扰条件。这个梯形有几组互相平行的对边？`,
+        answer: 1,
+        word: true,
+        diagram: { type: "polygon-shape", mode: "trapezoid", base: top, base2: bottom, side: rand(4, 8), caption: "梯形只有一组对边平行" },
+        explanation: `梯形的特征是只有一组对边平行。上底和下底平行，左右两条腰不平行，所以有 1 组平行对边。`,
+        steps: [`先找互相平行的边。`, `上底和下底是一组。`, `两条腰不是一组平行边，答案是 1。`],
+        templateType: "四边形特征"
+      });
+    }
+    function makeMotionAreaGeometry(point, level) {
+      const variant = rand(1, 7);
+      if (variant === 1) {
+        const base = rand(8, 16);
+        const height = rand(4, 10);
+        const side = height + rand(2, 6);
+        return baseQuestion(point, {
+          text: `平行四边形底是 ${base} cm，高是 ${height} cm，邻边 ${side} cm 是干扰条件。面积是多少平方厘米？`,
+          answer: base * height,
+          word: true,
+          diagram: { type: "polygon-area", mode: "parallelogram", base, height, side, caption: "平行四边形面积用底乘高" },
+          explanation: `平行四边形面积 = 底 × 高。邻边长度不能代替高，所以面积是 ${base} × ${height} = ${base * height} 平方厘米。`,
+          steps: [`找底 ${base} cm。`, `找对应高 ${height} cm。`, `${base} × ${height} = ${base * height} 平方厘米。`],
+          templateType: "平行四边形面积"
+        });
+      }
+      if (variant === 2) {
+        const base = rand(8, 18);
+        const height = pick([4, 6, 8, 10, 12]);
+        const answer = base * height / 2;
+        return baseQuestion(point, {
+          text: `三角形底是 ${base} cm，高是 ${height} cm，斜边数字是干扰条件。面积是多少平方厘米？`,
+          answer,
+          word: true,
+          diagram: { type: "polygon-area", mode: "triangle", base, height, side: rand(6, 15), caption: "三角形面积要除以 2" },
+          explanation: `三角形面积 = 底 × 高 ÷ 2。用对应的底和高计算：${base} × ${height} ÷ 2 = ${answer} 平方厘米。`,
+          steps: [`找底 ${base} cm。`, `找对应高 ${height} cm。`, `${base} × ${height} ÷ 2 = ${answer} 平方厘米。`],
+          templateType: "三角形面积"
+        });
+      }
+      if (variant === 3) {
+        const top = rand(4, 9);
+        const bottom = top + rand(4, 10);
+        const height = pick([4, 6, 8, 10]);
+        const answer = (top + bottom) * height / 2;
+        return baseQuestion(point, {
+          text: `梯形上底 ${top} cm、下底 ${bottom} cm、高 ${height} cm，腰长是干扰条件。面积是多少平方厘米？`,
+          answer,
+          word: true,
+          diagram: { type: "polygon-area", mode: "trapezoid", base: bottom, base2: top, height, side: rand(5, 11), caption: "梯形面积用上下底的和" },
+          explanation: `梯形面积 = (上底 + 下底) × 高 ÷ 2，所以是 (${top} + ${bottom}) × ${height} ÷ 2 = ${answer} 平方厘米。`,
+          steps: [`先把上底和下底相加：${top} + ${bottom} = ${top + bottom}。`, `乘高 ${height}。`, `再除以 2，得到 ${answer}。`],
+          templateType: "梯形面积"
+        });
+      }
+      if (variant === 4) {
+        const cols = 7;
+        const rows = 5;
+        const startX = rand(0, 2);
+        const startY = rand(1, 3);
+        const endX = cols - 1 - startX;
+        return baseQuestion(point, {
+          text: `看轴对称图，蓝色方块关于红色虚线对称后到黄色位置。若从左往右数列数，黄色方块在第几列？`,
+          answer: endX + 1,
+          word: true,
+          diagram: { type: "symmetry-grid", rows, cols, startX, startY, endX, endY: startY, caption: "对称点到对称轴的距离相等" },
+          explanation: `轴对称后，对称点到虚线的格数相同、方向相反。黄色方块在从左往右第 ${endX + 1} 列。`,
+          steps: [`数蓝色方块到对称轴的距离。`, `在另一侧数相同格数。`, `黄色位置是第 ${endX + 1} 列。`],
+          templateType: "轴对称位置"
+        });
+      }
+      if (variant === 5) {
+        return baseQuestion(point, {
+          text: `看旋转图，蓝点绕中心顺时针旋转 90° 到黄色位置。输入 1=上方，2=右方，3=下方，4=左方，旋转后在中心的哪一方？`,
+          answer: 2,
+          word: true,
+          diagram: { type: "rotation-grid", startX: 2, startY: 1, endX: 3, endY: 2, caption: "顺时针 90°：上方转到右方" },
+          explanation: `绕中心顺时针旋转 90°，原来在上方的位置会转到右方，所以选择 2。`,
+          steps: [`先确定旋转中心。`, `再判断顺时针方向。`, `上方转到右方，答案是 2。`],
+          templateType: "旋转读图"
+        });
+      }
+      if (variant === 6) {
+        return baseQuestion(point, {
+          text: `看正方体展开图，图中已经有 5 个正方形面，编号只是帮助读图。至少还缺几个正方形面才能组成正方体展开图？`,
+          answer: 1,
+          word: true,
+          diagram: { type: "solid-net", mode: "cube5", caption: "正方体展开图需要 6 个正方形面" },
+          explanation: `正方体有 6 个面，展开图也需要 6 个正方形。图中已有 5 个，所以还缺 1 个。`,
+          steps: [`正方体一共有 6 个面。`, `图中已有 5 个正方形。`, `6 - 5 = 1。`],
+          templateType: "展开图判断"
+        });
+      }
+      const columns = Array.from({ length: rand(3, 5) }, () => rand(1, 4));
+      return baseQuestion(point, {
+        text: `看三视图示意，积木从上面看能看到几列小正方形？每列有几层是正面图要用的信息，这里是干扰条件。`,
+        answer: columns.length,
+        word: true,
+        diagram: { type: "three-view", columns, caption: "上面看只看占了几个位置" },
+        explanation: `从上面看，只看底部占了几列位置，不看每列堆了几层。图中一共有 ${columns.length} 列。`,
+        steps: [`先切换到上面看。`, `只数占地位置。`, `共有 ${columns.length} 列。`],
+        templateType: "三视图"
+      });
+    }
+    function makeSolidPositionGeometry(point, level) {
+      const variant = rand(1, 7);
+      if (variant === 1) {
+        const east = rand(200, 800);
+        const north = rand(150, 650);
+        return baseQuestion(point, {
+          text: `路线图中，从学校先向东走 ${east} m，再向北走 ${north} m 到图书馆，用时 ${rand(5, 18)} 分钟是干扰条件。图书馆在学校的哪个方向？输入 1=东北，2=东南，3=西北，4=西南。`,
+          answer: 1,
+          word: true,
+          diagram: { type: "route-map", east, north, caption: "先东再北，终点在东北方向" },
+          explanation: `从起点向东再向北，终点相对起点在东北方向。用时不影响方向判断，所以选择 1。`,
+          steps: [`先看横向：向东。`, `再看纵向：向北。`, `东和北合起来是东北。`],
+          templateType: "位置方向读图"
+        });
+      }
+      if (variant === 2) {
+        const mapCm = rand(3, 8);
+        const scale = pick([1000, 2000, 5000]);
+        const answer = mapCm * scale / 100;
+        return baseQuestion(point, {
+          text: `路线图上两地距离 ${mapCm} cm，比例尺是 1:${scale}，旁边的路口编号不用计算。实际距离是多少米？`,
+          answer,
+          word: true,
+          diagram: { type: "route-map", east: mapCm * 100, north: 0, distance: mapCm, scale, caption: "比例尺先换算成实际厘米，再化成米" },
+          explanation: `实际距离 = 图上距离 × 比例尺后项。${mapCm} × ${scale} = ${mapCm * scale} cm，也就是 ${answer} m。`,
+          steps: [`图上距离 ${mapCm} cm。`, `实际厘米：${mapCm} × ${scale} = ${mapCm * scale} cm。`, `换成米：${mapCm * scale} ÷ 100 = ${answer} m。`],
+          templateType: "比例尺路线"
+        });
+      }
+      if (variant === 3) {
+        const r = rand(2, 6);
+        const h = rand(5, 12);
+        const answer = round1(3.14 * r * r * h);
+        return baseQuestion(point, {
+          text: `圆柱半径 ${r} cm，高 ${h} cm，侧面颜色是干扰条件。体积约是多少立方厘米？（π取3.14）`,
+          answer,
+          word: true,
+          diagram: { type: "cylinder-cone", mode: "cylinder", radius: r, height: h, caption: "圆柱体积 = 底面积 × 高" },
+          explanation: `圆柱体积 = πr²h。代入半径 ${r}、高 ${h}：3.14 × ${r} × ${r} × ${h} = ${formatAnswer(answer)}。`,
+          steps: [`先算底面积：3.14 × ${r} × ${r}。`, `再乘高 ${h}。`, `体积约 ${formatAnswer(answer)} 立方厘米。`],
+          templateType: "圆柱体积"
+        });
+      }
+      if (variant === 4) {
+        const r = rand(3, 6);
+        const h = pick([6, 9, 12, 15]);
+        const answer = round1(3.14 * r * r * h / 3);
+        return baseQuestion(point, {
+          text: `圆锥底面半径 ${r} cm，高 ${h} cm，母线长度暂时不用。体积约是多少立方厘米？（π取3.14）`,
+          answer,
+          word: true,
+          diagram: { type: "cylinder-cone", mode: "cone", radius: r, height: h, caption: "圆锥体积要除以 3" },
+          explanation: `圆锥体积 = 1/3 × πr²h。代入后是 3.14 × ${r} × ${r} × ${h} ÷ 3 = ${formatAnswer(answer)}。`,
+          steps: [`先算同底等高圆柱体积。`, `圆锥是它的 1/3。`, `结果约 ${formatAnswer(answer)} 立方厘米。`],
+          templateType: "圆锥体积"
+        });
+      }
+      if (variant === 5) {
+        return baseQuestion(point, {
+          text: `等底等高的圆柱和圆锥，包装颜色不同是干扰条件。圆柱体积是圆锥体积的几倍？`,
+          answer: 3,
+          word: true,
+          diagram: { type: "cylinder-cone", mode: "cone", radius: 4, height: 9, caption: "等底等高时，圆柱体积是圆锥的 3 倍" },
+          explanation: `等底等高时，圆锥体积是圆柱体积的 1/3，所以圆柱体积是圆锥的 3 倍。`,
+          steps: [`比较的是等底等高。`, `圆锥体积公式有 ÷3。`, `所以圆柱是圆锥的 3 倍。`],
+          templateType: "等底等高关系"
+        });
+      }
+      if (variant === 6) {
+        const r = rand(4, 10);
+        const angle = pick([60, 90, 120, 150]);
+        const answer = round1(3.14 * r * r * angle / 360);
+        return baseQuestion(point, {
+          text: `扇形半径 ${r} cm，圆心角 ${angle}°，弧上的装饰线长度是干扰条件。扇形面积约是多少平方厘米？（π取3.14）`,
+          answer,
+          word: true,
+          diagram: { type: "sector-shape", radius: r, angle, caption: "扇形面积看圆心角占整圆的几分之几" },
+          explanation: `扇形面积 = 圆面积 × 圆心角/360。3.14 × ${r} × ${r} × ${angle}/360 ≈ ${formatAnswer(answer)}。`,
+          steps: [`先算整圆面积：3.14 × ${r} × ${r}。`, `扇形占 ${angle}/360。`, `面积约 ${formatAnswer(answer)} 平方厘米。`],
+          templateType: "扇形面积"
+        });
+      }
+      const r = rand(3, 10);
+      const answer = round1(3.14 * r + 2 * r);
+      return baseQuestion(point, {
+        text: `半圆半径 ${r} cm，涂色部分面积不用求。这个半圆的周长约是多少厘米？（π取3.14）`,
+        answer,
+        word: true,
+        diagram: { type: "sector-shape", mode: "semicircle", radius: r, caption: "半圆周长 = 半个圆周长 + 直径" },
+        explanation: `半圆周长不是圆周长的一半，还要加直径。半个圆周长是 3.14 × ${r}，直径是 ${2 * r}，合起来约 ${formatAnswer(answer)} cm。`,
+        steps: [`半个圆周长：3.14 × ${r}。`, `直径：${r} × 2 = ${2 * r}。`, `合起来约 ${formatAnswer(answer)} cm。`],
+        templateType: "半圆周长"
+      });
+    }
     function makeGeometry(point, level) {
+      if (point.id === "g4-angle-triangle") return makeAngleTriangleGeometry(point, level);
+      if (point.id === "g5-geometry-motion") return makeMotionAreaGeometry(point, level);
+      if (point.id === "g6-solid-position") return makeSolidPositionGeometry(point, level);
       if (point.id === "g1-shape") {
         if (Math.random() > 0.5) {
           const circles = rand(3, 8);
@@ -4695,12 +5080,12 @@ const STORE = {
     function makeThinking(point, level) {
       const grade = clamp(Number(point.grade) || state.grade, 1, 6);
       const categoryPools = {
-        1: ["quantity", "pattern", "open", "expression"],
-        2: ["estimation", "strategy", "correction", "life", "expression"],
-        3: ["estimation", "correction", "life", "pattern", "case", "quantity"],
-        4: ["estimation", "strategy", "quantity", "correction", "life", "expression"],
-        5: ["open", "probability", "correction", "strategy", "life", "expression"],
-        6: ["estimation", "case", "life", "expression", "open", "probability", "correction", "strategy"]
+        1: ["quantity", "pattern", "open", "expression", "distractor"],
+        2: ["estimation", "strategy", "correction", "life", "expression", "distractor"],
+        3: ["estimation", "correction", "life", "pattern", "case", "quantity", "distractor"],
+        4: ["estimation", "strategy", "quantity", "correction", "life", "expression", "distractor"],
+        5: ["open", "probability", "correction", "strategy", "life", "expression", "distractor"],
+        6: ["estimation", "case", "life", "expression", "open", "probability", "correction", "strategy", "distractor"]
       };
       const makers = {
         estimation: () => {
@@ -4824,6 +5209,34 @@ const STORE = {
             explanation: `红球数量比蓝球多，所以摸到红球的可能性更大。`,
             steps: [`比较数量：红球 ${red} 个，蓝球 ${blue} 个。`, `数量多的颜色更可能摸到。`, `选择 1。`],
             templateType: "可能性"
+          });
+        },
+        distractor: () => {
+          if (grade <= 2) {
+            const total = rand(16, 30);
+            const used = rand(3, 12);
+            const red = rand(2, Math.max(2, total - used - 1));
+            return baseQuestion(point, {
+              text: `干扰条件推理：一盒彩纸有 ${total} 张，用掉 ${used} 张，剩下的里面有 ${red} 张红色。要求还剩多少张，应该使用哪两个数字？输入 1 表示 ${total} 和 ${used}，输入 2 表示 ${total} 和 ${red}，输入 3 表示 ${used} 和 ${red}。`,
+              answer: 1,
+              word: true,
+              explanation: `要求还剩多少张，要用总数减用掉的数量。红色张数只是剩下彩纸里的分类信息，是干扰条件。`,
+              steps: [`先看问题：还剩多少张。`, `有用条件是总数 ${total} 和用掉 ${used}。`, `${red} 张红色是干扰条件，所以选择 1。`],
+              templateType: "干扰条件推理"
+            });
+          }
+          const total = rand(120, 360);
+          const groups = rand(4, 8);
+          const each = rand(8, 24);
+          const label = rand(2, 9);
+          const answer = total - groups * each;
+          return baseQuestion(point, {
+            text: `干扰条件推理：活动室有 ${total} 个奖品，发给 ${groups} 个小组，每组 ${each} 个，盒子上贴着 ${label} 号标签。现在还剩多少个奖品？`,
+            answer,
+            word: true,
+            explanation: `标签号不是数量条件。先算发出 ${groups} × ${each} 个，再用总数减去发出数量。`,
+            steps: [`发出：${groups} × ${each} = ${groups * each} 个。`, `标签 ${label} 号只是标记，不参加计算。`, `剩下：${total} - ${groups * each} = ${answer} 个。`],
+            templateType: "干扰条件推理"
           });
         },
         expression: () => {
@@ -5991,11 +6404,51 @@ const STORE = {
           });
         }
       ];
+      const distractorReadingTemplates = [
+        () => {
+          const total = rand(18, 36);
+          const used = rand(4, 15);
+          const color = rand(2, Math.max(2, total - used - 1));
+          return readingQuestion({
+            text: `干扰条件阅读：盒子里有 ${total} 张贴纸，用掉 ${used} 张，还剩的贴纸中有 ${color} 张是星星贴纸。题目问一共还剩多少张贴纸，哪个数字不用参加计算？1=${total}，2=${used}，3=${color}。`,
+            answer: 3,
+            explanation: `要求还剩多少张，只需要总数和用掉的数量。星星贴纸只是剩下贴纸中的一种，不影响还剩总数。`,
+            steps: [`先看问题：还剩多少张贴纸。`, `有用数字是 ${total} 和 ${used}。`, `${color} 张星星贴纸是干扰条件，所以选 3。`],
+            templateType: "干扰条件进阶"
+          });
+        },
+        () => {
+          const rows = rand(4, 8);
+          const each = rand(6, 12);
+          const absent = rand(3, 10);
+          const numbered = rand(2, 8);
+          return readingQuestion({
+            text: `教室座位有 ${rows} 排，每排 ${each} 个，今天有 ${absent} 个座位空着，其中 ${numbered} 个座位贴了号码。要判断还坐了多少人，哪条信息是干扰条件？1=${rows} 排，2=每排 ${each} 个，3=${numbered} 个座位贴了号码。`,
+            answer: 3,
+            explanation: `坐了多少人要先算总座位，再减空座位。贴号码只是座位标记，不改变座位数量。`,
+            steps: [`总座位需要 ${rows} 排和每排 ${each} 个。`, `空座位 ${absent} 个也有用。`, `贴号码 ${numbered} 个不影响人数，所以选 3。`],
+            templateType: "干扰条件进阶"
+          });
+        },
+        () => {
+          const total = rand(240, 720);
+          const rate = pick([20, 25, 30, 40]);
+          const pages = rand(30, 120);
+          const chapter = rand(4, 16);
+          return readingQuestion({
+            text: `一本书 ${total} 页，第一周读了 ${rate}%，第二周读了 ${pages} 页，书签夹在第 ${chapter} 章。要算还剩多少页，哪条信息最像有用但其实无关？1=${rate}%，2=${pages} 页，3=第 ${chapter} 章。`,
+            answer: 3,
+            explanation: `还剩页数需要总页数、第一周百分数、第二周页数。第几章不能直接表示页数，是干扰条件。`,
+            steps: [`问题是还剩多少页。`, `${rate}% 和 ${pages} 页都参与已读页数。`, `第 ${chapter} 章不是页数条件，所以选 3。`],
+            templateType: "干扰条件进阶"
+          });
+        }
+      ];
       const pool = grade <= 2
-        ? lowTemplates
+        ? [...lowTemplates, distractorReadingTemplates[0]]
         : grade <= 4
-          ? [...lowTemplates.slice(0, 4), ...middleTemplates]
-          : [...middleTemplates.slice(0, 4), ...upperTemplates];
+          ? [...lowTemplates.slice(0, 4), ...middleTemplates, distractorReadingTemplates[1]]
+          : [...middleTemplates.slice(0, 4), ...upperTemplates, distractorReadingTemplates[2]];
       return pick(pool)();
     }
 

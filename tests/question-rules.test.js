@@ -938,7 +938,7 @@ function runLogicReadingQuestionTests() {
     assert(localTemplates.size >= 5, `${point.id} should cover multiple logic reading templates`);
   });
 
-  ["读题筛条件", "干扰条件识别", "步骤顺序判断", "购物逻辑", "比例阅读", "必要条件判断"].forEach((template) => {
+  ["读题筛条件", "干扰条件识别", "步骤顺序判断", "购物逻辑", "比例阅读", "必要条件判断", "干扰条件进阶"].forEach((template) => {
     assert(globalTemplates.has(template), `logic reading bank should include ${template}`);
   });
 }
@@ -946,7 +946,7 @@ function runLogicReadingQuestionTests() {
 function runThinkingSkillQuestionTests() {
   const debug = context.mathCampDebug;
   const thinkingPoints = Object.values(debug.pointMap).filter((point) => point.topic === "thinking");
-  const expectedTemplates = ["估算合理性", "策略选择", "量感判断", "找错改错", "开放多答案", "生活阅读", "规律数列", "分类讨论", "可能性", "数学表达"];
+  const expectedTemplates = ["估算合理性", "策略选择", "量感判断", "找错改错", "开放多答案", "生活阅读", "规律数列", "分类讨论", "可能性", "数学表达", "干扰条件推理"];
   const globalTemplates = new Set();
 
   assert.strictEqual(thinkingPoints.length, 6, "thinking skills should provide one point for each grade");
@@ -964,7 +964,7 @@ function runThinkingSkillQuestionTests() {
       assert.strictEqual(question.word, true, `${point.id} should keep word marker for thinking problems`);
       assert(Number.isFinite(Number(question.answer)), `${point.id} should produce a numeric answer`);
       assert(expectedTemplates.includes(question.templateType), `${point.id} should use a known thinking template: ${question.templateType}`);
-      assert(/估算|合理|策略|量感|改错|错误|开放|可能|表|票据|课程|规律|至少|分类|算式|表达|序号|选择|例如/.test(display), `${point.id} should include thinking category context: ${display}`);
+      assert(/估算|合理|策略|量感|改错|错误|开放|可能|表|票据|课程|规律|至少|分类|算式|表达|序号|选择|例如|干扰|有用|无关/.test(display), `${point.id} should include thinking category context: ${display}`);
       assert.strictEqual(debug.questionRuleIssues(point, question, { strict: true }).length, 0, `${point.id} should pass strict question rules`);
       localTemplates.add(question.templateType);
       globalTemplates.add(question.templateType);
@@ -979,7 +979,7 @@ function runThinkingSkillQuestionTests() {
 
 function runGeometryDiagramQuestionTests() {
   const debug = context.mathCampDebug;
-  const expectedTypes = new Set(["shape-count", "position-row", "angle-set", "segment-chain", "rectangle", "square", "composite-rect", "cuboid", "circle", "circle-ring", "grid-shape", "block-view", "motion-grid"]);
+  const expectedTypes = new Set(["shape-count", "position-row", "angle-set", "segment-chain", "rectangle", "square", "composite-rect", "cuboid", "circle", "circle-ring", "grid-shape", "block-view", "motion-grid", "angle-measure", "polygon-shape", "polygon-area", "symmetry-grid", "rotation-grid", "solid-net", "three-view", "route-map", "cylinder-cone", "sector-shape"]);
   const globalTypes = new Set();
   const globalTemplates = new Set();
   [1, 2, 3, 4, 5, 6].forEach((grade) => {
@@ -987,7 +987,7 @@ function runGeometryDiagramQuestionTests() {
     assert(geometryPoints.length >= 1, `grade ${grade} should include a geometry point`);
     const seenTypes = new Set();
     geometryPoints.forEach((point) => {
-      for (let i = 0; i < 40; i += 1) {
+      for (let i = 0; i < 60; i += 1) {
         const question = debug.makeQuestion(point, { strict: true });
         assert(question.diagram, `${point.id} should generate a visible geometry diagram`);
         assert(expectedTypes.has(question.diagram.type), `${point.id} should use a known diagram type: ${question.diagram.type}`);
@@ -1008,10 +1008,13 @@ function runGeometryDiagramQuestionTests() {
   assert(grade2Samples.some((question) => question.diagram.type === "segment-chain"), "grade 2 geometry should include line-segment diagrams");
   assert(grade2Samples.some((question) => question.diagram.type === "motion-grid"), "grade 2 geometry should include shape motion diagrams");
   assert(grade2Samples.some((question) => question.diagram.type === "block-view"), "grade 2 geometry should include observation-object diagrams");
-  ["grid-shape", "block-view", "motion-grid", "circle-ring"].forEach((type) => {
+  assert(debug.pointMap["g4-angle-triangle"], "grade 4 should include angle, triangle, and quadrilateral geometry");
+  assert(debug.pointMap["g5-geometry-motion"], "grade 5 should include polygon area and motion geometry");
+  assert(debug.pointMap["g6-solid-position"], "grade 6 should include solid and position geometry");
+  ["grid-shape", "block-view", "motion-grid", "circle-ring", "angle-measure", "polygon-shape", "polygon-area", "symmetry-grid", "rotation-grid", "solid-net", "three-view", "route-map", "cylinder-cone", "sector-shape"].forEach((type) => {
     assert(globalTypes.has(type), `geometry bank should include ${type} diagrams`);
   });
-  ["数格子周长", "数格子面积", "组合图形拆分", "周长面积辨析", "观察物体", "图形运动", "圆环面积"].forEach((template) => {
+  ["数格子周长", "数格子面积", "组合图形拆分", "周长面积辨析", "观察物体", "图形运动", "圆环面积", "角的分类", "三角形内角和", "四边形特征", "平行四边形面积", "轴对称位置", "旋转读图", "展开图判断", "三视图", "位置方向读图", "圆柱体积", "圆锥体积", "扇形面积", "半圆周长"].forEach((template) => {
     assert(globalTemplates.has(template), `geometry bank should classify ${template} questions`);
   });
 }
