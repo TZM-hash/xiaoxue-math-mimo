@@ -121,13 +121,16 @@
       const feedbackObserver = new MutationObserver((mutations) => {
         mutations.forEach((mutation) => {
           mutation.addedNodes.forEach((node) => {
-            if (node.classList) {
-              if (node.classList.contains('feedback') ||
-                  node.textContent?.includes('正确') ||
-                  node.textContent?.includes('✓')) {
+            if (this.isAnswerFeedbackNode(node)) {
+              const text = node.textContent || '';
+              if (node.classList.contains('good') ||
+                  text.includes('正确') ||
+                  text.includes('✓') ||
+                  text.includes('答对')) {
                 this.triggerCorrectAnimation(node);
-              } else if (node.textContent?.includes('错误') ||
-                        node.textContent?.includes('×')) {
+              } else if (node.classList.contains('bad') ||
+                        text.includes('错误') ||
+                        text.includes('×')) {
                 this.triggerWrongAnimation(node);
               }
             }
@@ -143,6 +146,13 @@
           subtree: true
         });
       }
+    },
+
+    isAnswerFeedbackNode(node) {
+      if (!node || !node.classList) return false;
+      return node.classList.contains('feedback') ||
+             node.classList.contains('result-panel') ||
+             node.matches?.('[data-answer-feedback]');
     },
 
     /**

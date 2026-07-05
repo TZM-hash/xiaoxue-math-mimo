@@ -43,6 +43,25 @@ try {
       if (result.setSize !== 4) throw new Error(`${viewport.name}: practice set did not build`);
       if (!result.hasDiagram || !result.diagramMarkup) throw new Error(`${viewport.name}: geometry diagram did not render`);
       if (result.highGaps) throw new Error(`${viewport.name}: question bank has high coverage gaps`);
+      const chineseResult = await page.evaluate(() => {
+        const debug = window.mathCampDebug;
+        debug.selectSubject("chinese");
+        debug.state.grade = 3;
+        debug.state.pointId = "c3-paragraph-reading";
+        debug.state.setSize = 3;
+        debug.els.setSizeInput.value = "3";
+        debug.els.pointSelect.value = "c3-paragraph-reading";
+        debug.startNewSet({ autoFocus: false });
+        return {
+          subject: debug.state.subject,
+          setSize: debug.state.currentSet.length,
+          hasChinesePoint: debug.state.currentSet.every((question) => question.pointId === "c3-paragraph-reading"),
+          hasExplanation: debug.state.currentSet.every((question) => question.explanation && question.steps && question.steps.length)
+        };
+      });
+      if (chineseResult.subject !== "chinese") throw new Error(`${viewport.name}: Chinese subject did not activate`);
+      if (chineseResult.setSize !== 3) throw new Error(`${viewport.name}: Chinese practice set did not build`);
+      if (!chineseResult.hasChinesePoint || !chineseResult.hasExplanation) throw new Error(`${viewport.name}: Chinese questions missing metadata`);
       await page.close();
     }
   } finally {

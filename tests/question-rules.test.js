@@ -145,10 +145,15 @@ vm.createContext(context);
   "js/print-layout.js",
   "js/ui-feedback.js",
   "js/question-bank.js",
+  "js/chinese-curriculum-data.js",
+  "js/chinese-question-bank.js",
+  "js/subject-registry.js",
   "js/question-bank-coverage.js",
   "js/learning-insights.js",
   "js/pet-economy.js",
+  "js/chinese-question-generator.js",
   "js/question-generator.js",
+  "js/handwriting-input.js",
   "js/practice-engine.js",
   "js/report.js",
   "js/pet.js",
@@ -746,6 +751,26 @@ function runInteractionBoundaryTests() {
   const judgeQuestion = debug.applyQuestionInteraction({ ...negativeQuestion }, "judge");
   assert.strictEqual(judgeQuestion.interaction.mode, "judge", "负数答案也应支持判断题模式");
   assert.strictEqual(debug.interactionRuleIssues(judgeQuestion).length, 0, "负数判断题应保持有效真假状态");
+
+  const formulaQuestion = debug.applyQuestionInteraction({
+    id: "formula-word",
+    grade: 2,
+    pointId: "g2-simple-word",
+    topic: "word",
+    text: "书架上有 23 本故事书，又放上 15 本。一共有多少本？请列出算式并写出答案。",
+    answerType: "formula",
+    answer: 38,
+    formulaAnswer: "23+15=38",
+    acceptedFormulas: ["23+15=38", "15+23=38"],
+    word: true,
+    steps: ["23 + 15 = 38"]
+  }, "auto");
+  assert.strictEqual(formulaQuestion.interaction.mode, "input", "数学列算式题应使用系统输入框");
+  assert.strictEqual(debug.interactionRuleIssues(formulaQuestion).length, 0, "数学列算式题应通过交互规则检查");
+  assert.strictEqual(debug.answerMatches(formulaQuestion, { raw: "38", value: 38 }), false, "列算式题只填答案不能判对");
+  assert.strictEqual(debug.answerMatches(formulaQuestion, { raw: "23+15=38", value: NaN }), true, "列算式题填正确算式和答案应判对");
+  assert.strictEqual(debug.answerMatches(formulaQuestion, { raw: "15 + 23 = 38", value: NaN }), true, "列算式题应支持等价交换加法算式");
+  assert.strictEqual(debug.answerMatches(formulaQuestion, { raw: "23+15=39", value: NaN }), false, "列算式题最终答案错误不能判对");
 }
 
 function runTwoStepMulDivTests() {
@@ -896,6 +921,7 @@ function runMultiStepWordProblemTests() {
   const targetPointIds = ["g2-simple-word", "g3-word-two-step", "g4-word", "g5-word", "g6-complex-word"];
   let sawFishDistractor = false;
   let sawShoppingDiscount = false;
+  let sawFormulaQuestion = false;
 
   targetPointIds.forEach((pointId) => {
     const point = debug.pointMap[pointId];
@@ -903,7 +929,7 @@ function runMultiStepWordProblemTests() {
     let sawDistractor = false;
     let sawMultiStep = false;
 
-    for (let index = 0; index < 480 && (!sawDistractor || !sawMultiStep || !sawFishDistractor || !sawShoppingDiscount); index += 1) {
+    for (let index = 0; index < 480 && (!sawDistractor || !sawMultiStep || !sawFishDistractor || !sawShoppingDiscount || !sawFormulaQuestion); index += 1) {
       const question = debug.makeQuestion(point, { strict: true });
       const steps = Array.isArray(question.steps) ? question.steps.filter(Boolean) : [];
       const display = [
@@ -934,6 +960,13 @@ function runMultiStepWordProblemTests() {
         assert.strictEqual(question.answer, price - discount + fee, "shopping problem should subtract discount and add delivery fee");
         sawShoppingDiscount = true;
       }
+
+      if (question.answerType === "formula") {
+        assert(question.formulaAnswer || (Array.isArray(question.acceptedFormulas) && question.acceptedFormulas.length), "formula question should declare an expected formula");
+        assert(/列出算式|列式|算式/.test(question.text), "formula question should ask the child to write the equation");
+        assert.strictEqual(debug.applyQuestionInteraction({ ...question }, "auto").interaction.mode, "input", "formula question should use input mode");
+        sawFormulaQuestion = true;
+      }
     }
 
     assert(sawDistractor, `${pointId} should generate word problems with distractor conditions`);
@@ -942,6 +975,7 @@ function runMultiStepWordProblemTests() {
 
   assert(sawFishDistractor, "word problem set should include the fish-count distractor style");
   assert(sawShoppingDiscount, "word problem set should include the full-reduction plus delivery-fee style");
+  assert(sawFormulaQuestion, "word problem generation should include formula-and-answer input questions");
 }
 
 function runLogicReadingQuestionTests() {
@@ -1247,13 +1281,147 @@ function runCoverageAndInsightTests() {
 }
 
 function runUtf8EncodingTests() {
-  const files = ["js/app.js", "js/cloud-sync.js", "js/runtime-config.js", "js/question-bank-coverage.js", "js/learning-insights.js", "js/pet-economy.js", "index.html", "tests/question-rules.test.js", "tests/frontend-layout.test.js"];
+  const files = ["js/app.js", "js/cloud-sync.js", "js/runtime-config.js", "js/question-bank-coverage.js", "js/learning-insights.js", "js/pet-economy.js", "js/subject-registry.js", "js/chinese-question-bank.js", "js/chinese-question-generator.js", "js/handwriting-input.js", "index.html", "tests/question-rules.test.js", "tests/frontend-layout.test.js"];
   const mojibakeTokens = ["\u93c1", "\u93b7", "\u7edb", "\u95bf", "\u9983", "\u8133", "\u923f", "\u9241", "\u9286", "\u4fd9", "\u6992", "\u5744", "\u6624", "\ufffd"];
   const mojibake = new RegExp(mojibakeTokens.join("|"));
   files.forEach((file) => {
     const source = fs.readFileSync(path.join(root, file), "utf8");
     assert(!mojibake.test(source), `${file} 应保持 UTF-8 文本，不能混入乱码`);
   });
+}
+
+function runChineseSubjectIntegrationTests() {
+  const debug = context.mathCampDebug;
+  const originalMatchMedia = context.matchMedia;
+  const profile = debug.normalizeProfile({ id: "student-chinese", name: "语文测试", grade: 3 });
+  debug.state.profiles = [profile];
+  debug.state.activeId = profile.id;
+  debug.selectSubject("chinese");
+  debug.state.grade = 3;
+  debug.state.pointId = "auto";
+  debug.state.setSize = 10;
+  debug.els.setSizeInput.value = "10";
+  debug.els.pointSelect.value = "auto";
+  debug.startNewSet({ autoFocus: false });
+  const sourceCounts = debug.state.currentSet.reduce((acc, question) => {
+    acc[question.sourceType] = (acc[question.sourceType] || 0) + 1;
+    return acc;
+  }, {});
+  assert.strictEqual(sourceCounts.inTextbook, 10, "语文自动组卷应全部来自杭州教材同步知识点");
+  assert.strictEqual(sourceCounts.recommendedReading || 0, 0, "语文自动组卷不应再按比例混入推荐读物题");
+  assert.strictEqual(sourceCounts.extraOriginal || 0, 0, "语文自动组卷不应再按比例混入原创拓展题");
+
+  debug.state.pointId = "c3-paragraph-reading";
+  debug.state.setSize = 3;
+  debug.els.setSizeInput.value = "3";
+  debug.els.pointSelect.value = "c3-paragraph-reading";
+  debug.startNewSet({ autoFocus: false });
+  assert.strictEqual(debug.state.subject, "chinese", "应能切换到语文学科");
+  assert.strictEqual(debug.state.currentSet.length, 3, "语文学科应能生成一组题");
+  assert(debug.state.currentSet.every((question) => question.subject === "chinese"), "语文题应带 subject=chinese");
+  assert(debug.state.currentSet.every((question) => question.pointId === "c3-paragraph-reading"), "语文专项练习应保持指定知识点");
+  assert(debug.state.currentSet.every((question) => question.explanation && Array.isArray(question.steps) && question.steps.length), "每道语文题都应有解析和步骤");
+
+  debug.els.petHintBtn.click();
+  assert(
+    /短文|原文|完整句|诗句/.test(debug.els.methodHint.textContent),
+    "语文题点击招财提示时，应提示回到文本定位并完整表达"
+  );
+  assert(!debug.els.methodHint.textContent.includes("思维阅读题"), "语文阅读提示不应复用数学思维阅读文案");
+
+  const desktopChineseStep = debug.applyQuestionInteraction({ ...debug.state.currentSet[0] }, "step");
+  assert.strictEqual(desktopChineseStep.interaction.mode, "input", "语文题在桌面端也不应使用分步作答，应回落到系统键盘输入");
+
+  const explicitChineseChoice = debug.applyQuestionInteraction({
+    subject: "chinese",
+    pointId: "c3-word-meaning",
+    topic: "word",
+    text: "材料：阳光照进教室，桌面变得明亮。\n题目：“明亮”的近义词是哪一个？\nA. 光亮\nB. 黑暗\nC. 寒冷\nD. 安静",
+    answerType: "choice",
+    answer: "A",
+    acceptedAnswers: ["A", "光亮", "A. 光亮"],
+    answerLabel: "A. 光亮",
+    explanation: "“明亮”和“光亮”意思接近。"
+  }, "auto");
+  assert.strictEqual(explicitChineseChoice.interaction.mode, "choice", "语文 A/B/C/D 题在自动模式下应归类为选择题");
+  assert.strictEqual(debug.interactionRuleIssues(explicitChineseChoice).length, 0, "语文选择题自动模式应生成有效选择面板");
+
+  const explicitChineseInput = debug.applyQuestionInteraction({
+    subject: "chinese",
+    pointId: "c2-textbook-sound-shape",
+    topic: "character",
+    text: "材料：晴和太阳有关，清和水有关。\n题目：“晴天”的“晴”应填什么偏旁？请直接输入汉字。",
+    answerType: "text",
+    answer: "日",
+    acceptedAnswers: ["日", "日字旁"],
+    explanation: "“晴”表示天气晴朗，和太阳有关，是日字旁。"
+  }, "auto");
+  assert.strictEqual(explicitChineseInput.interaction.mode, "input", "语文直接输入汉字题在自动模式下应使用系统键盘");
+
+  for (const grade of [1, 2, 3, 4, 5, 6]) {
+    debug.state.grade = grade;
+    debug.availablePoints(grade).filter((point) => point.subject === "chinese").forEach((point) => {
+      const question = debug.makeQuestion(point, { strict: true });
+      assert.strictEqual(debug.applyQuestionInteraction({ ...question }, "input").interaction.mode, "input", `${point.id} 语文输入题应使用系统键盘`);
+      assert.strictEqual(debug.applyQuestionInteraction({ ...question }, "step").interaction.mode, "input", `${point.id} 语文题不应支持分步作答`);
+      const choiceMode = debug.applyQuestionInteraction({ ...question }, "choice").interaction.mode;
+      assert.strictEqual(choiceMode, question.answerType === "choice" ? "choice" : "input", `${point.id} 语文题应按题目类型决定是否显示选择面板`);
+      assert.strictEqual(debug.applyQuestionInteraction({ ...question }, "judge").interaction.mode, "judge", `${point.id} 语文判断题应使用判断面板`);
+    });
+  }
+  debug.state.grade = 3;
+
+  context.matchMedia = (query) => ({
+    matches: query.includes("1180px") || query.includes("620px"),
+    addEventListener() {},
+    removeEventListener() {}
+  });
+  debug.state.answerMode = "input";
+  debug.els.answerModeSelect.value = "input";
+  debug.startNewSet({ autoFocus: false });
+  assert.strictEqual(debug.els.answerModePanel.hidden, true, "语文直接输入题不应弹出额外答题面板");
+  assert.strictEqual(debug.els.numberPad.hidden, true, "语文直接输入题在移动和平板端不应显示数字键盘");
+
+  debug.state.answerMode = "step";
+  debug.els.answerModeSelect.value = "step";
+  debug.startNewSet({ autoFocus: false });
+  assert.strictEqual(debug.state.currentSet[0].interaction.mode, "input", "语文题不应使用分步作答，应回落到系统键盘输入");
+  assert.strictEqual(debug.els.answerModePanel.hidden, true, "语文题选择分步作答时也不应显示分步面板");
+  assert(!debug.els.answerModePanel.innerHTML.includes("分步作答"), "语文答题面板不应出现分步作答");
+  assert.strictEqual(debug.els.numberPad.hidden, true, "语文题回落输入时仍不应显示数字键盘");
+
+  debug.state.pointId = "c3-writing-piece";
+  debug.els.pointSelect.value = "c3-writing-piece";
+  debug.state.answerMode = "input";
+  debug.els.answerModeSelect.value = "input";
+  debug.startNewSet({ autoFocus: false });
+  assert.notStrictEqual(debug.state.currentSet[0].answerType, "longText", "语文习作片段应尽量改为客观题，避免主观长文本自评");
+  assert.strictEqual(debug.state.currentSet[0].answerType, "text", "语文习作片段应使用可判分的文字答案");
+  assert.strictEqual(debug.state.currentSet[0].interaction.mode, "input", "语文客观文字题应使用系统键盘输入");
+  assert.strictEqual(debug.els.answerInput.readOnly, false, "语文文字题输入框应允许系统键盘输入文字");
+  assert.strictEqual(debug.els.answerInput.getAttribute("inputmode"), "text", "语文文字题应使用文本输入模式");
+
+  debug.state.pointId = "c3-word-meaning";
+  debug.els.pointSelect.value = "c3-word-meaning";
+  debug.state.answerMode = "choice";
+  debug.els.answerModeSelect.value = "choice";
+  debug.startNewSet({ autoFocus: false });
+  assert.strictEqual(debug.state.currentSet[0].interaction.mode, "choice", "语文选择题应保持选择作答模式");
+  assert.strictEqual(debug.els.answerModePanel.hidden, false, "语文选择题应弹出选择面板");
+  assert(debug.els.answerModePanel.innerHTML.includes("选择题"), "语文选择题面板应显示选择题标题");
+  assert.strictEqual(debug.els.numberPad.hidden, true, "语文选择题不应同时显示数字键盘");
+  assert(debug.els.questionText.innerHTML.includes("question-options"), "题干中的 A/B/C 选项应拆成独立选项区");
+  assert(debug.els.questionText.innerHTML.includes("question-option"), "题干中的每个选项应独立成行，便于读题");
+
+  debug.state.answerMode = "judge";
+  debug.els.answerModeSelect.value = "judge";
+  debug.startNewSet({ autoFocus: false });
+  assert.strictEqual(debug.state.currentSet[0].interaction.mode, "judge", "语文判断题应保持判断作答模式");
+  assert.strictEqual(debug.els.answerModePanel.hidden, false, "语文判断题应弹出判断面板");
+  assert(debug.els.answerModePanel.innerHTML.includes("判断对错"), "语文判断题面板应显示判断题标题");
+  assert.strictEqual(debug.els.numberPad.hidden, true, "语文判断题不应同时显示数字键盘");
+
+  context.matchMedia = originalMatchMedia;
 }
 
 const result = context.mathCampSelfTest(32);
@@ -1283,6 +1451,7 @@ runLogicReadingQuestionTests();
 runThinkingSkillQuestionTests();
 runGeometryDiagramQuestionTests();
 runHangzhouCurriculumMetadataTests();
+runChineseSubjectIntegrationTests();
 
 console.log(`Question rule self-test passed: ${result.total} samples, 0 failures.`);
 console.log("Data boundary tests passed.");
@@ -1303,3 +1472,4 @@ console.log("Logic reading question tests passed.");
 console.log("Thinking skill question tests passed.");
 console.log("Geometry diagram question tests passed.");
 console.log("Hangzhou curriculum metadata tests passed.");
+console.log("Chinese subject integration tests passed.");

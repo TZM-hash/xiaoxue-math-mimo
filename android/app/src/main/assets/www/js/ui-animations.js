@@ -43,6 +43,7 @@
         if (!this.enabled) return;
         const target = e.target.closest('button, .tab-btn, .home-mode-card');
         if (!target) return;
+        if (e.target.closest('[data-subject-choice]')) return;
 
         const ripple = document.createElement('span');
         const rect = target.getBoundingClientRect();

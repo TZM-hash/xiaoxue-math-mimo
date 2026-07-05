@@ -4,8 +4,16 @@ const STORE = {
       music: "mathcamp-music-enabled-v4",
       sound: "mathcamp-sound-enabled-v4",
       theme: "mathcamp-theme-v1",
+      subject: "mathcamp-selected-subject-v1",
       system: "mathcamp-system-settings-v1"
     };
+    const SubjectRegistry = window.MathCampSubjects || {};
+    const SUBJECTS = Object.freeze(SubjectRegistry.SUBJECT_META || {
+      chinese: { label: "语文" },
+      math: { label: "数学" },
+      english: { label: "英语" },
+      science: { label: "科学" }
+    });
     const EFFECT_SETTING_KEYS = Object.freeze([
       "cursorEffects",
       "seasonEffects",
@@ -411,6 +419,7 @@ const STORE = {
       petRoomCatBtn: document.getElementById("petRoomCatBtn"),
       learningModal: document.getElementById("learningModal"),
       learningKnowledgeMap: document.getElementById("learningKnowledgeMap"),
+      subjectModal: document.getElementById("subjectModal"),
       systemModal: document.getElementById("systemModal"),
       systemProfileNameInput: document.getElementById("systemProfileNameInput"),
       saveSystemProfileBtn: document.getElementById("saveSystemProfileBtn"),
@@ -545,7 +554,54 @@ const STORE = {
       if (text === label) return true;
       return comparableAnswerText(text) === comparableAnswerText(label);
     }
+    function normalizeTextAnswer(value) {
+      return String(value || "")
+        .trim()
+        .replace(/[，。！？；：“”‘’、,.!?;:"'\s]/g, "")
+        .toLowerCase();
+    }
+    function textAnswerMatches(raw, question) {
+      const expected = [question?.answerLabel, question?.answer, ...(question?.acceptedAnswers || [])]
+        .map(normalizeTextAnswer)
+        .filter(Boolean);
+      const actual = normalizeTextAnswer(raw);
+      return Boolean(actual && expected.includes(actual));
+    }
+    function normalizeFormulaAnswer(value) {
+      return String(value || "")
+        .trim()
+        .toLowerCase()
+        .replace(/[＝]/g, "=")
+        .replace(/[×✕x]/g, "*")
+        .replace(/[÷]/g, "/")
+        .replace(/[，,]/g, "")
+        .replace(/[。．]/g, ".")
+        .replace(/[（]/g, "(")
+        .replace(/[）]/g, ")")
+        .replace(/\s+/g, "")
+        .replace(/[^0-9.+\-*/=()%:]/g, "");
+    }
+    function formulaAnswerMatches(raw, question) {
+      const actual = normalizeFormulaAnswer(raw);
+      if (!actual || !actual.includes("=")) return false;
+      const expected = [question?.formulaAnswer, question?.answerLabel, ...(question?.acceptedFormulas || [])]
+        .map(normalizeFormulaAnswer)
+        .filter((item) => item && item.includes("="));
+      return expected.includes(actual);
+    }
+    function isSelfReviewQuestion(question) {
+      return ["longText", "selfReview"].includes(question?.answerType);
+    }
+    function isChineseQuestion(question) {
+      return question?.subject === "chinese" || /^c\d/.test(String(question?.pointId || ""));
+    }
     function answerMatches(question, parsed) {
+      if (isSelfReviewQuestion(question)) return false;
+      if (question?.answerType === "choice") return textAnswerMatches(parsed.raw, question) || answerLabelMatches(parsed.raw, question);
+      if (question?.answerType === "formula") return formulaAnswerMatches(parsed.raw, question);
+      if (question?.answerType === "text" || Array.isArray(question?.acceptedAnswers)) {
+        return textAnswerMatches(parsed.raw, question);
+      }
       if (answerLabelMatches(parsed.raw, question)) return true;
       const expected = Number(question.answer);
       if (!Number.isFinite(parsed.value) || !Number.isFinite(expected)) return false;
@@ -643,6 +699,10 @@ const STORE = {
     }
     function safeThemeId(id) {
       return Object.prototype.hasOwnProperty.call(THEME_REGISTRY, id) ? id : "classic";
+    }
+    function safeSubjectId(id) {
+      if (SubjectRegistry.safeSubjectId) return SubjectRegistry.safeSubjectId(id);
+      return Object.prototype.hasOwnProperty.call(SUBJECTS, id) ? id : "math";
     }
     function systemThemeOwned(id, profile = null) {
       const themeId = safeThemeId(id);
@@ -869,22 +929,26 @@ const STORE = {
       });
     }
     function shouldHideAnswerControlsForWrong(question) {
+      if (isChineseQuestion(question)) return true;
       const mode = question?.interaction?.mode || "input";
       return isCompactPracticeViewport() || mode === "choice" || mode === "judge";
     }
     function normalizeAnswerModeForViewport(mode) {
       return isCompactPracticeViewport() && mode === "step" ? "input" : mode;
     }
-    function shouldUseCustomAnswerKeyboard(mode = "input") {
+    function shouldUseCustomAnswerKeyboard(mode = "input", question = null) {
+      if (isChineseQuestion(question)) return false;
+      if (question?.answerType === "formula") return false;
       return (mode === "input" || mode === "step") && isCompactPracticeViewport();
     }
     function syncAnswerModeAvailability() {
       const stepOption = els.answerModeSelect?.querySelector('option[value="step"]');
       if (!stepOption) return;
       const compact = isCompactPracticeViewport();
-      stepOption.disabled = compact;
-      stepOption.hidden = compact;
-      if (compact && els.answerModeSelect.value === "step") {
+      const chinese = activeSubjectId() === "chinese";
+      stepOption.disabled = compact || chinese;
+      stepOption.hidden = compact || chinese;
+      if ((compact || chinese) && els.answerModeSelect.value === "step") {
         els.answerModeSelect.value = "input";
         state.answerMode = "input";
       }
@@ -1235,6 +1299,7 @@ const STORE = {
       normalized.settings.setSize = clamp(Number(normalized.settings.setSize) || 10, 3, 40);
       normalized.settings.dailyGoal = clamp(Number(normalized.settings.dailyGoal) || 20, 5, 200);
       normalized.settings.pointId = safePointId(normalized.settings.pointId || "auto", normalized.grade);
+      if (normalized.settings.answerMode === "handwriting") normalized.settings.answerMode = "input";
       if (!["auto", "input", "choice", "judge", "step"].includes(normalized.settings.answerMode)) normalized.settings.answerMode = "auto";
       delete normalized.settings.motionLite;
       if (!["practice", "daily-plan", "exam", "wrong-review", "explain", "parent-sign"].includes(normalized.settings.printTemplate)) normalized.settings.printTemplate = "practice";
@@ -1259,11 +1324,15 @@ const STORE = {
         }])
       );
       normalized.rewards.pet = normalizePetState(normalized.rewards.pet || {}, normalized);
+      if (SubjectRegistry.normalizeProfileSubjects) {
+        const withSubjects = SubjectRegistry.normalizeProfileSubjects(normalized);
+        normalized.subjects = withSubjects.subjects;
+      }
       return normalized;
     }
     function pointForQuestion(question) {
       const grade = clamp(Number(question?.grade) || 1, 1, 6);
-      const explicit = pointMap[question?.pointId];
+      const explicit = bankPointMap()[question?.pointId] || pointMap[question?.pointId];
       if (explicit && explicit.grade === grade) return explicit;
       const byTopic = availablePoints(grade).find((point) => point.topic === question?.topic);
       return byTopic || availablePoints(grade)[0] || points[0];
@@ -1431,6 +1500,7 @@ const STORE = {
       petTaskClaimLocks: new Set(),
       petItemActionLocks: new Set(),
       theme: safeThemeId(storageGet(STORE.theme, document.documentElement.dataset.theme || "classic")),
+      subject: safeSubjectId(storageGet(STORE.subject, "math")),
       musicOn: storageGet(STORE.music, "false") === "true",
       soundOn: storageGet(STORE.sound, "false") === "true",
       audio: {
@@ -1449,8 +1519,39 @@ const STORE = {
     };
     if (!state.profiles.some((profile) => profile.id === state.activeId)) state.activeId = state.profiles[0].id;
 
+    function activeSubjectId() {
+      return safeSubjectId(state.subject || "math");
+    }
+    function activeBank() {
+      return SubjectRegistry.subjectBank?.(activeSubjectId()) || window.MathCampQuestionBank;
+    }
+    function bankGrades() {
+      return activeBank().grades || grades;
+    }
+    function bankGradeNames() {
+      return activeBank().gradeNames || gradeNames;
+    }
+    function bankCauses() {
+      return activeBank().causes || causes;
+    }
+    function bankPoints() {
+      return activeBank().points || points;
+    }
+    function bankPointMap() {
+      return activeBank().pointMap || pointMap;
+    }
+    function activeLearning(profile = activeProfile()) {
+      if (!profile) return null;
+      return SubjectRegistry.subjectState ? SubjectRegistry.subjectState(profile, activeSubjectId()) : profile;
+    }
+    function bindProfileToActiveSubject(profile) {
+      if (!profile || !SubjectRegistry.bindSubjectState) return profile;
+      SubjectRegistry.bindSubjectState(profile, activeSubjectId());
+      return profile;
+    }
     function activeProfile() {
-      return state.profiles.find((profile) => profile.id === state.activeId) || state.profiles[0];
+      const profile = state.profiles.find((item) => item.id === state.activeId) || state.profiles[0];
+      return bindProfileToActiveSubject(profile);
     }
     function todayItems(profile = activeProfile()) {
       return profile.history.filter((item) => item.date === todayKey());
@@ -1981,6 +2082,7 @@ const STORE = {
     function saveProfiles() {
       const profile = activeProfile();
       if (profile) profile.updatedAt = Date.now();
+      if (profile && SubjectRegistry.syncBoundSubject) SubjectRegistry.syncBoundSubject(profile, activeSubjectId());
       const profilesForSave = state.profiles
         .map((item) => normalizeProfile(JSON.parse(JSON.stringify(item || {}))))
         .filter(Boolean);
@@ -2059,7 +2161,7 @@ const STORE = {
     }
     function availablePoints(grade = state.grade) {
       const normalizedGrade = clamp(Number(grade) || 1, 1, 6);
-      return points
+      return bankPoints()
         .filter((point) => point.grade === normalizedGrade)
         .slice()
         .sort((a, b) => curriculumPointRank(a) - curriculumPointRank(b) || a.id.localeCompare(b.id));
@@ -2072,7 +2174,7 @@ const STORE = {
       return pointBelongsToGrade(pointId, grade) ? pointId : "auto";
     }
     function pointLabel(id) {
-      return pointMap[id]?.label || "按年级混合";
+      return bankPointMap()[id]?.label || pointMap[id]?.label || "按年级混合";
     }
     function appendixPointForGrade(grade = state.grade) {
       return pointMap[`g${clamp(Number(grade) || 1, 1, 6)}-appendix`] || pointMap["g6-appendix"];
@@ -2218,8 +2320,28 @@ const STORE = {
       if (question.topic === "reading") return "思维阅读";
       return "规则计算";
     }
+    function shortPromptForHint(text) {
+      const prompt = String(text || "").replace(/\s+/g, " ").trim();
+      return prompt.length > 36 ? `${prompt.slice(0, 36)}...` : prompt;
+    }
+    function chineseMethodHintFor(question) {
+      const prompt = shortPromptForHint(question?.text);
+      const prefix = prompt ? `先看这题问的“${prompt}”。` : "";
+      const hints = {
+        pinyin: "再看字音、声调和词语搭配，放回句子里判断。",
+        character: "再看字形结构和容易混淆的笔画，放回词语里检查。",
+        word: "再比较词语意思和语境，选择最通顺、最准确的表达。",
+        sentence: "再把句子读一遍，检查顺序是否清楚、表达是否完整。",
+        punctuation: "再读出停顿和语气，判断逗号、句号、问号或感叹号是否合适。",
+        reading: "回到短文原句定位依据，圈出人物、动作或关键词，再用完整句回答。",
+        poem: "抓住诗句里的关键词，联系诗意和积累，再说清选择依据。",
+        writing: "先想清要写的内容和顺序，句子要通顺完整，标点也要检查。"
+      };
+      return `${prefix}${hints[question?.topic] || "先读清题目要求，再回到句子或短文里找依据，答案要写完整。"}`;
+    }
     function methodHintFor(question) {
       if (!question) return '先判断题型，再列式。遇到应用题，先把"已知"和"要求"分开看。';
+      if (isChineseQuestion(question)) return chineseMethodHintFor(question);
       const hints = {
         addsub: "加减题先看符号。加法是合起来，减法是拿走或比较差多少。",
         compare: "比较多少一般用减法：大数减小数。",
@@ -2254,12 +2376,74 @@ const STORE = {
         result: match[4].trim()
       };
     }
+    function splitInlineChoiceText(text) {
+      const source = String(text || "").trim();
+      const matches = [...source.matchAll(/[A-D][\.\uff0e、]\s*/g)];
+      const uniqueKeys = new Set(matches.map((match) => match[0][0].toUpperCase()));
+      if (matches.length < 2 || uniqueKeys.size !== matches.length) return null;
+      const options = matches.map((match, index) => {
+        const key = match[0][0].toUpperCase();
+        const start = match.index + match[0].length;
+        const end = index + 1 < matches.length ? matches[index + 1].index : source.length;
+        return { key, text: source.slice(start, end).trim() };
+      }).filter((option) => option.text);
+      if (options.length < 2) return null;
+      return {
+        prompt: source.slice(0, matches[0].index).trim(),
+        options
+      };
+    }
+    function choiceQuestionTitleHTML(question) {
+      const split = splitInlineChoiceText(question?.text);
+      if (!split) return null;
+      return `
+        <span class="question-prompt">${escapeHTML(split.prompt)}</span>
+        <span class="question-options" aria-label="题目选项">
+          ${split.options.map((option) => `
+            <span class="question-option">
+              <b>${escapeHTML(option.key)}.</b>
+              <span>${escapeHTML(option.text)}</span>
+            </span>`).join("")}
+        </span>`;
+    }
+    function structuredQuestionTitleHTML(question) {
+      const text = String(question?.text || "").trim();
+      if (!text) return "";
+      const expanded = text
+        .replace(/\r/g, "")
+        .replace(/(。|！|？)(请)/g, "$1\n$2")
+        .replace(/(\S)(材料：|题目：|要求：|提示：|情境：|阅读提示：)/g, "$1\n$2");
+      const lines = expanded
+        .split(/\n+/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+      return lines.map((line) => {
+        const label = line.match(/^(【[^】]+】|材料：|题目：|要求：|提示：|情境：|阅读提示：)/)?.[0] || "";
+        const body = label ? line.slice(label.length).trim() : line;
+        const labelClass = label ? " label-line" : "";
+        const labelHTML = label ? `<b>${escapeHTML(label)}</b>` : "";
+        return `<span class="question-line${labelClass}">${labelHTML}${body ? `<span>${escapeHTML(body)}</span>` : ""}</span>`;
+      }).join("");
+    }
     function renderQuestionTitle(question) {
       if (!els.questionText) return;
       els.questionText.classList.toggle("word", Boolean(question?.word));
       els.questionText.classList.toggle("vertical-question", question?.topic === "vertical");
+      const choiceHTML = choiceQuestionTitleHTML(question);
+      els.questionText.classList.toggle("choice-question", Boolean(choiceHTML));
+      if (question?.passage) {
+        els.questionText.classList.add("word");
+        els.questionText.innerHTML = `<span class="question-passage">${escapeHTML(question.passage)}</span>${choiceHTML || structuredQuestionTitleHTML(question)}`;
+        return;
+      }
+      if (choiceHTML) {
+        els.questionText.classList.add("word");
+        els.questionText.innerHTML = choiceHTML;
+        return;
+      }
       if (question?.topic !== "vertical") {
-        els.questionText.textContent = question?.text || "";
+        els.questionText.classList.add("word");
+        els.questionText.innerHTML = structuredQuestionTitleHTML(question);
         return;
       }
       const spec = question.vertical || verticalSpecFromText(question.text);
@@ -2695,7 +2879,7 @@ const STORE = {
       return withCurriculumProfile(point, profile);
     }
     function renderKnowledgeDetail() {
-      const point = state.pointId === "auto" ? null : pointMap[state.pointId];
+      const point = state.pointId === "auto" ? null : (bankPointMap()[state.pointId] || pointMap[state.pointId]);
       const profile = knowledgeProfileFor(point);
       if (!els.knowledgeDetail) return;
       const wasOpen = Boolean(els.knowledgeDetail.open);
@@ -2712,7 +2896,12 @@ const STORE = {
     }
     function chooseInteractionMode(question, preferred = state.answerMode || "auto") {
       preferred = normalizeAnswerModeForViewport(preferred);
+      if (question.answerType === "formula") return "input";
       if (preferred !== "auto") return preferred;
+      if (question.answerType === "longText" || question.answerType === "selfReview") return "input";
+      if (question.answerType === "choice") return "choice";
+      if (question.answerType === "judge") return "judge";
+      if (question.answerType === "text" || Array.isArray(question.acceptedAnswers)) return "input";
       if (question.word || question.topic === "mixed" || question.topic === "twostep" || question.topic === "vertical" || question.topic === "geometry" || question.topic === "reading" || question.topic === "thinking") return isMobilePracticeViewport() ? "input" : "step";
       if (question.topic === "compare" || question.topic === "muldiv") return Math.random() > 0.5 ? "choice" : "input";
       if (question.topic === "addsub" && Math.random() > 0.7) return "judge";
@@ -2729,25 +2918,66 @@ const STORE = {
       });
       return values.slice(0, 3);
     }
+    function chineseAnswerValue(question) {
+      const value = question?.answer ?? question?.acceptedAnswers?.[0] ?? question?.answerLabel ?? "";
+      const text = String(value).trim();
+      const letter = text.match(/^[A-D]/i)?.[0];
+      return letter ? letter.toUpperCase() : text;
+    }
+    function chineseChoiceOptions(question) {
+      if (Array.isArray(question?.options) && question.options.length) {
+        return question.options.map((option) => ({
+          label: String(option.label ?? option.text ?? option.value ?? "").trim(),
+          value: String(option.value ?? option.label ?? option.text ?? "").trim()
+        })).filter((option) => option.label && option.value);
+      }
+      const text = String(question?.text || "");
+      const split = splitInlineChoiceText(text);
+      return (split?.options || []).map((option) => ({ label: `${option.key}. ${option.text}`, value: option.key }));
+    }
+    function chineseWrongOption(question) {
+      return chineseChoiceOptions(question).find((option) => !textAnswerMatches(option.value, question) && !textAnswerMatches(option.label, question))
+        || { label: "一个不符合题意的答案", value: "__wrong_text_answer__" };
+    }
     function applyQuestionInteraction(question, preferred = state.answerMode || "auto") {
       const mode = chooseInteractionMode(question, preferred);
-      const finalMode = question.answerLabel && (mode === "choice" || mode === "judge") ? "input" : mode;
+      let finalMode = question.answerLabel && (mode === "choice" || mode === "judge") ? "input" : mode;
+      if (isChineseQuestion(question)) {
+        if (mode === "step") {
+          finalMode = "input";
+        } else if (mode === "choice") {
+          finalMode = chineseChoiceOptions(question).length >= 2 ? "choice" : "input";
+        } else if (mode === "judge") {
+          finalMode = isSelfReviewQuestion(question) || !chineseAnswerValue(question) ? "input" : "judge";
+        }
+      }
       const interaction = { mode: finalMode };
       if (finalMode === "choice") {
-        const options = shuffle([Number(question.answer), ...numericDistractors(question.answer)]).slice(0, 4);
-        if (!options.some((value) => Math.abs(value - Number(question.answer)) < 0.001)) options[0] = Number(question.answer);
-        interaction.options = shuffle(options).map((value) => ({ label: formatAnswer(value), value }));
+        if (isChineseQuestion(question)) {
+          interaction.options = chineseChoiceOptions(question);
+        } else {
+          const options = shuffle([Number(question.answer), ...numericDistractors(question.answer)]).slice(0, 4);
+          if (!options.some((value) => Math.abs(value - Number(question.answer)) < 0.001)) options[0] = Number(question.answer);
+          interaction.options = shuffle(options).map((value) => ({ label: formatAnswer(value), value }));
+        }
       } else if (finalMode === "judge") {
-        const wrong = numericDistractors(question.answer)[0] ?? Number(question.answer) + 1;
         const truthful = Math.random() > 0.5;
-        interaction.statementValue = truthful ? Number(question.answer) : wrong;
+        if (isChineseQuestion(question)) {
+          const wrong = chineseWrongOption(question);
+          const correct = chineseAnswerValue(question);
+          interaction.statementValue = truthful ? correct : wrong.value;
+          interaction.statementLabel = truthful ? formatAnswer(correct, question.answerLabel) : wrong.label;
+        } else {
+          const wrong = numericDistractors(question.answer)[0] ?? Number(question.answer) + 1;
+          interaction.statementValue = truthful ? Number(question.answer) : wrong;
+        }
         interaction.truthful = truthful;
       }
       question.interaction = interaction;
       return question;
     }
     function makeStrictQuestionForPoint(point, preferred = state.answerMode) {
-      const target = pointMap[point?.id] || point;
+      const target = bankPointMap()[point?.id] || pointMap[point?.id] || point;
       if (!target) return applyQuestionInteraction(makeQuestion(choosePoint()), preferred);
       for (let attempt = 0; attempt < 16; attempt += 1) {
         const question = makeQuestion(target, { strict: true });
@@ -2757,12 +2987,32 @@ const STORE = {
       return applyQuestionInteraction(makeQuestion(target, { strict: true }), preferred);
     }
     function buildQuestionSetForPoint(point, count, preferred = state.answerMode) {
-      const target = pointMap[point?.id] || point;
+      const target = bankPointMap()[point?.id] || pointMap[point?.id] || point;
       if (!target) return [];
       const total = clamp(Number(count) || state.setSize || 10, 1, 80);
       return Array.from({ length: total }, () => makeStrictQuestionForPoint(target, preferred));
     }
+    function buildChineseBalancedQuestionSet(count = state.setSize, preferred = state.answerMode) {
+      const total = clamp(Number(count) || state.setSize || 10, 1, 80);
+      const bank = activeBank();
+      const plan = window.MathCampChineseQuestionGenerator?.buildSourcePlan?.(total, bank.sourceWeights)
+        || Array.from({ length: total }, () => "inTextbook");
+      const pointsForGrade = availablePoints(state.grade);
+      const sourceOffsets = {};
+      return plan.map((sourceType) => {
+        const pool = pointsForGrade.filter((point) => point.sourceType === sourceType);
+        const fallbackPool = pointsForGrade.filter((point) => point.sourceType !== "abilityLine");
+        const candidates = pool.length ? pool : fallbackPool.length ? fallbackPool : pointsForGrade;
+        const offset = sourceOffsets[sourceType] || 0;
+        sourceOffsets[sourceType] = offset + 1;
+        const point = candidates[offset % candidates.length] || choosePoint();
+        return makeStrictQuestionForPoint(point, preferred);
+      });
+    }
     function buildAdaptiveQuestionSet(count = state.setSize, preferred = state.answerMode) {
+      if (activeSubjectId() === "chinese" && state.pointId === "auto") {
+        return buildChineseBalancedQuestionSet(count, preferred);
+      }
       return window.MathCampPracticeEngine.buildAdaptiveQuestionSet({
         activeProfile,
         applyQuestionInteraction,
@@ -2783,13 +3033,23 @@ const STORE = {
       if (!interaction) return [];
       const issues = [];
       if (!["input", "choice", "judge", "step"].includes(interaction.mode)) issues.push("答题方式未知");
+      if (question?.answerType === "formula" && interaction.mode !== "input") issues.push("列算式题应使用输入框");
+      if (question?.answerType === "formula" && ![question.formulaAnswer, ...(question.acceptedFormulas || [])].some((item) => normalizeFormulaAnswer(item).includes("="))) issues.push("列算式题缺少参考算式");
       if (interaction.mode === "choice") {
-        const values = (interaction.options || []).map((option) => Number(option.value));
-        if (values.length < 2) issues.push("选择题选项不足");
-        if (!values.some((value) => Math.abs(value - Number(question.answer)) < 0.001)) issues.push("选择题缺少正确答案");
+        if (isChineseQuestion(question)) {
+          const options = interaction.options || [];
+          if (options.length < 2) issues.push("选择题选项不足");
+          if (!options.some((option) => textAnswerMatches(option.value, question) || textAnswerMatches(option.label, question))) issues.push("选择题缺少正确答案");
+        } else {
+          const values = (interaction.options || []).map((option) => Number(option.value));
+          if (values.length < 2) issues.push("选择题选项不足");
+          if (!values.some((value) => Math.abs(value - Number(question.answer)) < 0.001)) issues.push("选择题缺少正确答案");
+        }
       }
       if (interaction.mode === "judge") {
-        if (!Number.isFinite(Number(interaction.statementValue))) issues.push("判断题陈述答案无效");
+        if (isChineseQuestion(question)) {
+          if (!String(interaction.statementValue || interaction.statementLabel || "").trim()) issues.push("判断题陈述答案无效");
+        } else if (!Number.isFinite(Number(interaction.statementValue))) issues.push("判断题陈述答案无效");
         if (typeof interaction.truthful !== "boolean") issues.push("判断题真假值无效");
       }
       if (interaction.mode === "step" && !(question.steps || []).length) issues.push("分步题缺少步骤");
@@ -2818,7 +3078,7 @@ const STORE = {
     }
     function choosePoint() {
       const options = availablePoints(state.grade);
-      if (state.pointId !== "auto") return pointMap[state.pointId] || options[0];
+      if (state.pointId !== "auto") return bankPointMap()[state.pointId] || pointMap[state.pointId] || options[0];
       return chooseAutoPoint(options, state.adaptive);
     }
     function chooseAutoPoint(options, adaptive = true) {
@@ -2975,6 +3235,12 @@ const STORE = {
       if (Number(question.grade) !== Number(point.grade)) issues.push("年级不一致");
       if (question.pointId !== point.id) issues.push("知识点不一致");
       if (question.topic !== point.topic) issues.push("题型主题不一致");
+      if (question.subject === "chinese" || point.subject === "chinese" || /^c\d-/.test(String(point.id || ""))) {
+        if (!question.explanation) issues.push("缺少解析");
+        if (!Array.isArray(question.steps) || !question.steps.length) issues.push("缺少步骤");
+        if (!question.answer && !question.answerLabel) issues.push("缺少参考答案");
+        return issues;
+      }
       const numbers = questionNumbers(question);
       const answer = Number(question.answer);
       if (!Number.isFinite(answer)) issues.push("答案不是数字");
@@ -5648,6 +5914,13 @@ const STORE = {
     }
     function makeWord(point, level) {
       const grade = clamp(Number(point.grade) || state.grade, 1, 6);
+      const formulaQuestion = (data) => baseQuestion(point, {
+        ...data,
+        answerType: "formula",
+        answerLabel: data.formulaAnswer,
+        word: true,
+        templateType: data.templateType || "列式应用"
+      });
       const lowAddSub = [
         () => {
           const total = point.id === "g1-simple-word" ? rand(8, 20) : rand(28, 96);
@@ -5741,6 +6014,91 @@ const STORE = {
             explanation: `先求盒装饼干有多少块，再加上散装的数量。`,
             steps: [`盒装：${boxes} × ${each} = ${boxes * each} 块。`, `加上散装：${boxes * each} + ${extra} = ${boxes * each + extra} 块。`],
             templateType: "两步应用"
+          });
+        }
+      ];
+      const formulaWord = [
+        () => {
+          const a = grade <= 2 ? rand(8, 36) : rand(28, 96);
+          const b = grade <= 2 ? rand(5, 28) : rand(16, 85);
+          const answer = a + b;
+          return formulaQuestion({
+            text: `书架上有 ${a} 本故事书，又放上 ${b} 本。一共有多少本？请列出算式并写出答案。`,
+            answer,
+            formulaAnswer: `${a}+${b}=${answer}`,
+            acceptedFormulas: [`${a}+${b}=${answer}`, `${b}+${a}=${answer}`],
+            explanation: `求一共有多少，是把两部分合起来。算式：${a} + ${b} = ${answer}。`,
+            steps: [`找到两部分：${a} 本和 ${b} 本。`, `列式：${a} + ${b} = ${answer}。`, `答：一共有 ${answer} 本。`]
+          });
+        },
+        () => {
+          const total = grade <= 2 ? rand(30, 96) : rand(120, 520);
+          const used = grade <= 2 ? rand(8, Math.floor(total / 2)) : rand(35, Math.floor(total / 2));
+          const answer = total - used;
+          return formulaQuestion({
+            text: `活动准备了 ${total} 张卡片，已经用掉 ${used} 张。还剩多少张？请列出算式并写出答案。`,
+            answer,
+            formulaAnswer: `${total}-${used}=${answer}`,
+            acceptedFormulas: [`${total}-${used}=${answer}`],
+            explanation: `求还剩多少，要从总数里去掉已经用掉的数量。算式：${total} - ${used} = ${answer}。`,
+            steps: [`总数是 ${total} 张。`, `用掉 ${used} 张。`, `列式：${total} - ${used} = ${answer}。`]
+          });
+        },
+        () => {
+          const each = rand(3, grade <= 2 ? 9 : 18);
+          const groups = rand(3, grade <= 2 ? 9 : 14);
+          const answer = each * groups;
+          return formulaQuestion({
+            text: `每盒有 ${each} 支铅笔，老师准备了 ${groups} 盒。一共有多少支铅笔？请列出算式并写出答案。`,
+            answer,
+            formulaAnswer: `${each}×${groups}=${answer}`,
+            acceptedFormulas: [`${each}×${groups}=${answer}`, `${groups}×${each}=${answer}`, `${each}*${groups}=${answer}`, `${groups}*${each}=${answer}`],
+            explanation: `每盒数量相同，求几个相同数量的和，用乘法。算式：${each} × ${groups} = ${answer}。`,
+            steps: [`每盒 ${each} 支。`, `一共有 ${groups} 盒。`, `列式：${each} × ${groups} = ${answer}。`]
+          });
+        },
+        () => {
+          const each = rand(4, grade <= 2 ? 9 : 18);
+          const groups = rand(3, grade <= 2 ? 8 : 16);
+          const total = each * groups;
+          return formulaQuestion({
+            text: `${total} 个扣子平均装进 ${groups} 个袋子，每袋装多少个？请列出算式并写出答案。`,
+            answer: each,
+            formulaAnswer: `${total}÷${groups}=${each}`,
+            acceptedFormulas: [`${total}÷${groups}=${each}`, `${total}/${groups}=${each}`],
+            explanation: `平均分成同样多的 ${groups} 袋，用除法。算式：${total} ÷ ${groups} = ${each}。`,
+            steps: [`总数是 ${total} 个。`, `平均分成 ${groups} 袋。`, `列式：${total} ÷ ${groups} = ${each}。`]
+          });
+        },
+        () => {
+          const rows = rand(3, 9);
+          const each = rand(8, 24);
+          const given = rand(5, 30);
+          const answer = rows * each - given;
+          return formulaQuestion({
+            text: `礼堂摆了 ${rows} 排椅子，每排 ${each} 把，已经坐了 ${given} 人。还空着多少把椅子？请列出综合算式并写出答案。`,
+            answer,
+            formulaAnswer: `${rows}×${each}-${given}=${answer}`,
+            acceptedFormulas: [`${rows}×${each}-${given}=${answer}`, `${rows}*${each}-${given}=${answer}`],
+            explanation: `先求椅子总数，再减去已经坐的人数。算式：${rows} × ${each} - ${given} = ${answer}。`,
+            steps: [`总椅子数：${rows} × ${each} = ${rows * each}。`, `还空着：${rows * each} - ${given} = ${answer}。`, `综合算式：${rows} × ${each} - ${given} = ${answer}。`],
+            templateType: "列综合算式"
+          });
+        },
+        () => {
+          const price = rand(60, 240);
+          const discount = pick([0.7, 0.8, 0.9]);
+          const fee = rand(3, 12);
+          const discounted = round1(price * discount);
+          const answer = round1(discounted + fee);
+          return formulaQuestion({
+            text: `一件文具套装原价 ${price} 元，现在打 ${discount * 10} 折，另收包装费 ${fee} 元。实际要付多少元？请列出算式并写出答案。`,
+            answer,
+            formulaAnswer: `${price}×${discount}+${fee}=${formatAnswer(answer)}`,
+            acceptedFormulas: [`${price}×${discount}+${fee}=${formatAnswer(answer)}`, `${price}*${discount}+${fee}=${formatAnswer(answer)}`],
+            explanation: `先算折后价，再加包装费。算式：${price} × ${discount} + ${fee} = ${formatAnswer(answer)}。`,
+            steps: [`折后价：${price} × ${discount} = ${formatAnswer(discounted)}。`, `实际支付：${formatAnswer(discounted)} + ${fee} = ${formatAnswer(answer)}。`],
+            templateType: "列式应用"
           });
         }
       ];
@@ -6091,16 +6449,17 @@ const STORE = {
           });
         }
       ];
-      if (point.id === "g1-simple-word") return pick(lowAddSub)();
-      if (point.id === "g2-simple-word") return pick([...lowAddSub, ...equalGroup, ...distractorWord])();
-      if (point.id === "g3-word-two-step") return pick([...twoStep, ...distractorWord, ...multiReasoningWord])();
-      if (point.id === "g4-word") return pick([...twoStep, ...upperWord, ...multiReasoningWord, ...upperDistractorWord])();
-      if (point.id === "g5-word" || point.id === "g6-complex-word") return pick([...upperWord, ...multiReasoningWord, ...upperDistractorWord, ...decimalPercentWord])();
-      if (grade <= 1) return pick(lowAddSub)();
-      if (grade <= 2) return pick([...lowAddSub, ...equalGroup, ...distractorWord])();
-      if (grade <= 3) return pick([...equalGroup, ...twoStep, ...distractorWord, ...multiReasoningWord])();
-      if (grade <= 4) return pick([...twoStep, ...upperWord, ...multiReasoningWord, ...upperDistractorWord])();
-      return pick([...upperWord, ...multiReasoningWord, ...upperDistractorWord, ...decimalPercentWord])();
+      const formulaChoices = grade <= 2 ? formulaWord.slice(0, 4) : grade <= 4 ? formulaWord.slice(0, 5) : formulaWord;
+      if (point.id === "g1-simple-word") return pick([...lowAddSub, ...formulaChoices])();
+      if (point.id === "g2-simple-word") return pick([...lowAddSub, ...equalGroup, ...distractorWord, ...formulaChoices])();
+      if (point.id === "g3-word-two-step") return pick([...twoStep, ...distractorWord, ...multiReasoningWord, ...formulaChoices])();
+      if (point.id === "g4-word") return pick([...twoStep, ...upperWord, ...multiReasoningWord, ...upperDistractorWord, ...formulaChoices])();
+      if (point.id === "g5-word" || point.id === "g6-complex-word") return pick([...upperWord, ...multiReasoningWord, ...upperDistractorWord, ...decimalPercentWord, ...formulaChoices])();
+      if (grade <= 1) return pick([...lowAddSub, ...formulaChoices])();
+      if (grade <= 2) return pick([...lowAddSub, ...equalGroup, ...distractorWord, ...formulaChoices])();
+      if (grade <= 3) return pick([...equalGroup, ...twoStep, ...distractorWord, ...multiReasoningWord, ...formulaChoices])();
+      if (grade <= 4) return pick([...twoStep, ...upperWord, ...multiReasoningWord, ...upperDistractorWord, ...formulaChoices])();
+      return pick([...upperWord, ...multiReasoningWord, ...upperDistractorWord, ...decimalPercentWord, ...formulaChoices])();
     }
 
     function makeReading(point, level) {
@@ -7277,13 +7636,13 @@ const STORE = {
     }
     function renderGradeOptions() {
       els.gradeGrid.innerHTML = "";
-      grades.forEach((grade) => {
+      bankGrades().forEach((grade) => {
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "choice grade-choice";
-        btn.innerHTML = `<span class="grade-choice-main"><b>${gradeNames[grade - 1]}</b></span>`;
+        btn.innerHTML = `<span class="grade-choice-main"><b>${bankGradeNames()[grade - 1]}</b></span>`;
         btn.setAttribute("aria-pressed", String(state.grade === grade));
-        btn.setAttribute("aria-label", gradeNames[grade - 1]);
+        btn.setAttribute("aria-label", bankGradeNames()[grade - 1]);
         btn.addEventListener("click", () => {
           state.grade = grade;
           state.pointId = safePointId(state.pointId, grade);
@@ -7309,15 +7668,15 @@ const STORE = {
       state.pointId = safePointId(state.pointId, state.grade);
       els.pointSelect.innerHTML = pointOptionsHTML(state.grade, state.pointId);
       const currentPrintGrade = clamp(Number(els.printGrade.value) || state.grade, 1, 6);
-      els.printGrade.innerHTML = grades.map((grade) => `<option value="${grade}" ${grade === currentPrintGrade ? "selected" : ""}>${gradeNames[grade - 1]}</option>`).join("");
+      els.printGrade.innerHTML = bankGrades().map((grade) => `<option value="${grade}" ${grade === currentPrintGrade ? "selected" : ""}>${bankGradeNames()[grade - 1]}</option>`).join("");
       els.printGrade.value = String(currentPrintGrade);
       const printGrade = Number(els.printGrade.value || state.grade);
       const printPoint = safePointId(els.printPoint.value || "auto", printGrade);
       els.printPoint.innerHTML = pointOptionsHTML(printGrade, printPoint);
       els.printPoint.value = printPoint;
-      els.profileGradeInput.innerHTML = grades.map((grade) => `<option value="${grade}">${gradeNames[grade - 1]}</option>`).join("");
+      els.profileGradeInput.innerHTML = bankGrades().map((grade) => `<option value="${grade}">${bankGradeNames()[grade - 1]}</option>`).join("");
       els.causeSelect.value = "未标记";
-      els.wrongCauseFilter.innerHTML = [`<option value="all">全部错因</option>`, ...causes.map((cause) => `<option value="${escapeAttr(cause)}">${escapeHTML(cause)}</option>`)].join("");
+      els.wrongCauseFilter.innerHTML = [`<option value="all">全部错因</option>`, ...bankCauses().map((cause) => `<option value="${escapeAttr(cause)}">${escapeHTML(cause)}</option>`)].join("");
       const wrongGrade = activeProfile().grade || state.grade;
       const currentWrongPoint = els.wrongPointFilter.value || "all";
       const wrongPoint = pointBelongsToGrade(currentWrongPoint, wrongGrade) ? currentWrongPoint : "all";
@@ -7328,7 +7687,7 @@ const STORE = {
       els.wrongPointFilter.value = wrongPoint;
       els.adaptiveHint.textContent = state.pointId === "auto"
         ? "当前会按年级混合出题；开启自适应时，会优先安排薄弱知识点。"
-        : `${curriculumPointLabel(state.pointId)}：${curriculumHelperText(pointMap[state.pointId]) || "专项练习"}。`;
+        : `${curriculumPointLabel(state.pointId)}：${curriculumHelperText(bankPointMap()[state.pointId]) || "专项练习"}。`;
       renderKnowledgeDetail();
       renderHomeSettingsCard();
       syncCustomSelects();
@@ -9154,15 +9513,46 @@ const STORE = {
       }, 0);
     }
 
+    function renderSubjectChoices() {
+      document.querySelectorAll("[data-subject-choice]").forEach((button) => {
+        const active = safeSubjectId(button.dataset.subjectChoice) === state.subject;
+        button.classList.toggle("is-active", active);
+        button.setAttribute("aria-pressed", active ? "true" : "false");
+      });
+    }
+
+    function selectSubject(subjectId) {
+      const currentProfile = activeProfile();
+      if (currentProfile && SubjectRegistry.syncBoundSubject) SubjectRegistry.syncBoundSubject(currentProfile, activeSubjectId());
+      const next = safeSubjectId(subjectId);
+      state.subject = next;
+      storageSet(STORE.subject, next);
+      const profile = activeProfile();
+      bindProfileToActiveSubject(profile);
+      state.grade = profile.grade || state.grade || 1;
+      state.pointId = safePointId(profile.settings?.pointId || "auto", state.grade);
+      state.answerMode = normalizeAnswerModeForViewport(profile.settings?.answerMode || "auto");
+      renderGradeOptions();
+      renderPointSelects();
+      renderChrome();
+      renderHomeDashboard(profile);
+      if (state.view === "report") renderReport();
+      if (state.view === "wrongbook") renderWrongbook();
+      renderSubjectChoices();
+      closeHubModals();
+      UI.notify(`已选择${SUBJECTS[next].label}。`);
+    }
+
     function openHubModal(modal) {
       if (!modal) return;
       if (modal === els.systemModal) renderProfilePanel();
+      if (modal === els.subjectModal) renderSubjectChoices();
       modal.hidden = false;
       modal.classList.remove("is-closing");
       delete modal.dataset.closeToken;
       document.body.classList.add("hub-modal-open");
       closeHubModals({ except: modal });
-      const focusTarget = modal.querySelector("[data-close-learning], [data-close-system], button, input, select");
+      const focusTarget = modal.querySelector("[data-close-learning], [data-close-subject], [data-close-system], button, input, select");
       window.setTimeout(() => {
         try { focusTarget?.focus({ preventScroll: true }); } catch (_) {}
       }, 0);
@@ -9170,7 +9560,7 @@ const STORE = {
 
     function closeHubModals(options = {}) {
       const except = options.except || null;
-      const openModals = [els.learningModal, els.systemModal].filter((modal) => modal && modal !== except && !modal.hidden);
+      const openModals = [els.learningModal, els.subjectModal, els.systemModal].filter((modal) => modal && modal !== except && !modal.hidden);
       openModals.forEach((modal, index) => {
         closeWithMotion(modal, index === openModals.length - 1 ? () => {
           if (!except || except.hidden) document.body.classList.remove("hub-modal-open");
@@ -9667,14 +10057,16 @@ const STORE = {
       const interaction = question.interaction || applyQuestionInteraction(question, state.answerMode);
       els.practiceCard.dataset.interaction = interaction.mode;
       els.answerModePanel.hidden = interaction.mode === "input";
-      els.numberPad.hidden = interaction.mode === "choice" || interaction.mode === "judge";
-      els.answerInput.readOnly = interaction.mode === "choice" || interaction.mode === "judge" || shouldUseCustomAnswerKeyboard(interaction.mode);
-      els.answerInput.setAttribute("inputmode", shouldUseCustomAnswerKeyboard(interaction.mode) ? "none" : "decimal");
+      els.numberPad.hidden = isChineseQuestion(question) || question.answerType === "formula" || interaction.mode === "choice" || interaction.mode === "judge";
+      els.answerInput.readOnly = interaction.mode === "choice" || interaction.mode === "judge" || shouldUseCustomAnswerKeyboard(interaction.mode, question);
+      const textLikeAnswer = question.answerType === "text" || question.answerType === "formula" || question.answerType === "longText" || question.answerType === "selfReview" || Array.isArray(question.acceptedAnswers);
+      els.answerInput.setAttribute("inputmode", shouldUseCustomAnswerKeyboard(interaction.mode, question) ? "none" : textLikeAnswer || isChineseQuestion(question) ? "text" : "decimal");
       els.answerInput.placeholder = interaction.mode === "choice"
         ? "请选择一个答案"
         : interaction.mode === "judge"
           ? "请选择对或错"
-          : "在这里输入答案";
+          : question.answerType === "formula" ? "输入算式和答案，如 23+15=38"
+            : textLikeAnswer ? "在这里输入文字答案" : "在这里输入答案";
       if (interaction.mode === "input") {
         els.answerModePanel.innerHTML = "";
         return;
@@ -9698,7 +10090,7 @@ const STORE = {
         return;
       }
       if (interaction.mode === "judge") {
-        const label = answerValueLabel(interaction.statementValue);
+        const label = answerValueLabel(interaction.statementValue, interaction.statementLabel);
         els.answerModePanel.innerHTML = `
           <strong>判断对错</strong>
           <div class="answer-mode-copy judge-statement">这题的答案是 <b>${escapeHTML(label)}</b>，判断对错。</div>
@@ -9750,7 +10142,7 @@ const STORE = {
       saveProfiles();
       syncCustomSelects();
       const strictPoint = state.pointId !== "auto";
-      const selectedPoint = strictPoint ? pointMap[state.pointId] : null;
+      const selectedPoint = strictPoint ? bankPointMap()[state.pointId] : null;
       state.currentSet = selectedPoint
         ? buildQuestionSetForPoint(selectedPoint, state.setSize, state.answerMode)
         : buildAdaptiveQuestionSet(state.setSize, state.answerMode);
@@ -9776,7 +10168,7 @@ const STORE = {
       }
     }
     function startPointSet(pointId, count = 3, mode = "similar") {
-      const point = pointMap[pointId] || choosePoint();
+      const point = bankPointMap()[pointId] || pointMap[pointId] || choosePoint();
       state.mode = mode;
       state.challengeMeta = null;
       state.pointId = point.id;
@@ -10049,7 +10441,9 @@ const STORE = {
       els.saveCauseBtn.textContent = "直接下一题";
       els.saveCauseBtn.disabled = false;
       state.stepHintOpen = false;
-      const petPrompt = current.word ? '我陪你先读题：找"已知什么、要求什么"，再决定用加减乘除。' : '我陪你先看运算符号，再按正确顺序计算。';
+      const petPrompt = isChineseQuestion(current)
+        ? "我陪你先读题：看清题目问什么，再回到句子、短文或诗句里找依据。"
+        : current.word ? '我陪你先读题：找"已知什么、要求什么"，再决定用加减乘除。' : '我陪你先看运算符号，再按正确顺序计算。';
       els.companionTalk.textContent = petPrompt;
       els.methodHint.textContent = petCopy('提示默认隐藏。需要帮助时，点"让招财提示"。');
       renderAnswerModePanel(current);
@@ -10074,13 +10468,20 @@ const STORE = {
     }
     function parseAnswer() {
       const question = state.currentSet[state.index];
-      const raw = els.answerInput.value.trim().replace("，", ".").replace("。", ".");
+      const originalRaw = els.answerInput.value.trim();
+      const raw = question?.answerType === "text" || question?.answerType === "formula" || question?.answerType === "longText" || Array.isArray(question?.acceptedAnswers)
+        ? originalRaw
+        : originalRaw.replace("，", ".").replace("。", ".");
       const mode = question?.interaction?.mode || "input";
       if (!raw) {
         if (mode === "choice") return { valid: false, message: "先选一个答案，再让招财检查。" };
         if (mode === "judge") return { valid: false, message: "先判断正确或错误，再让招财检查。" };
         return { valid: false, message: "还没有填写答案。先写一个结果，再让招财检查。" };
       }
+      if (isSelfReviewQuestion(question)) return { valid: true, value: NaN, raw };
+      if (question?.answerType === "choice") return { valid: true, value: NaN, raw };
+      if (question?.answerType === "formula") return { valid: true, value: NaN, raw };
+      if (question?.answerType === "text" || Array.isArray(question?.acceptedAnswers)) return { valid: true, value: NaN, raw };
       if (answerLabelMatches(raw, question)) return { valid: true, value: Number(question.answer), raw };
       const value = parseNumericAnswer(raw);
       if (!Number.isFinite(value)) {
@@ -10144,7 +10545,8 @@ const STORE = {
       const item = {
         id: uid("wrong"),
         signature: sig,
-        question: { ...question },
+        subject: activeSubjectId(),
+        question: { ...question, subject: activeSubjectId() },
         cause: cause || "未标记",
         wrongCount: 1,
         correctStreak: 0,
@@ -10235,10 +10637,51 @@ const STORE = {
     }
     function addHistory(entry) {
       const profile = activeProfile();
+      entry.subject = activeSubjectId();
       profile.history.unshift(entry);
       profile.history = profile.history.slice(0, 2500);
       advancePetProgressFromQuestion(profile, Boolean(entry.correct), entry);
       renderDailyGoal();
+    }
+    function renderSelfReviewControls(question) {
+      if (!els.answerModePanel) return;
+      els.answerModePanel.hidden = false;
+      els.answerModePanel.innerHTML = `
+        <strong>自评订正</strong>
+        <div class="answer-mode-copy">看完参考答案后，选择这题的掌握情况。</div>
+        <div class="judge-options">
+          <button class="answer-option" type="button" data-self-review="correct">我答对了</button>
+          <button class="answer-option" type="button" data-self-review="partial">部分正确</button>
+          <button class="answer-option" type="button" data-self-review="wrong">需要订正</button>
+        </div>`;
+      els.answerModePanel.querySelectorAll("[data-self-review]").forEach((btn) => {
+        btn.addEventListener("click", () => finishSelfReview(question, btn.dataset.selfReview));
+      });
+    }
+    function finishSelfReview(question, result) {
+      const correct = result === "correct";
+      const cause = result === "wrong" ? "不会做" : "未标记";
+      const record = {
+        id: uid("record"),
+        date: todayKey(),
+        time: Date.now(),
+        question,
+        answer: Number.NaN,
+        answerText: els.answerInput.value.trim(),
+        correct,
+        cause,
+        selfReview: result
+      };
+      updateMastery(question.pointId, correct);
+      if (!correct) upsertWrong(question, cause);
+      addHistory({ date: record.date, time: record.time, pointId: question.pointId, grade: question.grade, correct, cause, text: question.text, mode: state.mode || "practice", selfReview: result });
+      state.records[state.index] = record;
+      els.answerInput.disabled = true;
+      els.checkBtn.disabled = true;
+      renderStats();
+      saveProfiles();
+      setFeedback(correct ? "good" : "saved", correct ? "已标记为掌握。" : "已保存订正，后续会安排复习。", correct ? "😄" : "📝");
+      if (!correct && els.showAnswerBtn) els.showAnswerBtn.disabled = false;
     }
     function checkAnswer() {
       if (state.checked) return;
@@ -10249,6 +10692,13 @@ const STORE = {
         updatePetStatus("招财先等你把答案写上。写完以后，我再帮你检查。", "等你");
         triggerAnswerAnimation("wrong");
         playSound("wrong");
+        return;
+      }
+      if (isSelfReviewQuestion(current)) {
+        state.checked = true;
+        if (els.showAnswerBtn) els.showAnswerBtn.disabled = false;
+        setFeedback("saved", "已保存作答。先看参考答案，再选择掌握情况。", "📝");
+        renderSelfReviewControls(current);
         return;
       }
       const expected = Number(current.answer);
@@ -11052,9 +11502,9 @@ const STORE = {
     function renderReportWeakSummary(profile, weakPoints, rows = []) {
       if (!els.reportWeakList) return;
       const rowMap = Object.fromEntries(rows.map((row) => [row.pointId, row]));
-      const insightMap = Object.fromEntries((LearningInsights.buildWeakPointInsights?.({ points, pointMap }, profile, {
+      const insightMap = Object.fromEntries((LearningInsights.buildWeakPointInsights?.({ points: bankPoints(), pointMap: bankPointMap() }, profile, {
         points: weakPoints.length ? weakPoints : availablePoints(profile.grade),
-        pointMap,
+        pointMap: bankPointMap(),
         grade: profile.grade,
         limit: 3
       }) || []).map((item) => [item.pointId, item]));
@@ -11075,7 +11525,7 @@ const STORE = {
 
     function renderReportCauseSummary(profile) {
       if (!els.reportCauseSummary) return;
-      const rows = LearningInsights.causeBreakdown?.(profile, pointMap, { limit: 120 }) || [];
+      const rows = LearningInsights.causeBreakdown?.(profile, bankPointMap(), { limit: 120, causes: bankCauses() }) || [];
       els.reportCauseSummary.innerHTML = rows.length ? rows.slice(0, 3).map(({ cause, count }) => `
         <div class="report-item compact-report-item">
           <div class="item-top"><h3>${escapeHTML(cause)}</h3><span class="tag">${count} 次</span></div>
@@ -11599,12 +12049,15 @@ const STORE = {
       showView(btn.dataset.jump);
     }));
     document.querySelectorAll("[data-open-learning]").forEach((btn) => btn.addEventListener("click", () => openHubModal(els.learningModal)));
+    document.querySelectorAll("[data-open-subject]").forEach((btn) => btn.addEventListener("click", () => openHubModal(els.subjectModal)));
     document.querySelectorAll("[data-open-learning-map]").forEach((btn) => btn.addEventListener("click", () => openLearningKnowledgeMap(activeProfile())));
     document.querySelectorAll("[data-start-logic-reading]").forEach((btn) => btn.addEventListener("click", startLogicReadingTraining));
     document.querySelectorAll("[data-close-learning]").forEach((btn) => btn.addEventListener("click", closeHubModals));
+    document.querySelectorAll("[data-close-subject]").forEach((btn) => btn.addEventListener("click", closeHubModals));
+    document.querySelectorAll("[data-subject-choice]").forEach((btn) => btn.addEventListener("click", () => selectSubject(btn.dataset.subjectChoice)));
     document.querySelectorAll("[data-open-system]").forEach((btn) => btn.addEventListener("click", () => openHubModal(els.systemModal)));
     document.querySelectorAll("[data-close-system]").forEach((btn) => btn.addEventListener("click", closeHubModals));
-    [els.learningModal, els.systemModal].forEach((modal) => {
+    [els.learningModal, els.subjectModal, els.systemModal].forEach((modal) => {
       modal?.addEventListener("click", (event) => {
         if (event.target === modal) closeHubModals();
       });
@@ -11866,7 +12319,7 @@ const STORE = {
         const modal = [els.petShopModal, els.petBagModal, els.petTaskModal, els.petCarePanelModal, els.petGrowthPanelModal, els.petPlanMenuModal, els.petDressupModal, els.petThemeShopModal, els.petAchievementModal].find((item) => item && !item.hidden);
         closePetModalWithReturn(modal);
       }
-      if (event.key === "Escape" && (!els.learningModal?.hidden || !els.systemModal?.hidden)) closeHubModals();
+      if (event.key === "Escape" && (!els.learningModal?.hidden || !els.subjectModal?.hidden || !els.systemModal?.hidden)) closeHubModals();
       if (event.key === "Escape" && !els.archiveModal?.hidden) closeArchiveModal();
     });
     els.petBagList?.addEventListener("click", (event) => {
@@ -12295,12 +12748,17 @@ const STORE = {
         renderPetSpace,
         renderWrongbook,
         saveProfiles,
+        selectSubject,
+        activeSubjectId,
+        activeBank,
+        activeLearning,
         makeQuestion,
         makeStrictQuestionForPoint,
         buildQuestionSetForPoint,
         buildAdaptiveQuestionSet,
         startNewSet,
         applyQuestionInteraction,
+        answerMatches,
         questionRuleIssues,
         interactionRuleIssues,
         runQuestionQualityAudit,
@@ -12308,6 +12766,7 @@ const STORE = {
         todayKey,
         availablePoints,
         pointMap,
+        bankPointMap,
         curriculumBandFor,
         curriculumBrief,
         curriculumHelperText,

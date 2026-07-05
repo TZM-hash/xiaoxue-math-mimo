@@ -47,6 +47,7 @@
         </button>
         <button class="tab-btn desktop-pet-tab" type="button" data-view="petspace" aria-selected="false">🐾 招财空间</button>
         <button class="tab-btn" type="button" data-open-learning aria-selected="false">📚 学习精进</button>
+        <button class="tab-btn" type="button" data-open-subject aria-selected="false">📘 学科选择</button>
         <button class="tab-btn" type="button" data-open-system aria-selected="false">⚙️ 系统设置</button>
         <button class="tab-btn" type="button" data-view="data" aria-selected="false">👧 学生信息</button>
       </nav>
@@ -922,6 +923,40 @@
       </article>
     </div>
 
+    <div class="hub-modal" id="subjectModal" role="dialog" aria-modal="true" aria-labelledby="subjectModalTitle" hidden>
+      <article class="hub-modal-panel subject-modal-panel">
+        <div class="item-top">
+          <div>
+            <h2 id="subjectModalTitle">学科选择</h2>
+            <p class="muted">语文、数学、英语、科学</p>
+          </div>
+          <button class="secondary icon-btn hub-modal-close" type="button" data-close-subject aria-label="关闭学科选择">×</button>
+        </div>
+        <div class="hub-action-grid subject-choice-grid" aria-label="学科选择列表">
+          <button class="hub-action-card subject-choice-card" type="button" data-subject-choice="chinese" aria-pressed="false">
+            <span>语</span>
+            <strong>语文</strong>
+            <small>阅读 · 写作 · 古诗文</small>
+          </button>
+          <button class="hub-action-card subject-choice-card is-active" type="button" data-subject-choice="math" aria-pressed="true">
+            <span>数</span>
+            <strong>数学</strong>
+            <small>计算 · 应用 · 图形</small>
+          </button>
+          <button class="hub-action-card subject-choice-card" type="button" data-subject-choice="english" aria-pressed="false">
+            <span>英</span>
+            <strong>英语</strong>
+            <small>词汇 · 句型 · 阅读</small>
+          </button>
+          <button class="hub-action-card subject-choice-card" type="button" data-subject-choice="science" aria-pressed="false">
+            <span>科</span>
+            <strong>科学</strong>
+            <small>观察 · 实验 · 探究</small>
+          </button>
+        </div>
+      </article>
+    </div>
+
     <div class="hub-modal" id="systemModal" role="dialog" aria-modal="true" aria-labelledby="systemModalTitle" hidden>
       <article class="hub-modal-panel system-modal-panel">
         <div class="item-top">
@@ -1223,9 +1258,13 @@ CREATE POLICY "allow_all_user_settings" ON user_settings FOR ALL USING (true) WI
   <script src="js/print-layout.js"></script>
   <script src="js/ui-feedback.js"></script>
   <script src="js/question-bank.js"></script>
+  <script src="js/chinese-curriculum-data.js"></script>
+  <script src="js/chinese-question-bank.js"></script>
+  <script src="js/subject-registry.js"></script>
   <script src="js/question-bank-coverage.js"></script>
   <script src="js/learning-insights.js"></script>
   <script src="js/pet-economy.js"></script>
+  <script src="js/chinese-question-generator.js"></script>
   <script src="js/question-generator.js"></script>
   <script src="js/practice-engine.js"></script>
   <script src="js/report.js"></script>

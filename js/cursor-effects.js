@@ -104,11 +104,12 @@
         if (!this.enabled) return;
         // 只在可交互元素上触发特效，排除模态框背景
         const isInteractive = e.target.closest('button, a, input, select, textarea, [role="button"], [data-open-pet-modal], [data-open-learning-map], .clickable, .tab-btn, .home-mode-card, .home-mode-card-wrap');
+        const isSubjectChoice = e.target.closest('[data-subject-choice]');
         const isModalBackdrop = e.target.classList.contains('hub-modal') ||
                                  e.target.classList.contains('pet-modal') ||
                                  e.target.classList.contains('archive-modal');
 
-        if (isInteractive && !isModalBackdrop) {
+        if (isInteractive && !isModalBackdrop && !isSubjectChoice) {
           const now = Date.now();
           const pos = { x: e.clientX, y: e.clientY };
 

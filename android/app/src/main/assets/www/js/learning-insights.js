@@ -2,6 +2,7 @@
   "use strict";
 
   var CAUSE_LABELS = ["计算粗心", "读题理解", "概念单位", "干扰条件", "不会做"];
+  var CHINESE_CAUSE_LABELS = ["未标记", "不会做", "字词基础", "阅读理解", "表达规范"];
 
   function list(value) {
     return Array.isArray(value) ? value : [];
@@ -18,6 +19,7 @@
 
   function diagnoseCause(item, point) {
     var topic = point && point.topic;
+    var isChinese = point && (point.subject === "chinese" || /^c\d-/.test(String(point.id || "")));
     var text = [
       item && item.cause,
       item && item.text,
@@ -25,6 +27,13 @@
       item && item.explanation,
       topic
     ].map(normalizeText).join(" ");
+
+    if (isChinese) {
+      if (/拼音|声调|字音|字形|词|偏旁|量词|多音|形近|近义|反义|搭配/.test(text) || ["pinyin", "character", "word"].includes(topic)) return "字词基础";
+      if (/阅读|短文|概括|诗|文言|信息|中心|人物|情节|资料|名著|观点|策略/.test(text) || ["reading", "poem"].includes(topic)) return "阅读理解";
+      if (/句|标点|表达|习作|写话|病句|应用文|口语|修辞/.test(text) || ["sentence", "punctuation", "writing"].includes(topic)) return "表达规范";
+      return "不会做";
+    }
 
     if (/干扰|无关|多余|背景|误导|只问|实际/.test(text)) return "干扰条件";
     if (/读题|理解|条件|关系|先求|问什么|必要/.test(text) || topic === "reading" || topic === "word") return "读题理解";
@@ -40,6 +49,9 @@
       "读题理解": "先圈问题和必要条件，把无关数字划掉，再列第一步。",
       "概念单位": "先复述公式或单位关系，再代入数字，特别检查单位是否统一。",
       "干扰条件": "读完后先说哪些条件不用，避免看到数字就计算。",
+      "字词基础": "先读准字音、看清字形，再放回句子里理解词语。",
+      "阅读理解": "先回到原文定位依据，再用完整句概括答案。",
+      "表达规范": "先检查句子是否通顺，再看标点、顺序和表达是否完整。",
       "不会做": "先做同类基础题，必要时看一步提示，再回到原题。"
     };
     return label + "：" + (map[cause] || map["不会做"]);
@@ -74,7 +86,8 @@
     return Object.keys(counts).map(function (cause) {
       return { cause: cause, count: counts[cause] };
     }).sort(function (a, b) {
-      return b.count - a.count || CAUSE_LABELS.indexOf(a.cause) - CAUSE_LABELS.indexOf(b.cause);
+      var labels = Array.isArray(opts.causes) ? opts.causes : (CHINESE_CAUSE_LABELS.includes(a.cause) || CHINESE_CAUSE_LABELS.includes(b.cause) ? CHINESE_CAUSE_LABELS : CAUSE_LABELS);
+      return b.count - a.count || labels.indexOf(a.cause) - labels.indexOf(b.cause);
     });
   }
 
@@ -131,6 +144,7 @@
 
   window.MathCampLearningInsights = {
     CAUSE_LABELS,
+    CHINESE_CAUSE_LABELS,
     diagnoseCause,
     adviceForCause,
     causeBreakdown,
