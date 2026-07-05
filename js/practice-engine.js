@@ -5,14 +5,30 @@
     var grade = Number(profile.grade || deps.state.grade);
     var selected = [];
     var usedSignatures = new Set();
+    var previousSignature = "";
+    var pick = typeof deps.createRoundQuestionPicker === "function" ? deps.createRoundQuestionPicker(preferred) : null;
     var due = deps.dueWrongbook(profile, grade);
     var dueVariantCount = Math.min(due.length, Math.max(0, Math.floor(total * 0.25)));
+    function addQuestion(question) {
+      if (!question) return;
+      selected.push(question);
+      previousSignature = deps.signature(question);
+      usedSignatures.add(previousSignature);
+    }
+    function makeForPoint(point) {
+      if (typeof deps.makeDistinctQuestionForPoint === "function") {
+        return deps.makeDistinctQuestionForPoint(point, preferred, { usedSignatures: usedSignatures, previousSignature: previousSignature, pick: pick });
+      }
+      return deps.makeStrictQuestionForPoint(point, preferred);
+    }
 
     due.slice(0, dueVariantCount).forEach(function (item) {
       var point = deps.pointMap[item && item.question && item.question.pointId];
       if (!point || point.grade !== grade) return;
-      selected.push({
-        ...deps.makeStrictQuestionForPoint(point, preferred),
+      var dueQuestion = makeForPoint(point);
+      if (!dueQuestion) return;
+      addQuestion({
+        ...dueQuestion,
         reviewSource: "due",
         reviewSourceWrongId: item.id
       });
@@ -20,25 +36,24 @@
 
     var weak = deps.weakestPoints(4).filter(function (point) { return point.grade === grade; });
     var weakTarget = Math.min(total - selected.length, Math.max(2, Math.ceil(total * 0.45)));
-    while (selected.length < dueVariantCount + weakTarget && weak.length) {
-      selected.push({
-        ...deps.makeStrictQuestionForPoint(weak[selected.length % weak.length], preferred),
+    var weakAttempts = 0;
+    while (selected.length < dueVariantCount + weakTarget && weak.length && weakAttempts < total * 8) {
+      weakAttempts += 1;
+      var weakQuestion = makeForPoint(weak[selected.length % weak.length]);
+      if (!weakQuestion) continue;
+      addQuestion({
+        ...weakQuestion,
         reviewSource: "weak"
       });
     }
 
-    while (selected.length < total) {
-      selected.push(deps.applyQuestionInteraction(deps.makeQuestion(deps.choosePoint()), preferred));
+    var fillAttempts = 0;
+    while (selected.length < total && fillAttempts < total * 12) {
+      fillAttempts += 1;
+      addQuestion(makeForPoint(deps.choosePoint()));
     }
 
-    return deps.shuffle(selected).filter(function (question) {
-      var sig = deps.signature(question);
-      if (usedSignatures.has(sig)) return false;
-      usedSignatures.add(sig);
-      return true;
-    }).concat(Array.from({ length: total }, function () {
-      return deps.applyQuestionInteraction(deps.makeQuestion(deps.choosePoint()), preferred);
-    })).slice(0, total);
+    return deps.shuffle(selected).slice(0, total);
   }
 
   window.MathCampPracticeEngine = {

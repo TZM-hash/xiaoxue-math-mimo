@@ -111,6 +111,18 @@ const context = {
   console,
   document,
   navigator: { clipboard: { writeText: async () => {} }, userAgent: "" },
+  SpeechSynthesisUtterance: function SpeechSynthesisUtterance(text) {
+    this.text = text;
+    this.lang = "";
+    this.rate = 1;
+    this.pitch = 1;
+  },
+  speechSynthesis: {
+    spoken: [],
+    cancel() {},
+    speak(utterance) { this.spoken.push({ text: utterance.text, lang: utterance.lang, rate: utterance.rate, pitch: utterance.pitch }); },
+    getVoices: () => []
+  },
   localStorage: {
     getItem: (key) => storage.has(key) ? storage.get(key) : null,
     setItem: (key, value) => { storage.set(key, String(value)); },
@@ -147,11 +159,14 @@ vm.createContext(context);
   "js/question-bank.js",
   "js/chinese-curriculum-data.js",
   "js/chinese-question-bank.js",
+  "js/english-curriculum-data.js",
+  "js/english-question-bank.js",
   "js/subject-registry.js",
   "js/question-bank-coverage.js",
   "js/learning-insights.js",
   "js/pet-economy.js",
   "js/chinese-question-generator.js",
+  "js/english-question-generator.js",
   "js/question-generator.js",
   "js/handwriting-input.js",
   "js/practice-engine.js",
@@ -821,6 +836,7 @@ function runVerticalQuestionTests() {
 
 function runSpecialSetPurityTests() {
   const debug = context.mathCampDebug;
+  debug.selectSubject("math");
   const points = Object.values(debug.pointMap);
   ["g1-number-order", "g2-length-measure", "g3-fraction-intro", "g5-average-stat", "g6-equation"].forEach((pointId) => {
     assert(debug.pointMap[pointId], `${pointId} should exist in the expanded question bank`);
@@ -1239,6 +1255,60 @@ function runAdaptiveRouteTests() {
   assert(set.every((question) => question.grade === 3), "adaptive practice should stay in grade");
 }
 
+function questionSetSignature(question) {
+  return `${question.pointId}|${question.text}|${question.answerLabel || question.answer}`;
+}
+
+function assertNoAdjacentRepeatedQuestions(set, message) {
+  for (let index = 1; index < set.length; index += 1) {
+    assert.notStrictEqual(
+      questionSetSignature(set[index]),
+      questionSetSignature(set[index - 1]),
+      `${message}：第 ${index} 题和第 ${index + 1} 题不应连续完全相同`
+    );
+  }
+}
+
+function runQuestionSetDedupeTests() {
+  const debug = context.mathCampDebug;
+  const originalRandom = vm.runInContext("Math.random", context);
+  context.__originalMathRandom = originalRandom;
+  vm.runInContext("Math.random = () => 0", context);
+  try {
+    const profile = debug.normalizeProfile({ id: "dedupe-profile", name: "Dedupe", grade: 3 });
+    debug.state.profiles = [profile];
+    debug.state.activeId = profile.id;
+    debug.state.answerMode = "auto";
+    debug.els.answerModeSelect.value = "auto";
+    debug.els.setSizeInput.value = "6";
+
+    debug.selectSubject("chinese");
+    debug.state.grade = 3;
+    const chinesePoint = debug.activeBank().pointMap["c3-word-meaning"];
+    const chineseSet = debug.buildQuestionSetForPoint(chinesePoint, 6, "auto");
+    assert.strictEqual(chineseSet.length, 6, "语文专项组卷应保持题目数量");
+    assert(new Set(chineseSet.map(questionSetSignature)).size >= 2, "语文专项组卷应在可用模板之间轮换");
+    assertNoAdjacentRepeatedQuestions(chineseSet, "语文专项组卷");
+
+    debug.selectSubject("english");
+    debug.state.grade = 3;
+    const englishPoint = debug.activeBank().pointMap["e3-vocabulary-school"];
+    const englishSet = debug.buildQuestionSetForPoint(englishPoint, 6, "auto");
+    assert.strictEqual(englishSet.length, 6, "英语专项组卷应保持题目数量");
+    assert(new Set(englishSet.map(questionSetSignature)).size >= 2, "英语专项组卷应在可用模板之间轮换");
+    assertNoAdjacentRepeatedQuestions(englishSet, "英语专项组卷");
+
+    debug.state.pointId = "auto";
+    debug.state.adaptive = true;
+    const adaptiveEnglishSet = debug.buildAdaptiveQuestionSet(8, "auto");
+    assert.strictEqual(adaptiveEnglishSet.length, 8, "英语自适应组卷应保持题目数量");
+    assertNoAdjacentRepeatedQuestions(adaptiveEnglishSet, "英语自适应组卷");
+  } finally {
+    vm.runInContext("Math.random = __originalMathRandom", context);
+    delete context.__originalMathRandom;
+  }
+}
+
 function runArchiveVersionTests() {
   const debug = context.mathCampDebug;
   const archive = debug.buildArchiveData();
@@ -1281,7 +1351,7 @@ function runCoverageAndInsightTests() {
 }
 
 function runUtf8EncodingTests() {
-  const files = ["js/app.js", "js/cloud-sync.js", "js/runtime-config.js", "js/question-bank-coverage.js", "js/learning-insights.js", "js/pet-economy.js", "js/subject-registry.js", "js/chinese-question-bank.js", "js/chinese-question-generator.js", "js/handwriting-input.js", "index.html", "tests/question-rules.test.js", "tests/frontend-layout.test.js"];
+  const files = ["js/app.js", "js/cloud-sync.js", "js/runtime-config.js", "js/question-bank-coverage.js", "js/learning-insights.js", "js/pet-economy.js", "js/subject-registry.js", "js/chinese-question-bank.js", "js/chinese-question-generator.js", "js/english-question-bank.js", "js/english-question-generator.js", "js/handwriting-input.js", "index.html", "tests/question-rules.test.js", "tests/frontend-layout.test.js", "tests/english-question-bank.test.js"];
   const mojibakeTokens = ["\u93c1", "\u93b7", "\u7edb", "\u95bf", "\u9983", "\u8133", "\u923f", "\u9241", "\u9286", "\u4fd9", "\u6992", "\u5744", "\u6624", "\ufffd"];
   const mojibake = new RegExp(mojibakeTokens.join("|"));
   files.forEach((file) => {
@@ -1424,6 +1494,107 @@ function runChineseSubjectIntegrationTests() {
   context.matchMedia = originalMatchMedia;
 }
 
+function runEnglishSubjectIntegrationTests() {
+  const debug = context.mathCampDebug;
+  const originalMatchMedia = context.matchMedia;
+  const profile = debug.normalizeProfile({ id: "student-english", name: "英语测试", grade: 1 });
+  debug.state.profiles = [profile];
+  debug.state.activeId = profile.id;
+  debug.selectSubject("english");
+  assert.strictEqual(debug.state.subject, "english", "应能切换到英语学科");
+  assert.strictEqual(debug.state.grade, 3, "英语三年级起点，低年级切换后应自动落到三年级");
+
+  debug.state.pointId = "auto";
+  debug.state.setSize = 8;
+  debug.els.setSizeInput.value = "8";
+  debug.els.pointSelect.value = "auto";
+  debug.startNewSet({ autoFocus: false });
+  assert.strictEqual(debug.state.currentSet.length, 8, "英语学科应能生成一组题");
+  assert(debug.state.currentSet.every((question) => question.subject === "english"), "英语题应带 subject=english");
+  assert(debug.state.currentSet.every((question) => question.explanation && Array.isArray(question.steps) && question.steps.length), "每道英语题都应有解析和步骤");
+  assert(debug.state.currentSet.every((question) => ["choice", "text"].includes(question.answerType)), "英语题应保持客观可判分题型");
+
+  const englishChoice = debug.applyQuestionInteraction({
+    subject: "english",
+    pointId: "e3-vocabulary-school",
+    topic: "vocabulary",
+    text: "【词汇理解】Which word means 铅笔？\nA. pencil\nB. window\nC. rainy\nD. chicken",
+    answerType: "choice",
+    answer: "A",
+    acceptedAnswers: ["A", "pencil", "A. pencil"],
+    answerLabel: "A. pencil",
+    explanation: "pencil means 铅笔。"
+  }, "auto");
+  assert.strictEqual(englishChoice.interaction.mode, "choice", "英语 A/B/C/D 题应显示选择面板");
+  assert.strictEqual(debug.interactionRuleIssues(englishChoice).length, 0, "英语选择题应生成有效选项");
+  assert.strictEqual(debug.answerMatches(englishChoice, { raw: "pencil", value: NaN }), true, "英语选择题应接受正确英文选项文本");
+
+  const englishInput = debug.applyQuestionInteraction({
+    subject: "english",
+    pointId: "e5-grammar-there-present",
+    topic: "grammar",
+    text: "【语法填空】题目：He ____ football yesterday. 请只输入空格处英文。",
+    answerType: "text",
+    answer: "played",
+    acceptedAnswers: ["played"],
+    explanation: "yesterday 表示一般过去时，play 的过去式是 played。"
+  }, "auto");
+  assert.strictEqual(englishInput.interaction.mode, "input", "英语直接输入题应使用系统键盘");
+  assert.strictEqual(debug.answerMatches(englishInput, { raw: "Played", value: NaN }), true, "英语输入题判分应忽略大小写");
+
+  const audioQuestion = {
+    subject: "english",
+    pointId: "e3-vocabulary-school",
+    topic: "vocabulary",
+    text: "【听音选词】点击播放录音，选择你听到的单词。\nA. pencil\nB. window\nC. rainy\nD. chicken",
+    answerType: "choice",
+    answer: "A",
+    acceptedAnswers: ["A", "pencil", "A. pencil"],
+    answerLabel: "A. pencil",
+    audioPrompt: { type: "tts", lang: "en-US", text: "pencil" },
+    explanation: "录音读的是 pencil。"
+  };
+  assert.strictEqual(debug.hasAudioPrompt(audioQuestion), true, "英语听力题应识别为可播放题");
+  debug.renderQuestionTitle(audioQuestion);
+  assert(debug.els.questionText.innerHTML.includes("data-audio-prompt-play"), "英语听力题题干应显示播放录音按钮");
+  assert(debug.els.questionText.innerHTML.includes("点击播放录音"), "英语听力题应保留读题提示");
+  debug.speakQuestionPrompt(audioQuestion);
+  assert.strictEqual(context.speechSynthesis.spoken.at(-1).text, "pencil", "点击播放应朗读 audioPrompt.text");
+  assert.strictEqual(context.speechSynthesis.spoken.at(-1).lang, "en-US", "英语发音应使用 en-US");
+
+  for (const grade of [3, 4, 5, 6]) {
+    debug.state.grade = grade;
+    const points = debug.availablePoints(grade).filter((point) => point.subject === "english");
+    assert(points.length >= 10, `${grade} 年级应有英语知识点`);
+    points.slice(0, 6).forEach((point) => {
+      const question = debug.makeQuestion(point, { strict: true });
+      assert.strictEqual(question.subject, "english", `${point.id} 应生成英语题`);
+      assert.strictEqual(debug.applyQuestionInteraction({ ...question }, "step").interaction.mode, "input", `${point.id} 英语题不应进入数学分步作答`);
+      const choiceMode = debug.applyQuestionInteraction({ ...question }, "choice").interaction.mode;
+      assert.strictEqual(choiceMode, question.answerType === "choice" ? "choice" : "input", `${point.id} 英语题应按题目类型显示选择面板`);
+    });
+  }
+
+  debug.state.grade = 3;
+  debug.state.pointId = "e3-vocabulary-school";
+  debug.els.pointSelect.value = "e3-vocabulary-school";
+  debug.state.answerMode = "input";
+  debug.els.answerModeSelect.value = "input";
+  context.matchMedia = (query) => ({
+    matches: query.includes("1180px") || query.includes("620px"),
+    addEventListener() {},
+    removeEventListener() {}
+  });
+  debug.startNewSet({ autoFocus: false });
+  assert.strictEqual(debug.state.currentSet[0].interaction.mode, "input", "英语输入题移动端应保持系统键盘输入");
+  assert.strictEqual(debug.els.answerInput.readOnly, false, "英语输入题输入框应允许系统键盘输入");
+  assert.strictEqual(debug.els.answerInput.getAttribute("inputmode"), "text", "英语输入题应使用文本输入模式");
+  assert.strictEqual(debug.els.numberPad.hidden, true, "英语输入题不应显示数字键盘");
+  assert(!/已知什么|加减乘除/.test(debug.els.companionTalk.textContent), "英语做题提示不应复用数学应用题文案");
+
+  context.matchMedia = originalMatchMedia;
+}
+
 const result = context.mathCampSelfTest(32);
 if (result.failed) {
   console.error(JSON.stringify(result.failures.slice(0, 10), null, 2));
@@ -1437,6 +1608,7 @@ runTypeSettingsPersistenceTests();
 runArchiveCloudCoverageTests();
 runFineGrainedCloudMergeTests();
 runAdaptiveRouteTests();
+runQuestionSetDedupeTests();
 runArchiveVersionTests();
 runCoverageAndInsightTests();
 runUtf8EncodingTests();
@@ -1452,6 +1624,7 @@ runThinkingSkillQuestionTests();
 runGeometryDiagramQuestionTests();
 runHangzhouCurriculumMetadataTests();
 runChineseSubjectIntegrationTests();
+runEnglishSubjectIntegrationTests();
 
 console.log(`Question rule self-test passed: ${result.total} samples, 0 failures.`);
 console.log("Data boundary tests passed.");
@@ -1473,3 +1646,4 @@ console.log("Thinking skill question tests passed.");
 console.log("Geometry diagram question tests passed.");
 console.log("Hangzhou curriculum metadata tests passed.");
 console.log("Chinese subject integration tests passed.");
+console.log("English subject integration tests passed.");

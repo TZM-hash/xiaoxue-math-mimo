@@ -595,6 +595,36 @@ const STORE = {
     function isChineseQuestion(question) {
       return question?.subject === "chinese" || /^c\d/.test(String(question?.pointId || ""));
     }
+    function isEnglishQuestion(question) {
+      return question?.subject === "english" || /^e\d/.test(String(question?.pointId || ""));
+    }
+    function isLanguageQuestion(question) {
+      return isChineseQuestion(question) || isEnglishQuestion(question);
+    }
+    function hasAudioPrompt(question) {
+      const prompt = question?.audioPrompt;
+      return Boolean(isEnglishQuestion(question) && prompt && prompt.type === "tts" && String(prompt.text || "").trim());
+    }
+    function speakQuestionPrompt(question) {
+      if (!hasAudioPrompt(question)) return false;
+      const synth = window.speechSynthesis;
+      const Utterance = window.SpeechSynthesisUtterance || globalThis.SpeechSynthesisUtterance;
+      if (!synth || !Utterance) {
+        UI.notify("当前设备暂不支持英文发音。", { tone: "bad" });
+        return false;
+      }
+      const prompt = question.audioPrompt;
+      const utterance = new Utterance(String(prompt.text || "").trim());
+      utterance.lang = prompt.lang || "en-US";
+      utterance.rate = Number(prompt.rate) || 0.9;
+      utterance.pitch = Number(prompt.pitch) || 1;
+      const voices = typeof synth.getVoices === "function" ? synth.getVoices() : [];
+      const voice = voices.find((item) => /^en[-_]/i.test(item.lang || "")) || voices.find((item) => /English/i.test(item.name || ""));
+      if (voice) utterance.voice = voice;
+      if (typeof synth.cancel === "function") synth.cancel();
+      synth.speak(utterance);
+      return true;
+    }
     function answerMatches(question, parsed) {
       if (isSelfReviewQuestion(question)) return false;
       if (question?.answerType === "choice") return textAnswerMatches(parsed.raw, question) || answerLabelMatches(parsed.raw, question);
@@ -929,7 +959,7 @@ const STORE = {
       });
     }
     function shouldHideAnswerControlsForWrong(question) {
-      if (isChineseQuestion(question)) return true;
+      if (isLanguageQuestion(question)) return true;
       const mode = question?.interaction?.mode || "input";
       return isCompactPracticeViewport() || mode === "choice" || mode === "judge";
     }
@@ -937,7 +967,7 @@ const STORE = {
       return isCompactPracticeViewport() && mode === "step" ? "input" : mode;
     }
     function shouldUseCustomAnswerKeyboard(mode = "input", question = null) {
-      if (isChineseQuestion(question)) return false;
+      if (isLanguageQuestion(question)) return false;
       if (question?.answerType === "formula") return false;
       return (mode === "input" || mode === "step") && isCompactPracticeViewport();
     }
@@ -945,10 +975,10 @@ const STORE = {
       const stepOption = els.answerModeSelect?.querySelector('option[value="step"]');
       if (!stepOption) return;
       const compact = isCompactPracticeViewport();
-      const chinese = activeSubjectId() === "chinese";
-      stepOption.disabled = compact || chinese;
-      stepOption.hidden = compact || chinese;
-      if ((compact || chinese) && els.answerModeSelect.value === "step") {
+      const language = activeSubjectId() === "chinese" || activeSubjectId() === "english";
+      stepOption.disabled = compact || language;
+      stepOption.hidden = compact || language;
+      if ((compact || language) && els.answerModeSelect.value === "step") {
         els.answerModeSelect.value = "input";
         state.answerMode = "input";
       }
@@ -2339,9 +2369,22 @@ const STORE = {
       };
       return `${prefix}${hints[question?.topic] || "先读清题目要求，再回到句子或短文里找依据，答案要写完整。"}`;
     }
+    function englishMethodHintFor(question) {
+      const prompt = shortPromptForHint(question?.text);
+      const prefix = prompt ? `先看这题问的“${prompt}”。` : "";
+      const hints = {
+        vocabulary: "再看英文词放在什么情境里，先判断词义，再检查拼写。",
+        phonics: "再找字母或字母组合，想一想它在这个单词里的常见发音。",
+        pattern: "先判断别人问什么，再用对应句型回答，别只看单个熟词。",
+        grammar: "先找主语和时间词，再决定 be 动词、时态或词形变化。",
+        reading: "先看疑问词问的是人、地点、时间还是事情，再回到短文定位原句。"
+      };
+      return `${prefix}${hints[question?.topic] || "先读英文情境，再根据词汇、句型或语法规则判断唯一答案。"}`;
+    }
     function methodHintFor(question) {
       if (!question) return '先判断题型，再列式。遇到应用题，先把"已知"和"要求"分开看。';
       if (isChineseQuestion(question)) return chineseMethodHintFor(question);
+      if (isEnglishQuestion(question)) return englishMethodHintFor(question);
       const hints = {
         addsub: "加减题先看符号。加法是合起来，减法是拿走或比较差多少。",
         compare: "比较多少一般用减法：大数减小数。",
@@ -2406,6 +2449,17 @@ const STORE = {
             </span>`).join("")}
         </span>`;
     }
+    function audioPromptHTML(question) {
+      if (!hasAudioPrompt(question)) return "";
+      return `
+        <span class="audio-prompt-card">
+          <button class="secondary audio-prompt-play" type="button" data-audio-prompt-play aria-label="播放英文录音">▶</button>
+          <span>
+            <b>听力题</b>
+            <em>点击播放录音，可以重复听。</em>
+          </span>
+        </span>`;
+    }
     function structuredQuestionTitleHTML(question) {
       const text = String(question?.text || "").trim();
       if (!text) return "";
@@ -2430,20 +2484,21 @@ const STORE = {
       els.questionText.classList.toggle("word", Boolean(question?.word));
       els.questionText.classList.toggle("vertical-question", question?.topic === "vertical");
       const choiceHTML = choiceQuestionTitleHTML(question);
+      const audioHTML = audioPromptHTML(question);
       els.questionText.classList.toggle("choice-question", Boolean(choiceHTML));
       if (question?.passage) {
         els.questionText.classList.add("word");
-        els.questionText.innerHTML = `<span class="question-passage">${escapeHTML(question.passage)}</span>${choiceHTML || structuredQuestionTitleHTML(question)}`;
+        els.questionText.innerHTML = `${audioHTML}<span class="question-passage">${escapeHTML(question.passage)}</span>${choiceHTML || structuredQuestionTitleHTML(question)}`;
         return;
       }
       if (choiceHTML) {
         els.questionText.classList.add("word");
-        els.questionText.innerHTML = choiceHTML;
+        els.questionText.innerHTML = `${audioHTML}${choiceHTML}`;
         return;
       }
       if (question?.topic !== "vertical") {
         els.questionText.classList.add("word");
-        els.questionText.innerHTML = structuredQuestionTitleHTML(question);
+        els.questionText.innerHTML = `${audioHTML}${structuredQuestionTitleHTML(question)}`;
         return;
       }
       const spec = question.vertical || verticalSpecFromText(question.text);
@@ -2897,6 +2952,15 @@ const STORE = {
     function chooseInteractionMode(question, preferred = state.answerMode || "auto") {
       preferred = normalizeAnswerModeForViewport(preferred);
       if (question.answerType === "formula") return "input";
+      if (isLanguageQuestion(question)) {
+        if (preferred === "step") return "input";
+        if (preferred === "choice") return question.answerType === "choice" ? "choice" : "input";
+        if (preferred === "judge") return "judge";
+        if (preferred !== "auto") return "input";
+        if (question.answerType === "choice") return "choice";
+        if (question.answerType === "judge") return "judge";
+        return "input";
+      }
       if (preferred !== "auto") return preferred;
       if (question.answerType === "longText" || question.answerType === "selfReview") return "input";
       if (question.answerType === "choice") return "choice";
@@ -2942,7 +3006,7 @@ const STORE = {
     function applyQuestionInteraction(question, preferred = state.answerMode || "auto") {
       const mode = chooseInteractionMode(question, preferred);
       let finalMode = question.answerLabel && (mode === "choice" || mode === "judge") ? "input" : mode;
-      if (isChineseQuestion(question)) {
+      if (isLanguageQuestion(question)) {
         if (mode === "step") {
           finalMode = "input";
         } else if (mode === "choice") {
@@ -2953,7 +3017,7 @@ const STORE = {
       }
       const interaction = { mode: finalMode };
       if (finalMode === "choice") {
-        if (isChineseQuestion(question)) {
+        if (isLanguageQuestion(question)) {
           interaction.options = chineseChoiceOptions(question);
         } else {
           const options = shuffle([Number(question.answer), ...numericDistractors(question.answer)]).slice(0, 4);
@@ -2962,7 +3026,7 @@ const STORE = {
         }
       } else if (finalMode === "judge") {
         const truthful = Math.random() > 0.5;
-        if (isChineseQuestion(question)) {
+        if (isLanguageQuestion(question)) {
           const wrong = chineseWrongOption(question);
           const correct = chineseAnswerValue(question);
           interaction.statementValue = truthful ? correct : wrong.value;
@@ -2976,21 +3040,64 @@ const STORE = {
       question.interaction = interaction;
       return question;
     }
-    function makeStrictQuestionForPoint(point, preferred = state.answerMode) {
+    function createRoundQuestionPicker(preferred = state.answerMode) {
+      const counters = new Map();
+      return function pickQuestionSpec(items) {
+        const list = Array.isArray(items) ? items.filter(Boolean) : [];
+        if (!list.length) return undefined;
+        const preferredFormat = preferred === "input" ? "input" : preferred === "choice" ? "choice" : "";
+        const pool = preferredFormat ? list.filter((item) => item.format === preferredFormat) : list;
+        const candidates = pool.length ? pool : list;
+        const key = candidates.map((item) => `${item.format || ""}:${item.questionType || ""}:${item.prompt || ""}`).join("|");
+        const index = counters.get(key) || 0;
+        counters.set(key, index + 1);
+        return candidates[index % candidates.length];
+      };
+    }
+    function makeStrictQuestionForPoint(point, preferred = state.answerMode, generationOptions = {}) {
       const target = bankPointMap()[point?.id] || pointMap[point?.id] || point;
-      if (!target) return applyQuestionInteraction(makeQuestion(choosePoint()), preferred);
+      const fallbackPoint = choosePoint();
+      if (!target && !fallbackPoint) return null;
+      if (!target) return applyQuestionInteraction(makeQuestion(fallbackPoint), preferred);
       for (let attempt = 0; attempt < 16; attempt += 1) {
-        const question = makeQuestion(target, { strict: true });
+        const question = makeQuestion(target, { strict: true, ...generationOptions });
         const issues = questionRuleIssues(target, question, { strict: true });
         if (!issues.length) return applyQuestionInteraction(question, preferred);
       }
-      return applyQuestionInteraction(makeQuestion(target, { strict: true }), preferred);
+      return applyQuestionInteraction(makeQuestion(target, { strict: true, ...generationOptions }), preferred);
+    }
+    function makeDistinctQuestionForPoint(point, preferred = state.answerMode, scope = {}) {
+      const target = bankPointMap()[point?.id] || pointMap[point?.id] || point;
+      const fallbackPoint = choosePoint();
+      if (!target && !fallbackPoint) return null;
+      if (!target) return applyQuestionInteraction(makeQuestion(fallbackPoint), preferred);
+      const used = scope.usedSignatures instanceof Set ? scope.usedSignatures : new Set();
+      const previous = String(scope.previousSignature || "");
+      let fallback = null;
+      let last = null;
+      for (let attempt = 0; attempt < 32; attempt += 1) {
+        const question = makeStrictQuestionForPoint(target, preferred, { pick: scope.pick });
+        const sig = signature(question);
+        last = question;
+        if (sig !== previous && !used.has(sig)) return question;
+        if (sig !== previous && !fallback) fallback = question;
+      }
+      return fallback || last || makeStrictQuestionForPoint(target, preferred, { pick: scope.pick });
     }
     function buildQuestionSetForPoint(point, count, preferred = state.answerMode) {
       const target = bankPointMap()[point?.id] || pointMap[point?.id] || point;
       if (!target) return [];
       const total = clamp(Number(count) || state.setSize || 10, 1, 80);
-      return Array.from({ length: total }, () => makeStrictQuestionForPoint(target, preferred));
+      const usedSignatures = new Set();
+      const pick = createRoundQuestionPicker(preferred);
+      let previousSignature = "";
+      return Array.from({ length: total }, () => {
+        const question = makeDistinctQuestionForPoint(target, preferred, { usedSignatures, previousSignature, pick });
+        if (!question) return null;
+        previousSignature = signature(question);
+        usedSignatures.add(previousSignature);
+        return question;
+      }).filter(Boolean);
     }
     function buildChineseBalancedQuestionSet(count = state.setSize, preferred = state.answerMode) {
       const total = clamp(Number(count) || state.setSize || 10, 1, 80);
@@ -2999,6 +3106,9 @@ const STORE = {
         || Array.from({ length: total }, () => "inTextbook");
       const pointsForGrade = availablePoints(state.grade);
       const sourceOffsets = {};
+      const usedSignatures = new Set();
+      const pick = createRoundQuestionPicker(preferred);
+      let previousSignature = "";
       return plan.map((sourceType) => {
         const pool = pointsForGrade.filter((point) => point.sourceType === sourceType);
         const fallbackPool = pointsForGrade.filter((point) => point.sourceType !== "abilityLine");
@@ -3006,8 +3116,12 @@ const STORE = {
         const offset = sourceOffsets[sourceType] || 0;
         sourceOffsets[sourceType] = offset + 1;
         const point = candidates[offset % candidates.length] || choosePoint();
-        return makeStrictQuestionForPoint(point, preferred);
-      });
+        const question = makeDistinctQuestionForPoint(point, preferred, { usedSignatures, previousSignature, pick });
+        if (!question) return null;
+        previousSignature = signature(question);
+        usedSignatures.add(previousSignature);
+        return question;
+      }).filter(Boolean);
     }
     function buildAdaptiveQuestionSet(count = state.setSize, preferred = state.answerMode) {
       if (activeSubjectId() === "chinese" && state.pointId === "auto") {
@@ -3020,8 +3134,10 @@ const STORE = {
         clamp,
         dueWrongbook,
         makeQuestion,
+        makeDistinctQuestionForPoint,
         makeStrictQuestionForPoint,
-        pointMap,
+        pointMap: bankPointMap(),
+        createRoundQuestionPicker,
         shuffle,
         signature,
         state,
@@ -3036,7 +3152,7 @@ const STORE = {
       if (question?.answerType === "formula" && interaction.mode !== "input") issues.push("列算式题应使用输入框");
       if (question?.answerType === "formula" && ![question.formulaAnswer, ...(question.acceptedFormulas || [])].some((item) => normalizeFormulaAnswer(item).includes("="))) issues.push("列算式题缺少参考算式");
       if (interaction.mode === "choice") {
-        if (isChineseQuestion(question)) {
+        if (isLanguageQuestion(question)) {
           const options = interaction.options || [];
           if (options.length < 2) issues.push("选择题选项不足");
           if (!options.some((option) => textAnswerMatches(option.value, question) || textAnswerMatches(option.label, question))) issues.push("选择题缺少正确答案");
@@ -3047,7 +3163,7 @@ const STORE = {
         }
       }
       if (interaction.mode === "judge") {
-        if (isChineseQuestion(question)) {
+        if (isLanguageQuestion(question)) {
           if (!String(interaction.statementValue || interaction.statementLabel || "").trim()) issues.push("判断题陈述答案无效");
         } else if (!Number.isFinite(Number(interaction.statementValue))) issues.push("判断题陈述答案无效");
         if (typeof interaction.truthful !== "boolean") issues.push("判断题真假值无效");
@@ -3117,6 +3233,7 @@ const STORE = {
         makeExtraQuestion,
         makeSupplementalQuestion,
         masteryFor,
+        pick: options.pick,
         state,
         makers: {
           addsub: makeAddSub,
@@ -9529,7 +9646,9 @@ const STORE = {
       storageSet(STORE.subject, next);
       const profile = activeProfile();
       bindProfileToActiveSubject(profile);
-      state.grade = profile.grade || state.grade || 1;
+      const supportedGrades = bankGrades();
+      const preferredGrade = Number(profile.grade || state.grade) || supportedGrades[0] || 1;
+      state.grade = supportedGrades.includes(preferredGrade) ? preferredGrade : supportedGrades[0] || preferredGrade;
       state.pointId = safePointId(profile.settings?.pointId || "auto", state.grade);
       state.answerMode = normalizeAnswerModeForViewport(profile.settings?.answerMode || "auto");
       renderGradeOptions();
@@ -10057,10 +10176,10 @@ const STORE = {
       const interaction = question.interaction || applyQuestionInteraction(question, state.answerMode);
       els.practiceCard.dataset.interaction = interaction.mode;
       els.answerModePanel.hidden = interaction.mode === "input";
-      els.numberPad.hidden = isChineseQuestion(question) || question.answerType === "formula" || interaction.mode === "choice" || interaction.mode === "judge";
       els.answerInput.readOnly = interaction.mode === "choice" || interaction.mode === "judge" || shouldUseCustomAnswerKeyboard(interaction.mode, question);
       const textLikeAnswer = question.answerType === "text" || question.answerType === "formula" || question.answerType === "longText" || question.answerType === "selfReview" || Array.isArray(question.acceptedAnswers);
-      els.answerInput.setAttribute("inputmode", shouldUseCustomAnswerKeyboard(interaction.mode, question) ? "none" : textLikeAnswer || isChineseQuestion(question) ? "text" : "decimal");
+      els.numberPad.hidden = textLikeAnswer || isLanguageQuestion(question) || interaction.mode === "choice" || interaction.mode === "judge";
+      els.answerInput.setAttribute("inputmode", shouldUseCustomAnswerKeyboard(interaction.mode, question) ? "none" : textLikeAnswer || isLanguageQuestion(question) ? "text" : "decimal");
       els.answerInput.placeholder = interaction.mode === "choice"
         ? "请选择一个答案"
         : interaction.mode === "judge"
@@ -10443,6 +10562,8 @@ const STORE = {
       state.stepHintOpen = false;
       const petPrompt = isChineseQuestion(current)
         ? "我陪你先读题：看清题目问什么，再回到句子、短文或诗句里找依据。"
+        : isEnglishQuestion(current)
+          ? "我陪你先读英语情境：先看疑问词和空格前后，再判断词汇、句型或语法。"
         : current.word ? '我陪你先读题：找"已知什么、要求什么"，再决定用加减乘除。' : '我陪你先看运算符号，再按正确顺序计算。';
       els.companionTalk.textContent = petPrompt;
       els.methodHint.textContent = petCopy('提示默认隐藏。需要帮助时，点"让招财提示"。');
@@ -10847,7 +10968,13 @@ const STORE = {
       if (state.checked) return nextQuestion();
       const current = state.currentSet[state.index];
       const point = current?.pointId ? pointMap[current.pointId] : (state.pointId === "auto" ? choosePoint() : pointMap[state.pointId]);
-      state.currentSet[state.index] = applyQuestionInteraction(makeQuestion(point, { strict: Boolean(current?.pointId) || state.pointId !== "auto" }), state.answerMode);
+      const previousSignature = current ? signature(current) : "";
+      const usedSignatures = new Set(state.currentSet.filter((_, index) => index !== state.index).map(signature));
+      state.currentSet[state.index] = makeDistinctQuestionForPoint(point, state.answerMode, {
+        usedSignatures,
+        previousSignature,
+        pick: createRoundQuestionPicker(state.answerMode)
+      });
       renderPracticeQuestion();
     }
     function roundAdviceHTML(wrong, rate, challenge) {
@@ -12079,6 +12206,10 @@ const STORE = {
     els.themeOptions.forEach((button) => button.addEventListener("click", () => applyTheme(button.dataset.themeOption)));
     document.addEventListener("click", (event) => {
       if (!event.target.closest(".custom-select")) closeCustomSelects();
+      if (event.target.closest("[data-audio-prompt-play]")) {
+        event.preventDefault();
+        speakQuestionPrompt(state.currentSet[state.index]);
+      }
     });
     if (!isAndroidWebView()) {
       document.addEventListener("pointerdown", handleAudioGesture, true);
@@ -12757,6 +12888,9 @@ const STORE = {
         buildQuestionSetForPoint,
         buildAdaptiveQuestionSet,
         startNewSet,
+        hasAudioPrompt,
+        speakQuestionPrompt,
+        renderQuestionTitle,
         applyQuestionInteraction,
         answerMatches,
         questionRuleIssues,

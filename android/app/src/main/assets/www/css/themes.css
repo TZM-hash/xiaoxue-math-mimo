@@ -1813,6 +1813,45 @@
       display: block;
       text-wrap: auto;
     }
+    .audio-prompt-card {
+      display: inline-grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: center;
+      gap: 10px;
+      width: min(100%, 30em);
+      margin: 0 0 12px;
+      padding: 8px 10px;
+      border: 1px solid color-mix(in oklch, var(--accent-2), white 44%);
+      border-radius: 8px;
+      background: color-mix(in oklch, var(--accent-2), white 86%);
+      text-align: left;
+    }
+    .audio-prompt-play {
+      width: 38px;
+      height: 38px;
+      min-height: 38px;
+      padding: 0;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 999px;
+      font-size: 16px;
+      line-height: 1;
+    }
+    .audio-prompt-card span {
+      display: grid;
+      gap: 2px;
+      min-width: 0;
+    }
+    .audio-prompt-card b {
+      font-size: 15px;
+      line-height: 1.15;
+    }
+    .audio-prompt-card em {
+      color: var(--muted);
+      font-size: 13px;
+      font-style: normal;
+      line-height: 1.25;
+    }
     .question-line {
       display: block;
       margin: 0 0 8px;

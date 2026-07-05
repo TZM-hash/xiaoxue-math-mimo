@@ -3,6 +3,9 @@
     if ((point && point.subject === "chinese") || /^c\d-/.test(String(point && point.id || ""))) {
       return window.MathCampChineseQuestionGenerator.makeQuestion(deps || {}, point, options || {});
     }
+    if ((point && point.subject === "english") || /^e\d-/.test(String(point && point.id || ""))) {
+      return window.MathCampEnglishQuestionGenerator.makeQuestion(deps || {}, point, options || {});
+    }
     var profile = deps.activeProfile();
     var level = deps.state.adaptive ? deps.masteryFor(profile, point.id).level : 2;
     var makers = deps.makers;

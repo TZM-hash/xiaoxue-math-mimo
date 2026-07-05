@@ -100,8 +100,11 @@ assertContains(html, 'src="js/runtime-config.js"', "page should load runtime def
 assertContains(html, 'src="js/question-bank-coverage.js"', "page should load the question-bank coverage module");
 assertContains(html, 'src="js/chinese-curriculum-data.js"', "页面应加载语文教材知识库");
 assertContains(html, 'src="js/chinese-question-bank.js"', "页面应加载语文题库");
+assertContains(html, 'src="js/english-curriculum-data.js"', "页面应加载英语教材知识库");
+assertContains(html, 'src="js/english-question-bank.js"', "页面应加载英语题库");
 assertContains(html, 'src="js/subject-registry.js"', "页面应加载学科注册表");
 assertContains(html, 'src="js/chinese-question-generator.js"', "页面应加载语文题目生成器");
+assertContains(html, 'src="js/english-question-generator.js"', "页面应加载英语题目生成器");
 assertNotContains(html, 'src="js/handwriting-input.js"', "页面不应加载手写输入模块");
 assertContains(html, 'src="js/learning-insights.js"', "page should load learning insight diagnostics");
 assertNotContains(html, "supabase.min.js", "Supabase SDK should not be loaded during offline-first startup");
@@ -138,6 +141,10 @@ assertNotContains(app, "submitHandwritingAnswer", "app should remove handwriting
 assertContains(app, "normalizeTextAnswer", "app should support Chinese text answer matching");
 assertContains(app, "structuredQuestionTitleHTML", "non-choice Chinese and data question text should be structured into readable lines");
 assertContains(functionBody(app, "renderQuestionTitle"), "structuredQuestionTitleHTML(question)", "practice question rendering should format ordinary long prompts instead of dumping one oversized line");
+assertContains(app, "function hasAudioPrompt", "app should detect questions with playable English audio prompts");
+assertContains(app, "function speakQuestionPrompt", "app should speak English audio prompts through system TTS");
+assertContains(app, "speechSynthesis", "app should use the browser or WebView speechSynthesis API for English pronunciation");
+assertContains(app, "data-audio-prompt-play", "practice question rendering should include a play button for audio-prompt questions");
 assertNotContains(app, "renderWordRelationPanel", "app should not render the removed word relation training panel");
 assertContains(app, "runQuestionQualityAudit", "app should expose a question bank quality audit");
 assertContains(app, "window.mathCampQualityAudit", "quality audit should be available from the browser console");
@@ -223,8 +230,8 @@ assertContains(app, 'els.desktopOverviewStartBtn?.addEventListener("click", () =
 assertContains(app, 'els.homeStartPracticeBtn?.addEventListener("click", () => startNewSet({ focus: true }))', "home practice card should enter focused layout");
 assertContains(app, 'isCompactPracticeViewport() && mode === "step"', "tablet practice should hide step answering like mobile");
 assertContains(app, "stepOption.hidden = compact", "custom answer mode picker should omit step answering on compact viewports");
-assertContains(app, 'activeSubjectId() === "chinese"', "Chinese subject should have subject-specific answer mode availability");
-assertContains(app, 'stepOption.hidden = compact || chinese', "Chinese subject should hide step answering");
+assertContains(app, 'const language = activeSubjectId() === "chinese" || activeSubjectId() === "english";', "语文和英语都应有语言学科答题方式限制");
+assertContains(app, "stepOption.hidden = compact || language", "语言学科应隐藏分步作答");
 assertContains(functionBody(app, "startPointSet"), "enterPracticeFocus();", "knowledge, weak-point, appendix, hard-word, and logic-reading practice should enter focused layout");
 assertContains(functionBody(app, "startWrongbookPractice"), "enterPracticeFocus();", "wrongbook and review practice should enter focused layout");
 assertContains(functionBody(app, "resumeChallengeSet"), "enterPracticeFocus();", "resumed challenge practice should enter focused layout");
@@ -384,6 +391,8 @@ assertContains(css, "body.practice-view-active.practice-focus-mode .method-card,
 assertContains(css, "body.practice-view-active.practice-focus-mode .status-strip .stat {\n        min-height: 34px;", "desktop focused practice status strip should stay compact across practice modes");
 assertContains(css, "body.practice-view-active.practice-focus-mode .mission-card {\n        min-height: 38px;", "desktop focused practice mission cards should not reserve a large block");
 assertContains(css, ".question-line", "question text should support explicit readable line breaks");
+assertContains(css, ".audio-prompt-card", "audio prompt questions should have a readable playback control");
+assertContains(css, ".audio-prompt-play", "audio prompt playback should use a stable button class");
 assertContains(css, ".question-line.label-line", "question labels such as 材料 and 题目 should get dedicated line styling");
 assertContains(css, "font-size: clamp(18px, 2.2vw, 24px);", "word-style prompts should use a stable readable size instead of oversized mobile text");
 assertContains(css, ".answer-input {\n      min-height: 58px;\n      font-size: clamp(18px, 2.2vw, 24px);", "typed answers should use the same readable scale as prompts");
@@ -480,6 +489,11 @@ assertContains(css, "#reportView .report-visual-panel:first-child {\n        gri
   "js/question-bank-coverage.js",
   "js/learning-insights.js",
   "js/pet-economy.js",
+  "js/subject-registry.js",
+  "js/chinese-question-bank.js",
+  "js/chinese-question-generator.js",
+  "js/english-question-bank.js",
+  "js/english-question-generator.js",
   "js/question-generator.js",
   "js/practice-engine.js",
   "js/report.js",
@@ -503,6 +517,13 @@ assertContains(css, "#reportView .report-visual-panel:first-child {\n        gri
   "js/home-route.js",
   "js/question-bank-coverage.js",
   "js/learning-insights.js",
+  "js/subject-registry.js",
+  "js/chinese-curriculum-data.js",
+  "js/chinese-question-bank.js",
+  "js/chinese-question-generator.js",
+  "js/english-curriculum-data.js",
+  "js/english-question-bank.js",
+  "js/english-question-generator.js",
   "js/question-enhancements.js",
   "js/pet-dressup-meta.js",
   "js/pet-economy.js",
