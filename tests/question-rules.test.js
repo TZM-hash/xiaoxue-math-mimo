@@ -1266,6 +1266,15 @@ function questionSetSignature(question) {
   return `${question.pointId}|${question.text}|${question.answerLabel || question.answer}`;
 }
 
+function questionRepeatKey(question) {
+  return `${question.pointId}|${question.text}`;
+}
+
+function repeatedQuestionCount(firstSet, secondSet) {
+  const firstKeys = new Set(firstSet.map(questionRepeatKey));
+  return secondSet.filter((question) => firstKeys.has(questionRepeatKey(question))).length;
+}
+
 function assertNoAdjacentRepeatedQuestions(set, message) {
   for (let index = 1; index < set.length; index += 1) {
     assert.notStrictEqual(
@@ -1320,6 +1329,20 @@ function runQuestionSetDedupeTests() {
     const adaptiveEnglishSet = debug.buildAdaptiveQuestionSet(8, "auto");
     assert.strictEqual(adaptiveEnglishSet.length, 8, "英语自适应组卷应保持题目数量");
     assertNoAdjacentRepeatedQuestions(adaptiveEnglishSet, "英语自适应组卷");
+
+    debug.selectSubject("math");
+    debug.state.grade = 3;
+    debug.state.pointId = "auto";
+    debug.state.adaptive = true;
+    debug.state.recentQuestionKeys = [];
+    const firstAdaptiveSet = debug.buildAdaptiveQuestionSet(10, "auto");
+    debug.state.recentQuestionKeys = firstAdaptiveSet.map(questionRepeatKey);
+    const nextAdaptiveSet = debug.buildAdaptiveQuestionSet(10, "auto");
+    assert.strictEqual(nextAdaptiveSet.length, 10, "下一轮自适应组卷应保持题目数量");
+    assert(
+      repeatedQuestionCount(firstAdaptiveSet, nextAdaptiveSet) <= 5,
+      "下一轮自适应组卷应主动避开上一轮刚出现的大部分题目"
+    );
   } finally {
     vm.runInContext("Math.random = __originalMathRandom", context);
     delete context.__originalMathRandom;

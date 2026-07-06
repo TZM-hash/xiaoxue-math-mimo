@@ -1528,6 +1528,7 @@ const STORE = {
       mode: "normal",
       answerMode: "auto",
       currentSet: [],
+      recentQuestionKeys: [],
       index: 0,
       checked: false,
       correct: 0,
@@ -3041,27 +3042,32 @@ const STORE = {
       if (!target && !fallbackPoint) return null;
       if (!target) return applyQuestionInteraction(makeQuestion(fallbackPoint), preferred);
       const used = scope.usedSignatures instanceof Set ? scope.usedSignatures : new Set();
+      const avoidRepeatKeys = scope.avoidRepeatKeys instanceof Set ? scope.avoidRepeatKeys : new Set();
       const previous = String(scope.previousSignature || "");
       let fallback = null;
+      let uniqueRecentFallback = null;
       let last = null;
       for (let attempt = 0; attempt < 32; attempt += 1) {
         const question = makeStrictQuestionForPoint(target, preferred, { pick: scope.pick });
         const sig = signature(question);
+        const repeatKey = questionRepeatKey(question);
         last = question;
-        if (sig !== previous && !used.has(sig)) return question;
+        if (sig !== previous && !used.has(sig) && !avoidRepeatKeys.has(repeatKey)) return question;
+        if (sig !== previous && !used.has(sig) && !uniqueRecentFallback) uniqueRecentFallback = question;
         if (sig !== previous && !fallback) fallback = question;
       }
-      return fallback || last || makeStrictQuestionForPoint(target, preferred, { pick: scope.pick });
+      return uniqueRecentFallback || fallback || last || makeStrictQuestionForPoint(target, preferred, { pick: scope.pick });
     }
     function buildQuestionSetForPoint(point, count, preferred = state.answerMode) {
       const target = bankPointMap()[point?.id] || pointMap[point?.id] || point;
       if (!target) return [];
       const total = clamp(Number(count) || state.setSize || 10, 1, 80);
       const usedSignatures = new Set();
+      const avoidRepeatKeys = recentQuestionRepeatKeys(activeProfile(), target.grade);
       const pick = createRoundQuestionPicker(preferred);
       let previousSignature = "";
       return Array.from({ length: total }, () => {
-        const question = makeDistinctQuestionForPoint(target, preferred, { usedSignatures, previousSignature, pick });
+        const question = makeDistinctQuestionForPoint(target, preferred, { usedSignatures, previousSignature, pick, avoidRepeatKeys });
         if (!question) return null;
         previousSignature = signature(question);
         usedSignatures.add(previousSignature);
@@ -3076,6 +3082,7 @@ const STORE = {
       const pointsForGrade = availablePoints(state.grade);
       const sourceOffsets = {};
       const usedSignatures = new Set();
+      const avoidRepeatKeys = recentQuestionRepeatKeys(activeProfile(), state.grade);
       const pick = createRoundQuestionPicker(preferred);
       let previousSignature = "";
       return plan.map((sourceType) => {
@@ -3085,7 +3092,7 @@ const STORE = {
         const offset = sourceOffsets[sourceType] || 0;
         sourceOffsets[sourceType] = offset + 1;
         const point = candidates[offset % candidates.length] || choosePoint();
-        const question = makeDistinctQuestionForPoint(point, preferred, { usedSignatures, previousSignature, pick });
+        const question = makeDistinctQuestionForPoint(point, preferred, { usedSignatures, previousSignature, pick, avoidRepeatKeys });
         if (!question) return null;
         previousSignature = signature(question);
         usedSignatures.add(previousSignature);
@@ -3099,6 +3106,7 @@ const STORE = {
       return window.MathCampPracticeEngine.buildAdaptiveQuestionSet({
         activeProfile,
         applyQuestionInteraction,
+        availablePoints,
         choosePoint,
         clamp,
         dueWrongbook,
@@ -3106,6 +3114,8 @@ const STORE = {
         makeDistinctQuestionForPoint,
         makeStrictQuestionForPoint,
         pointMap: bankPointMap(),
+        avoidRepeatKeys: recentQuestionRepeatKeys(activeProfile(), state.grade),
+        recentPointIds: recentQuestionPointIds(activeProfile(), state.grade),
         createRoundQuestionPicker,
         shuffle,
         signature,
@@ -3123,12 +3133,14 @@ const STORE = {
     }
     function weakestPoints(limit = 4) {
       const profile = activeProfile();
+      const recentPointIds = recentQuestionPointIds(profile, profile.grade || state.grade, 60);
       return availablePoints(profile.grade)
         .map((point) => {
           const m = masteryFor(profile, point.id);
           const accuracy = m.attempts ? m.correct / m.attempts : 0.45;
           const wrongs = profile.wrongbook.filter((item) => item.question.pointId === point.id).length;
-          return { point, score: accuracy - wrongs * 0.08 + Math.min(m.attempts, 5) * 0.015 };
+          const recentPenalty = recentPointIds.has(point.id) ? 0.22 : 0;
+          return { point, score: accuracy - wrongs * 0.08 + Math.min(m.attempts, 5) * 0.015 + recentPenalty };
         })
         .sort((a, b) => a.score - b.score)
         .slice(0, limit)
@@ -3144,6 +3156,7 @@ const STORE = {
       if (!adaptive) return pick(options);
       const profile = activeProfile();
       const dueCounts = new Map();
+      const recentPointIds = recentQuestionPointIds(profile, state.grade, 60);
       dueWrongbook(profile, state.grade).forEach((item) => {
         const pointId = item?.question?.pointId;
         if (!pointId) return;
@@ -3162,7 +3175,8 @@ const STORE = {
         const recentWrongs = recentWrongPointIds.filter((id) => id === point.id).length;
         const coldStart = m.attempts < 3 ? 2 : 0;
         const levelBoost = clamp(6 - (Number(m.level) || 1), 1, 5);
-        const weight = clamp(Math.round((1 - accuracy) * 8 + wrongs * 2.4 + dueBoost + recentWrongs * 1.6 + coldStart + levelBoost), 1, 18);
+        const recentPenalty = recentPointIds.has(point.id) ? 10 : 0;
+        const weight = clamp(Math.round((1 - accuracy) * 8 + wrongs * 2.4 + dueBoost + recentWrongs * 1.6 + coldStart + levelBoost - recentPenalty), 0, 18);
         for (let i = 0; i < weight; i += 1) weighted.push(point);
       });
       return pick(weighted.length ? weighted : options);
@@ -10138,6 +10152,7 @@ const STORE = {
       state.currentSet = selectedPoint
         ? buildQuestionSetForPoint(selectedPoint, state.setSize, state.answerMode)
         : buildAdaptiveQuestionSet(state.setSize, state.answerMode);
+      rememberRecentQuestionSet(state.currentSet);
       state.index = 0;
       state.checked = false;
       state.correct = 0;
@@ -10165,6 +10180,7 @@ const STORE = {
       state.challengeMeta = null;
       state.pointId = point.id;
       state.currentSet = buildQuestionSetForPoint(point, count, mode === "hard-word" || mode === "logic-reading" ? "step" : state.answerMode);
+      rememberRecentQuestionSet(state.currentSet);
       state.index = 0;
       state.checked = false;
       state.correct = 0;
@@ -10345,6 +10361,7 @@ const STORE = {
         const mode = index % 5 === 4 ? "judge" : index % 3 === 2 ? "choice" : state.answerMode;
         return makeStrictQuestionForPoint(point, normalizeAnswerModeForViewport(mode));
       });
+      rememberRecentQuestionSet(state.currentSet);
       state.index = 0;
       state.checked = false;
       state.correct = 0;
@@ -10380,6 +10397,7 @@ const STORE = {
         const mode = index % 4 === 1 ? "choice" : index % 4 === 3 ? "judge" : "input";
         return makeStrictQuestionForPoint(point, normalizeAnswerModeForViewport(mode));
       });
+      rememberRecentQuestionSet(state.currentSet);
       state.index = 0;
       state.checked = false;
       state.correct = 0;
@@ -10505,6 +10523,43 @@ const STORE = {
     }
     function signature(question) {
       return `${question.pointId}|${question.text}|${formatAnswer(question.answer, question.answerLabel)}`;
+    }
+    function questionRepeatKey(question) {
+      return `${question?.pointId || ""}|${question?.text || ""}`;
+    }
+    function recentQuestionRepeatKeys(profile = activeProfile(), grade = Number(profile?.grade || state.grade), limit = 80) {
+      const subject = activeSubjectId();
+      const keys = new Set(Array.isArray(state.recentQuestionKeys) ? state.recentQuestionKeys.filter(Boolean) : []);
+      (Array.isArray(profile?.history) ? profile.history : []).slice(0, limit).forEach((item) => {
+        if (Number(item.grade || grade) !== Number(grade)) return;
+        if (item.subject && item.subject !== subject) return;
+        if (!item.pointId || !item.text) return;
+        keys.add(`${item.pointId}|${item.text}`);
+      });
+      return keys;
+    }
+    function recentQuestionPointIds(profile = activeProfile(), grade = Number(profile?.grade || state.grade), limit = 80) {
+      const keys = recentQuestionRepeatKeys(profile, grade, limit);
+      const ids = new Set();
+      keys.forEach((key) => {
+        const pointId = String(key || "").split("|")[0];
+        if (pointId) ids.add(pointId);
+      });
+      return ids;
+    }
+    function rememberRecentQuestionSet(questions, limit = 160) {
+      const existing = Array.isArray(state.recentQuestionKeys) ? state.recentQuestionKeys : [];
+      const generated = (questions || []).map(questionRepeatKey).filter((key) => key && !key.endsWith("|"));
+      const combined = [...existing, ...generated].slice(-limit * 2);
+      const seen = new Set();
+      const compact = [];
+      for (let index = combined.length - 1; index >= 0; index -= 1) {
+        const key = combined[index];
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        compact.unshift(key);
+      }
+      state.recentQuestionKeys = compact.slice(-limit);
     }
     const REVIEW_STAGE_OFFSETS = [0, 1, 3, 7];
     function nextReviewDueDate(stage) {
