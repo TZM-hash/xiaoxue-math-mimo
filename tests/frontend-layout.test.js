@@ -113,6 +113,7 @@ assertContains(html, 'src="js/science-question-bank.js"', "页面应加载科学
 assertContains(html, 'src="js/subject-registry.js"', "页面应加载学科注册表");
 assertContains(html, 'src="js/chinese-question-generator.js"', "页面应加载语文题目生成器");
 assertContains(html, 'src="js/question-spec-utils.js"', "页面应加载选择题规格工具");
+assertContains(html, 'src="js/external-question-seeds.js"', "页面应加载扩展题源模块");
 assertContains(html, 'src="js/english-question-generator.js"', "页面应加载英语题目生成器");
 assertContains(html, 'src="js/science-question-generator.js"', "页面应加载科学题目生成器");
 assertNotContains(html, 'src="js/handwriting-input.js"', "页面不应加载手写输入模块");
@@ -502,6 +503,7 @@ assertContains(css, "#reportView .report-visual-panel:first-child {\n        gri
   "js/learning-insights.js",
   "js/pet-economy.js",
   "js/question-spec-utils.js",
+  "js/external-question-seeds.js",
   "js/subject-registry.js",
   "js/chinese-question-bank.js",
   "js/chinese-question-generator.js",
@@ -549,6 +551,7 @@ assertContains(css, "#reportView .report-visual-panel:first-child {\n        gri
   "js/pet-dressup-meta.js",
   "js/pet-economy.js",
   "js/question-spec-utils.js",
+  "js/external-question-seeds.js",
   "js/question-generator.js",
   "js/practice-engine.js",
   "js/question-rules-engine.js",

@@ -1,5 +1,16 @@
 (function () {
+  function externalQuestion(deps, point, options) {
+    if (!window.MathCampExternalQuestionSeeds) return null;
+    if (options && options.strict && !options.preferExternal) return null;
+    var shouldUse = Boolean(options && options.preferExternal);
+    if (!shouldUse && !(options && options.strict)) shouldUse = Math.random() < 0.16;
+    if (!shouldUse) return null;
+    return window.MathCampExternalQuestionSeeds.makeQuestion(deps || {}, point, options || {});
+  }
+
   function makeQuestion(deps, point, options) {
+    var external = externalQuestion(deps, point, options || {});
+    if (external) return deps.ensureQuestionMatchesRule(point, external, options || {});
     if ((point && point.subject === "chinese") || /^c\d-/.test(String(point && point.id || ""))) {
       return window.MathCampChineseQuestionGenerator.makeQuestion(deps || {}, point, options || {});
     }
