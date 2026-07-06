@@ -29,6 +29,7 @@ function functionBody(source, name) {
 }
 
 const html = read("index.html");
+const manifest = read("manifest.webmanifest");
 const css = read("css/themes.css");
 const app = read("js/app.js");
 const runtimeConfig = read("js/runtime-config.js");
@@ -52,6 +53,11 @@ const mojibakeTokens = ["\\u93c1", "\\u93b7", "\\u7edb", "\\u95bf", "\\u9983", "
 const mojibake = new RegExp(mojibakeTokens.join("|") + "|\\?\\?\\?");
 
 assertContains(html, 'id="homeRouteList"', "首页应包含今日学习路线容器");
+assertContains(html, "<title>喵喵学习</title>", "页面标题应使用多学科应用名");
+assertContains(html, 'aria-label="喵喵学习"', "顶部品牌应使用多学科应用名");
+assertContains(manifest, '"name": "喵喵学习"', "PWA manifest 应使用多学科应用名");
+assertContains(manifest, '"short_name": "喵喵学习"', "PWA manifest 短名称应使用多学科应用名");
+assertNotContains(html, "喵喵数学", "页面可见品牌不应继续使用旧数学名称");
 assertContains(html, 'id="homeCockpitMeter"', "home should include a task cockpit meter");
 assertContains(html, 'id="homeSettingsCard"', "mobile home should include the compact student/type summary card");
 assertContains(html, 'id="desktopPracticeOverview"', "desktop practice setup should have an overview panel instead of showing the question card");
@@ -102,9 +108,12 @@ assertContains(html, 'src="js/chinese-curriculum-data.js"', "页面应加载语�
 assertContains(html, 'src="js/chinese-question-bank.js"', "页面应加载语文题库");
 assertContains(html, 'src="js/english-curriculum-data.js"', "页面应加载英语教材知识库");
 assertContains(html, 'src="js/english-question-bank.js"', "页面应加载英语题库");
+assertContains(html, 'src="js/science-curriculum-data.js"', "页面应加载科学教材知识库");
+assertContains(html, 'src="js/science-question-bank.js"', "页面应加载科学题库");
 assertContains(html, 'src="js/subject-registry.js"', "页面应加载学科注册表");
 assertContains(html, 'src="js/chinese-question-generator.js"', "页面应加载语文题目生成器");
 assertContains(html, 'src="js/english-question-generator.js"', "页面应加载英语题目生成器");
+assertContains(html, 'src="js/science-question-generator.js"', "页面应加载科学题目生成器");
 assertNotContains(html, 'src="js/handwriting-input.js"', "页面不应加载手写输入模块");
 assertContains(html, 'src="js/learning-insights.js"', "page should load learning insight diagnostics");
 assertNotContains(html, "supabase.min.js", "Supabase SDK should not be loaded during offline-first startup");
@@ -230,8 +239,8 @@ assertContains(app, 'els.desktopOverviewStartBtn?.addEventListener("click", () =
 assertContains(app, 'els.homeStartPracticeBtn?.addEventListener("click", () => startNewSet({ focus: true }))', "home practice card should enter focused layout");
 assertContains(app, 'isCompactPracticeViewport() && mode === "step"', "tablet practice should hide step answering like mobile");
 assertContains(app, "stepOption.hidden = compact", "custom answer mode picker should omit step answering on compact viewports");
-assertContains(app, 'const language = activeSubjectId() === "chinese" || activeSubjectId() === "english";', "语文和英语都应有语言学科答题方式限制");
-assertContains(app, "stepOption.hidden = compact || language", "语言学科应隐藏分步作答");
+assertContains(app, 'const nonMath = activeSubjectId() !== "math";', "非数学学科都应隐藏分步作答");
+assertContains(app, "stepOption.hidden = compact || nonMath", "非数学学科应隐藏分步作答");
 assertContains(functionBody(app, "startPointSet"), "enterPracticeFocus();", "knowledge, weak-point, appendix, hard-word, and logic-reading practice should enter focused layout");
 assertContains(functionBody(app, "startWrongbookPractice"), "enterPracticeFocus();", "wrongbook and review practice should enter focused layout");
 assertContains(functionBody(app, "resumeChallengeSet"), "enterPracticeFocus();", "resumed challenge practice should enter focused layout");
@@ -494,6 +503,9 @@ assertContains(css, "#reportView .report-visual-panel:first-child {\n        gri
   "js/chinese-question-generator.js",
   "js/english-question-bank.js",
   "js/english-question-generator.js",
+  "js/science-curriculum-data.js",
+  "js/science-question-bank.js",
+  "js/science-question-generator.js",
   "js/question-generator.js",
   "js/practice-engine.js",
   "js/report.js",
@@ -524,6 +536,9 @@ assertContains(css, "#reportView .report-visual-panel:first-child {\n        gri
   "js/english-curriculum-data.js",
   "js/english-question-bank.js",
   "js/english-question-generator.js",
+  "js/science-curriculum-data.js",
+  "js/science-question-bank.js",
+  "js/science-question-generator.js",
   "js/question-enhancements.js",
   "js/pet-dressup-meta.js",
   "js/pet-economy.js",

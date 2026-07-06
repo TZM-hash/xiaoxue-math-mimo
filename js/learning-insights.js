@@ -4,6 +4,7 @@
   var CAUSE_LABELS = ["计算粗心", "读题理解", "概念单位", "干扰条件", "不会做"];
   var CHINESE_CAUSE_LABELS = ["未标记", "不会做", "字词基础", "阅读理解", "表达规范"];
   var ENGLISH_CAUSE_LABELS = ["未标记", "不会做", "单词不熟", "句型语法", "阅读定位"];
+  var SCIENCE_CAUSE_LABELS = ["未标记", "不会做", "概念不清", "观察实验", "证据推理"];
 
   function list(value) {
     return Array.isArray(value) ? value : [];
@@ -22,6 +23,7 @@
     var topic = point && point.topic;
     var isChinese = point && (point.subject === "chinese" || /^c\d-/.test(String(point.id || "")));
     var isEnglish = point && (point.subject === "english" || /^e\d-/.test(String(point.id || "")));
+    var isScience = point && (point.subject === "science" || /^s\d-/.test(String(point.id || "")));
     var text = [
       item && item.cause,
       item && item.text,
@@ -41,6 +43,16 @@
       if (/单词|词汇|拼写|字母|phonics|发音|读音|元音|组合|word|vocabulary|spelling/.test(text) || ["vocabulary", "phonics"].includes(topic)) return "单词不熟";
       if (/句型|语法|时态|be 动词|过去式|比较级|复数|代词|pattern|grammar|tense/.test(text) || ["pattern", "grammar"].includes(topic)) return "句型语法";
       if (/阅读|短文|定位|疑问词|where|when|who|what|why|信息|细节|reading/.test(text) || topic === "reading") return "阅读定位";
+      return "不会做";
+    }
+
+    if (isScience) {
+      if (/证据|结论|推理|支持|数据|模型|解释|可靠/.test(text)) return "证据推理";
+      if (/观察|实验|记录|变量|控制|公平|测量|现象|测试/.test(text)) return "观察实验";
+      if (/概念|混淆|结构|性质|溶解|岩石|土壤|电路|能量|太阳系|生命周期/.test(text)) return "概念不清";
+      if (topic === "inquiry") return "观察实验";
+      if (["earth", "engineering"].includes(topic)) return "证据推理";
+      if (["life", "matter"].includes(topic)) return "概念不清";
       return "不会做";
     }
 
@@ -64,6 +76,9 @@
       "单词不熟": "先复习本单元核心词和拼写，再放回句子中确认词义。",
       "句型语法": "先找主语、时间词和问句类型，再套对应句型或语法规则。",
       "阅读定位": "先看疑问词，再回到短文中圈出对应的人物、地点、时间或动作。",
+      "概念不清": "先复述核心概念，再回到观察材料中找对应特征。",
+      "观察实验": "先看实验条件和记录数据，确认是否只改变了一个变量。",
+      "证据推理": "先圈出能支持结论的证据，再排除只凭感觉的说法。",
       "不会做": "先做同类基础题，必要时看一步提示，再回到原题。"
     };
     return label + "：" + (map[cause] || map["不会做"]);
@@ -98,7 +113,7 @@
     return Object.keys(counts).map(function (cause) {
       return { cause: cause, count: counts[cause] };
     }).sort(function (a, b) {
-      var labels = Array.isArray(opts.causes) ? opts.causes : (CHINESE_CAUSE_LABELS.includes(a.cause) || CHINESE_CAUSE_LABELS.includes(b.cause) ? CHINESE_CAUSE_LABELS : ENGLISH_CAUSE_LABELS.includes(a.cause) || ENGLISH_CAUSE_LABELS.includes(b.cause) ? ENGLISH_CAUSE_LABELS : CAUSE_LABELS);
+      var labels = Array.isArray(opts.causes) ? opts.causes : (CHINESE_CAUSE_LABELS.includes(a.cause) || CHINESE_CAUSE_LABELS.includes(b.cause) ? CHINESE_CAUSE_LABELS : ENGLISH_CAUSE_LABELS.includes(a.cause) || ENGLISH_CAUSE_LABELS.includes(b.cause) ? ENGLISH_CAUSE_LABELS : SCIENCE_CAUSE_LABELS.includes(a.cause) || SCIENCE_CAUSE_LABELS.includes(b.cause) ? SCIENCE_CAUSE_LABELS : CAUSE_LABELS);
       return b.count - a.count || labels.indexOf(a.cause) - labels.indexOf(b.cause);
     });
   }
@@ -158,6 +173,7 @@
     CAUSE_LABELS,
     CHINESE_CAUSE_LABELS,
     ENGLISH_CAUSE_LABELS,
+    SCIENCE_CAUSE_LABELS,
     diagnoseCause,
     adviceForCause,
     causeBreakdown,

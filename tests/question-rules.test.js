@@ -161,12 +161,15 @@ vm.createContext(context);
   "js/chinese-question-bank.js",
   "js/english-curriculum-data.js",
   "js/english-question-bank.js",
+  "js/science-curriculum-data.js",
+  "js/science-question-bank.js",
   "js/subject-registry.js",
   "js/question-bank-coverage.js",
   "js/learning-insights.js",
   "js/pet-economy.js",
   "js/chinese-question-generator.js",
   "js/english-question-generator.js",
+  "js/science-question-generator.js",
   "js/question-generator.js",
   "js/handwriting-input.js",
   "js/practice-engine.js",
@@ -1298,6 +1301,16 @@ function runQuestionSetDedupeTests() {
     assert(new Set(englishSet.map(questionSetSignature)).size >= 2, "英语专项组卷应在可用模板之间轮换");
     assertNoAdjacentRepeatedQuestions(englishSet, "英语专项组卷");
 
+    debug.selectSubject("science");
+    debug.state.grade = 3;
+    const sciencePoint = debug.activeBank().pointMap["s3-inquiry-fair-test"];
+    const scienceSet = debug.buildQuestionSetForPoint(sciencePoint, 6, "auto");
+    assert.strictEqual(scienceSet.length, 6, "科学专项组卷应保持题目数量");
+    assert(new Set(scienceSet.map(questionSetSignature)).size >= 2, "科学专项组卷应在可用模板之间轮换");
+    assertNoAdjacentRepeatedQuestions(scienceSet, "科学专项组卷");
+
+    debug.selectSubject("english");
+    debug.state.grade = 3;
     debug.state.pointId = "auto";
     debug.state.adaptive = true;
     const adaptiveEnglishSet = debug.buildAdaptiveQuestionSet(8, "auto");
@@ -1351,7 +1364,7 @@ function runCoverageAndInsightTests() {
 }
 
 function runUtf8EncodingTests() {
-  const files = ["js/app.js", "js/cloud-sync.js", "js/runtime-config.js", "js/question-bank-coverage.js", "js/learning-insights.js", "js/pet-economy.js", "js/subject-registry.js", "js/chinese-question-bank.js", "js/chinese-question-generator.js", "js/english-question-bank.js", "js/english-question-generator.js", "js/handwriting-input.js", "index.html", "tests/question-rules.test.js", "tests/frontend-layout.test.js", "tests/english-question-bank.test.js"];
+  const files = ["js/app.js", "js/cloud-sync.js", "js/runtime-config.js", "js/question-bank-coverage.js", "js/learning-insights.js", "js/pet-economy.js", "js/subject-registry.js", "js/chinese-question-bank.js", "js/chinese-question-generator.js", "js/english-question-bank.js", "js/english-question-generator.js", "js/science-curriculum-data.js", "js/science-question-bank.js", "js/science-question-generator.js", "js/handwriting-input.js", "index.html", "tests/question-rules.test.js", "tests/frontend-layout.test.js", "tests/english-question-bank.test.js", "tests/science-question-bank.test.js"];
   const mojibakeTokens = ["\u93c1", "\u93b7", "\u7edb", "\u95bf", "\u9983", "\u8133", "\u923f", "\u9241", "\u9286", "\u4fd9", "\u6992", "\u5744", "\u6624", "\ufffd"];
   const mojibake = new RegExp(mojibakeTokens.join("|"));
   files.forEach((file) => {
@@ -1595,6 +1608,87 @@ function runEnglishSubjectIntegrationTests() {
   context.matchMedia = originalMatchMedia;
 }
 
+function runScienceSubjectIntegrationTests() {
+  const debug = context.mathCampDebug;
+  const originalMatchMedia = context.matchMedia;
+  const profile = debug.normalizeProfile({ id: "student-science", name: "科学测试", grade: 3 });
+  debug.state.profiles = [profile];
+  debug.state.activeId = profile.id;
+  debug.selectSubject("science");
+  assert.strictEqual(debug.state.subject, "science", "应能切换到科学学科");
+  assert.strictEqual(debug.state.grade, 3, "科学应保留当前小学年级");
+
+  debug.state.pointId = "auto";
+  debug.state.setSize = 8;
+  debug.els.setSizeInput.value = "8";
+  debug.els.pointSelect.value = "auto";
+  debug.startNewSet({ autoFocus: false });
+  assert.strictEqual(debug.state.currentSet.length, 8, "科学学科应能生成一组题");
+  assert(debug.state.currentSet.every((question) => question.subject === "science"), "科学题应带 subject=science");
+  assert(debug.state.currentSet.every((question) => question.explanation && Array.isArray(question.steps) && question.steps.length), "每道科学题都应有解析和步骤");
+  assert(debug.state.currentSet.every((question) => ["choice", "text"].includes(question.answerType)), "科学题应保持客观可判分题型");
+
+  const scienceChoice = debug.applyQuestionInteraction({
+    subject: "science",
+    pointId: "s3-inquiry-fair-test",
+    topic: "inquiry",
+    text: "【实验设计】比较水温对溶解快慢的影响，哪种做法最公平？\nA. 只改变水温，水量和食盐量都相同\nB. 同时改变水温和食盐量\nC. 不记录时间\nD. 只看杯子颜色",
+    answerType: "choice",
+    answer: "A",
+    acceptedAnswers: ["A", "只改变水温，水量和食盐量都相同"],
+    answerLabel: "A. 只改变水温，水量和食盐量都相同",
+    explanation: "公平实验只改变一个条件。"
+  }, "auto");
+  assert.strictEqual(scienceChoice.interaction.mode, "choice", "科学 A/B/C/D 题应显示选择面板");
+  assert.strictEqual(debug.interactionRuleIssues(scienceChoice).length, 0, "科学选择题应生成有效选项");
+  assert.strictEqual(debug.answerMatches(scienceChoice, { raw: "只改变水温，水量和食盐量都相同", value: NaN }), true, "科学选择题应接受正确选项文本");
+
+  const scienceInput = debug.applyQuestionInteraction({
+    subject: "science",
+    pointId: "s5-matter-dissolve",
+    topic: "matter",
+    text: "【概念填空】白色颗粒放入水中搅拌后逐渐看不见，水仍然透明。请填入这种变化名称。",
+    answerType: "text",
+    answer: "溶解",
+    acceptedAnswers: ["溶解"],
+    explanation: "颗粒均匀分散在水中，叫溶解。"
+  }, "auto");
+  assert.strictEqual(scienceInput.interaction.mode, "input", "科学直接输入题应使用系统键盘");
+  assert.strictEqual(debug.answerMatches(scienceInput, { raw: "溶解", value: NaN }), true, "科学输入题应按文字答案判分");
+
+  for (const grade of [1, 2, 3, 4, 5, 6]) {
+    debug.state.grade = grade;
+    const points = debug.availablePoints(grade).filter((point) => point.subject === "science");
+    assert(points.length >= 8, `${grade} 年级应有科学知识点`);
+    points.slice(0, 6).forEach((point) => {
+      const question = debug.makeQuestion(point, { strict: true });
+      assert.strictEqual(question.subject, "science", `${point.id} 应生成科学题`);
+      assert.strictEqual(debug.applyQuestionInteraction({ ...question }, "step").interaction.mode, "input", `${point.id} 科学题不应进入数学分步作答`);
+      const choiceMode = debug.applyQuestionInteraction({ ...question }, "choice").interaction.mode;
+      assert.strictEqual(choiceMode, question.answerType === "choice" ? "choice" : "input", `${point.id} 科学题应按题目类型显示选择面板`);
+    });
+  }
+
+  debug.state.grade = 3;
+  debug.state.pointId = "s3-inquiry-fair-test";
+  debug.els.pointSelect.value = "s3-inquiry-fair-test";
+  debug.state.answerMode = "input";
+  debug.els.answerModeSelect.value = "input";
+  context.matchMedia = (query) => ({
+    matches: query.includes("1180px") || query.includes("620px"),
+    addEventListener() {},
+    removeEventListener() {}
+  });
+  debug.startNewSet({ autoFocus: false });
+  assert.strictEqual(debug.state.currentSet[0].interaction.mode, "input", "科学输入题移动端应保持系统键盘输入");
+  assert.strictEqual(debug.els.answerInput.readOnly, false, "科学输入题输入框应允许系统键盘输入");
+  assert.strictEqual(debug.els.answerInput.getAttribute("inputmode"), "text", "科学文字题应使用文本输入模式");
+  assert.strictEqual(debug.els.numberPad.hidden, true, "科学题不应显示数字键盘");
+  assert(!/已知什么|加减乘除/.test(debug.els.companionTalk.textContent), "科学做题提示不应复用数学应用题文案");
+
+  context.matchMedia = originalMatchMedia;
+}
+
 const result = context.mathCampSelfTest(32);
 if (result.failed) {
   console.error(JSON.stringify(result.failures.slice(0, 10), null, 2));
@@ -1625,6 +1719,7 @@ runGeometryDiagramQuestionTests();
 runHangzhouCurriculumMetadataTests();
 runChineseSubjectIntegrationTests();
 runEnglishSubjectIntegrationTests();
+runScienceSubjectIntegrationTests();
 
 console.log(`Question rule self-test passed: ${result.total} samples, 0 failures.`);
 console.log("Data boundary tests passed.");
@@ -1647,3 +1742,4 @@ console.log("Geometry diagram question tests passed.");
 console.log("Hangzhou curriculum metadata tests passed.");
 console.log("Chinese subject integration tests passed.");
 console.log("English subject integration tests passed.");
+console.log("Science subject integration tests passed.");

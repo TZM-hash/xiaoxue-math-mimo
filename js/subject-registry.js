@@ -6,7 +6,7 @@
     chinese: { id: "chinese", label: "语文", short: "语", bankKey: "MathCampChineseQuestionBank" },
     math: { id: "math", label: "数学", short: "数", bankKey: "MathCampQuestionBank" },
     english: { id: "english", label: "英语", short: "英", bankKey: "MathCampEnglishQuestionBank" },
-    science: { id: "science", label: "科学", short: "科", bankKey: "" }
+    science: { id: "science", label: "科学", short: "科", bankKey: "MathCampScienceQuestionBank" }
   };
 
   function safeSubjectId(value) {

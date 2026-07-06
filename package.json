@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "test": "node tests/english-question-bank.test.js && node tests/question-rules.test.js && node tests/frontend-layout.test.js && node tests/browser-smoke.test.js",
+    "test": "node tests/english-question-bank.test.js && node tests/science-question-bank.test.js && node tests/question-rules.test.js && node tests/frontend-layout.test.js && node tests/browser-smoke.test.js",
     "test:rules": "node tests/question-rules.test.js",
     "test:layout": "node tests/frontend-layout.test.js",
     "test:browser": "node tests/browser-smoke.test.js",

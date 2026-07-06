@@ -620,8 +620,14 @@ const STORE = {
     function isEnglishQuestion(question) {
       return question?.subject === "english" || /^e\d/.test(String(question?.pointId || ""));
     }
+    function isScienceQuestion(question) {
+      return question?.subject === "science" || /^s\d/.test(String(question?.pointId || ""));
+    }
     function isLanguageQuestion(question) {
       return isChineseQuestion(question) || isEnglishQuestion(question);
+    }
+    function isNonMathQuestion(question) {
+      return isLanguageQuestion(question) || isScienceQuestion(question);
     }
     function hasAudioPrompt(question) {
       const prompt = question?.audioPrompt;
@@ -981,7 +987,7 @@ const STORE = {
       });
     }
     function shouldHideAnswerControlsForWrong(question) {
-      if (isLanguageQuestion(question)) return true;
+      if (isNonMathQuestion(question)) return true;
       const mode = question?.interaction?.mode || "input";
       return isCompactPracticeViewport() || mode === "choice" || mode === "judge";
     }
@@ -989,7 +995,7 @@ const STORE = {
       return isCompactPracticeViewport() && mode === "step" ? "input" : mode;
     }
     function shouldUseCustomAnswerKeyboard(mode = "input", question = null) {
-      if (isLanguageQuestion(question)) return false;
+      if (isNonMathQuestion(question)) return false;
       if (question?.answerType === "formula") return false;
       return (mode === "input" || mode === "step") && isCompactPracticeViewport();
     }
@@ -997,10 +1003,10 @@ const STORE = {
       const stepOption = els.answerModeSelect?.querySelector('option[value="step"]');
       if (!stepOption) return;
       const compact = isCompactPracticeViewport();
-      const language = activeSubjectId() === "chinese" || activeSubjectId() === "english";
-      stepOption.disabled = compact || language;
-      stepOption.hidden = compact || language;
-      if ((compact || language) && els.answerModeSelect.value === "step") {
+      const nonMath = activeSubjectId() !== "math";
+      stepOption.disabled = compact || nonMath;
+      stepOption.hidden = compact || nonMath;
+      if ((compact || nonMath) && els.answerModeSelect.value === "step") {
         els.answerModeSelect.value = "input";
         state.answerMode = "input";
       }
@@ -2403,10 +2409,23 @@ const STORE = {
       };
       return `${prefix}${hints[question?.topic] || "先读英文情境，再根据词汇、句型或语法规则判断唯一答案。"}`;
     }
+    function scienceMethodHintFor(question) {
+      const prompt = shortPromptForHint(question?.text);
+      const prefix = prompt ? `先看这题问的“${prompt}”。` : "";
+      const hints = {
+        life: "再看观察记录里的结构、生命活动和环境条件，用证据判断生命现象。",
+        matter: "再比较材料或物质变化前后的现象，别把看不见误认为消失。",
+        earth: "再看连续记录或模型关系，分清一次现象和长期规律。",
+        engineering: "先明确需求和限制，再看测试结果是否支持改进方案。",
+        inquiry: "先找研究问题和变量，再检查证据能不能支持结论。"
+      };
+      return `${prefix}${hints[question?.topic] || "先读观察或实验记录，再用证据支持结论，不要只凭感觉作答。"}`;
+    }
     function methodHintFor(question) {
       if (!question) return '先判断题型，再列式。遇到应用题，先把"已知"和"要求"分开看。';
       if (isChineseQuestion(question)) return chineseMethodHintFor(question);
       if (isEnglishQuestion(question)) return englishMethodHintFor(question);
+      if (isScienceQuestion(question)) return scienceMethodHintFor(question);
       const hints = {
         addsub: "加减题先看符号。加法是合起来，减法是拿走或比较差多少。",
         compare: "比较多少一般用减法：大数减小数。",
@@ -2974,7 +2993,7 @@ const STORE = {
     function chooseInteractionMode(question, preferred = state.answerMode || "auto") {
       preferred = normalizeAnswerModeForViewport(preferred);
       if (question.answerType === "formula") return "input";
-      if (isLanguageQuestion(question)) {
+      if (isNonMathQuestion(question)) {
         if (preferred === "step") return "input";
         if (preferred === "choice") return question.answerType === "choice" ? "choice" : "input";
         if (preferred === "judge") return "judge";
@@ -3028,7 +3047,7 @@ const STORE = {
     function applyQuestionInteraction(question, preferred = state.answerMode || "auto") {
       const mode = chooseInteractionMode(question, preferred);
       let finalMode = question.answerLabel && (mode === "choice" || mode === "judge") ? "input" : mode;
-      if (isLanguageQuestion(question)) {
+      if (isNonMathQuestion(question)) {
         if (mode === "step") {
           finalMode = "input";
         } else if (mode === "choice") {
@@ -3039,7 +3058,7 @@ const STORE = {
       }
       const interaction = { mode: finalMode };
       if (finalMode === "choice") {
-        if (isLanguageQuestion(question)) {
+        if (isNonMathQuestion(question)) {
           interaction.options = chineseChoiceOptions(question);
         } else {
           const options = shuffle([Number(question.answer), ...numericDistractors(question.answer)]).slice(0, 4);
@@ -3048,7 +3067,7 @@ const STORE = {
         }
       } else if (finalMode === "judge") {
         const truthful = Math.random() > 0.5;
-        if (isLanguageQuestion(question)) {
+        if (isNonMathQuestion(question)) {
           const wrong = chineseWrongOption(question);
           const correct = chineseAnswerValue(question);
           interaction.statementValue = truthful ? correct : wrong.value;
@@ -3174,7 +3193,7 @@ const STORE = {
       if (question?.answerType === "formula" && interaction.mode !== "input") issues.push("列算式题应使用输入框");
       if (question?.answerType === "formula" && ![question.formulaAnswer, ...(question.acceptedFormulas || [])].some((item) => normalizeFormulaAnswer(item).includes("="))) issues.push("列算式题缺少参考算式");
       if (interaction.mode === "choice") {
-        if (isLanguageQuestion(question)) {
+        if (isNonMathQuestion(question)) {
           const options = interaction.options || [];
           if (options.length < 2) issues.push("选择题选项不足");
           if (!options.some((option) => textAnswerMatches(option.value, question) || textAnswerMatches(option.label, question))) issues.push("选择题缺少正确答案");
@@ -3185,7 +3204,7 @@ const STORE = {
         }
       }
       if (interaction.mode === "judge") {
-        if (isLanguageQuestion(question)) {
+        if (isNonMathQuestion(question)) {
           if (!String(interaction.statementValue || interaction.statementLabel || "").trim()) issues.push("判断题陈述答案无效");
         } else if (!Number.isFinite(Number(interaction.statementValue))) issues.push("判断题陈述答案无效");
         if (typeof interaction.truthful !== "boolean") issues.push("判断题真假值无效");
@@ -3374,10 +3393,11 @@ const STORE = {
       if (Number(question.grade) !== Number(point.grade)) issues.push("年级不一致");
       if (question.pointId !== point.id) issues.push("知识点不一致");
       if (question.topic !== point.topic) issues.push("题型主题不一致");
-      if (question.subject === "chinese" || point.subject === "chinese" || /^c\d-/.test(String(point.id || ""))) {
+      if (isNonMathQuestion(question) || isNonMathQuestion(point)) {
         if (!question.explanation) issues.push("缺少解析");
         if (!Array.isArray(question.steps) || !question.steps.length) issues.push("缺少步骤");
         if (!question.answer && !question.answerLabel) issues.push("缺少参考答案");
+        if (!["choice", "text", "judge", "longText", "selfReview"].includes(question.answerType)) issues.push("非数学题答案类型无效");
         return issues;
       }
       const numbers = questionNumbers(question);
@@ -10234,8 +10254,8 @@ const STORE = {
       els.answerModePanel.hidden = interaction.mode === "input";
       els.answerInput.readOnly = interaction.mode === "choice" || interaction.mode === "judge" || shouldUseCustomAnswerKeyboard(interaction.mode, question);
       const textLikeAnswer = question.answerType === "text" || question.answerType === "formula" || question.answerType === "longText" || question.answerType === "selfReview" || Array.isArray(question.acceptedAnswers);
-      els.numberPad.hidden = textLikeAnswer || isLanguageQuestion(question) || interaction.mode === "choice" || interaction.mode === "judge";
-      els.answerInput.setAttribute("inputmode", shouldUseCustomAnswerKeyboard(interaction.mode, question) ? "none" : textLikeAnswer || isLanguageQuestion(question) ? "text" : "decimal");
+      els.numberPad.hidden = textLikeAnswer || isNonMathQuestion(question) || interaction.mode === "choice" || interaction.mode === "judge";
+      els.answerInput.setAttribute("inputmode", shouldUseCustomAnswerKeyboard(interaction.mode, question) ? "none" : textLikeAnswer || isNonMathQuestion(question) ? "text" : "decimal");
       els.answerInput.placeholder = interaction.mode === "choice"
         ? "请选择一个答案"
         : interaction.mode === "judge"
@@ -10620,6 +10640,8 @@ const STORE = {
         ? "我陪你先读题：看清题目问什么，再回到句子、短文或诗句里找依据。"
         : isEnglishQuestion(current)
           ? "我陪你先读英语情境：先看疑问词和空格前后，再判断词汇、句型或语法。"
+        : isScienceQuestion(current)
+          ? "我陪你先读科学记录：先看观察或实验现象，再用证据支持结论。"
         : current.word ? '我陪你先读题：找"已知什么、要求什么"，再决定用加减乘除。' : '我陪你先看运算符号，再按正确顺序计算。';
       els.companionTalk.textContent = petPrompt;
       els.methodHint.textContent = petCopy('提示默认隐藏。需要帮助时，点"让招财提示"。');
@@ -12064,7 +12086,7 @@ const STORE = {
       const fitWarning = els.paperStage.querySelector(".print-fit-warning");
       if (fitWarning) UI.notify(fitWarning.textContent.trim(), { duration: 4600 });
       if (isAndroidWebView() && window.MathCampAndroid?.print) {
-        window.MathCampAndroid.print("喵喵数学题单");
+        window.MathCampAndroid.print("喵喵学习题单");
         return;
       }
       window.print();
@@ -12970,5 +12992,3 @@ const STORE = {
         els
       };
     }
-
-

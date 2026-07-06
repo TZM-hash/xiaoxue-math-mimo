@@ -6,6 +6,9 @@
     if ((point && point.subject === "english") || /^e\d-/.test(String(point && point.id || ""))) {
       return window.MathCampEnglishQuestionGenerator.makeQuestion(deps || {}, point, options || {});
     }
+    if ((point && point.subject === "science") || /^s\d-/.test(String(point && point.id || ""))) {
+      return window.MathCampScienceQuestionGenerator.makeQuestion(deps || {}, point, options || {});
+    }
     var profile = deps.activeProfile();
     var level = deps.state.adaptive ? deps.masteryFor(profile, point.id).level : 2;
     var makers = deps.makers;
