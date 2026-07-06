@@ -43,6 +43,8 @@ assert.strictEqual(bank.points.filter((point) => point.grade <= 2).length, 0, "�
 assert(bank.pointMap["e3-vocabulary-school"], "三年级校园词汇知识点应存在");
 assert(bank.pointMap["e6-grammar-past-tense"], "六年级一般过去时知识点应存在");
 
+vm.runInContext(fs.readFileSync(path.join(root, "js/question-spec-utils.js"), "utf8"), context, { filename: "js/question-spec-utils.js" });
+assert(context.window.MathCampQuestionSpec, "选择题规格工具应暴露为 MathCampQuestionSpec");
 vm.runInContext(fs.readFileSync(path.join(root, "js/english-question-generator.js"), "utf8"), context, { filename: "js/english-question-generator.js" });
 const generator = context.window.MathCampEnglishQuestionGenerator;
 assert(generator, "英语生成器应暴露为 MathCampEnglishQuestionGenerator");
@@ -51,13 +53,38 @@ function hasChoiceOptions(question) {
   return /\nA\. .+\nB\. .+\nC\. .+\nD\. /s.test(question.text || "");
 }
 
+function choiceOptions(question) {
+  return [...String(question.text || "").matchAll(/\n([A-D])\. ([^\n]+)/g)].map((match) => ({
+    key: match[1],
+    text: match[2].trim()
+  }));
+}
+
 function assertChoiceQuestion(question, message) {
   assert.strictEqual(question.subject, "english", `${message}：英语题应声明 subject=english`);
   assert.strictEqual(question.answerType, "choice", `${message}：带 A/B/C/D 选项的题必须归类为选择题`);
   assert(hasChoiceOptions(question), `${message}：选择题选项应独立换行`);
-  assert.strictEqual(question.answer, "A", `${message}：选择题答案应使用选项字母`);
-  assert(question.acceptedAnswers?.includes("A"), `${message}：选择题应接受选项字母作答`);
+  assert(/^[A-D]$/.test(String(question.answer || "")), `${message}：选择题答案应使用当前正确选项字母`);
+  const selected = choiceOptions(question).find((option) => option.key === question.answer);
+  assert(selected, `${message}：答案字母应对应题干中的一个选项`);
+  assert.strictEqual(question.answerLabel, `${selected.key}. ${selected.text}`, `${message}：答案标签应跟随洗牌后的正确选项`);
+  assert(question.acceptedAnswers?.includes(question.answer), `${message}：选择题应接受选项字母作答`);
+  assert(question.acceptedAnswers?.includes(selected.text), `${message}：选择题应接受正确选项文本作答`);
   assert(question.explanation && Array.isArray(question.steps) && question.steps.length >= 2, `${message}：应有解析和步骤`);
+}
+
+function assertChoiceShuffleUsesAnswerLetter(point, message) {
+  const question = generator.makeQuestion({
+    uid: () => `eq-${point.id}-shuffle`,
+    pick: (items) => items[0],
+    shuffleOptions: (items) => {
+      const copy = [...items];
+      if (copy.length > 1) [copy[0], copy[1]] = [copy[1], copy[0]];
+      return copy;
+    }
+  }, point, {});
+  assertChoiceQuestion(question, message);
+  assert.notStrictEqual(question.answer, "A", `${message}：正确答案不能在选项洗牌后仍固定为 A`);
 }
 
 function assertInputQuestion(question, message) {
@@ -92,6 +119,8 @@ function assertAudioPromptQuestion(question, message) {
   assert(/听录音|播放录音/.test(question.text), `${message}：题干应提示学生点击播放录音`);
   assert(["choice", "text"].includes(question.answerType), `${message}：听力题仍应保持客观可判分`);
 }
+
+assertChoiceShuffleUsesAnswerLetter(bank.pointMap["e3-vocabulary-school"], "英语选择题洗牌");
 
 bank.points.forEach((point) => {
   const choice = generator.makeQuestion({ uid: () => `eq-${point.id}-choice`, pick: (items) => items[0] }, point, {});

@@ -5,7 +5,7 @@
   const gradeNames = ["一年级", "二年级", "三年级", "四年级", "五年级", "六年级"];
   const causes = ["未标记", "不会做", "字词基础", "阅读理解", "表达规范"];
   const curriculumData = window.MathCampChineseCurriculumData || {};
-  const sourceWeights = curriculumData.sourceWeights || { inTextbook: 0.5, recommendedReading: 0.25, extraOriginal: 0.25 };
+  const autoSourcePolicy = curriculumData.autoSourcePolicy || { mode: "textbookOnly", sources: ["inTextbook"] };
   const sourceLabels = curriculumData.sourceLabels || {
     abilityLine: "能力线",
     inTextbook: "课内教材",
@@ -340,7 +340,7 @@
     causeTagsByTopic,
     curriculumProfile,
     curriculumData,
-    sourceWeights,
+    autoSourcePolicy,
     sourceLabels,
     gradeCurriculum,
     points,

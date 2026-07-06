@@ -3,11 +3,13 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "test": "node tests/english-question-bank.test.js && node tests/science-question-bank.test.js && node tests/question-rules.test.js && node tests/frontend-layout.test.js && node tests/browser-smoke.test.js",
+    "test": "npm run test:questions && npm run test:rules && npm run test:layout && npm run test:browser",
+    "test:questions": "node tests/chinese-question-bank.test.js && node tests/english-question-bank.test.js && node tests/science-question-bank.test.js && node tests/answer-modes.test.js && node tests/subject-isolation.test.js && node tests/handwriting-input.test.js && node scripts/question-bank-coverage.js",
     "test:rules": "node tests/question-rules.test.js",
     "test:layout": "node tests/frontend-layout.test.js",
     "test:browser": "node tests/browser-smoke.test.js",
+    "test:browser:required": "node tests/browser-smoke.test.js --required",
     "coverage:questions": "node scripts/question-bank-coverage.js",
-    "sync:android:check": "powershell -ExecutionPolicy Bypass -File scripts/sync-android-assets.ps1 -Check"
+    "sync:android:check": "node scripts/check-android-assets.js"
   }
 }

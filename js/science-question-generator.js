@@ -1158,10 +1158,6 @@
     return typeof deps.uid === "function" ? deps.uid(prefix) : `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   }
 
-  function optionText(options) {
-    return options.map((option, index) => `${String.fromCharCode(65 + index)}. ${option}`).join("\n");
-  }
-
   function baseQuestion(deps, point, data) {
     return {
       id: uid(deps, "sq"),
@@ -1182,13 +1178,14 @@
   function choiceQuestion(deps, point, seed) {
     const prompt = `【现象判断】观察或实验后，哪一项最符合“${point.label}”的科学解释？`;
     const options = [seed.correct, ...seed.wrongs].slice(0, 4);
+    const layout = window.MathCampQuestionSpec.choiceLayout(deps, { options, correctIndex: 0 });
     return baseQuestion(deps, point, {
       questionType: "现象判断",
       answerType: "choice",
-      text: `${prompt}\n${optionText(options)}`,
-      answer: "A",
-      answerLabel: `A. ${seed.correct}`,
-      acceptedAnswers: ["A", seed.correct, `A. ${seed.correct}`],
+      text: `${prompt}\n${layout.optionText}`,
+      answer: layout.answer,
+      answerLabel: layout.answerLabel,
+      acceptedAnswers: layout.acceptedAnswers(),
       explanation: seed.evidence,
       steps: [
         "先读清观察到的现象或实验记录。",
@@ -1222,13 +1219,14 @@
       "不记录数据，只凭实验后印象判断",
       "只做一次就把结果当成规律"
     ];
+    const layout = window.MathCampQuestionSpec.choiceLayout(deps, { options, correctIndex: 0 });
     return baseQuestion(deps, point, {
       questionType: "实验设计",
       answerType: "choice",
-      text: `【实验设计】围绕“${point.short}”做比较实验，哪种做法最公平、最容易得到可靠结果？\n${optionText(options)}`,
-      answer: "A",
-      answerLabel: "A. 只改变一个研究条件，其他条件保持一致",
-      acceptedAnswers: ["A", options[0], `A. ${options[0]}`],
+      text: `【实验设计】围绕“${point.short}”做比较实验，哪种做法最公平、最容易得到可靠结果？\n${layout.optionText}`,
+      answer: layout.answer,
+      answerLabel: layout.answerLabel,
+      acceptedAnswers: layout.acceptedAnswers(),
       explanation: "公平实验要控制变量，这样结果差异才更可能来自被研究的条件。",
       steps: [
         "先明确要研究的条件。",
@@ -1246,13 +1244,14 @@
       "同学人数更多的一组一定正确",
       "图片颜色更亮的一项就是证据"
     ];
+    const layout = window.MathCampQuestionSpec.choiceLayout(deps, { options, correctIndex: 0 });
     return baseQuestion(deps, point, {
       questionType: "证据推理",
       answerType: "choice",
-      text: `【证据推理】做完科学记录后，怎样判断结论是否可信？\n${optionText(options)}`,
-      answer: "A",
-      answerLabel: `A. ${options[0]}`,
-      acceptedAnswers: ["A", options[0], `A. ${options[0]}`],
+      text: `【证据推理】做完科学记录后，怎样判断结论是否可信？\n${layout.optionText}`,
+      answer: layout.answer,
+      answerLabel: layout.answerLabel,
+      acceptedAnswers: layout.acceptedAnswers(),
       explanation: "科学结论要由观察、测量或实验记录支持，不能只看印象和人数。",
       steps: [
         "先找到原始观察或测量记录。",
@@ -1284,13 +1283,14 @@
       });
     }
     const options = [spec.correct, ...spec.wrongs].slice(0, 4);
+    const layout = window.MathCampQuestionSpec.choiceLayout(deps, { options, correctIndex: 0 });
     return baseQuestion(deps, point, {
       questionType: spec.questionType || "现象判断",
       answerType: "choice",
-      text: `${spec.prompt}\n${optionText(options)}`,
-      answer: "A",
-      answerLabel: `A. ${spec.correct}`,
-      acceptedAnswers: ["A", spec.correct, `A. ${spec.correct}`],
+      text: `${spec.prompt}\n${layout.optionText}`,
+      answer: layout.answer,
+      answerLabel: layout.answerLabel,
+      acceptedAnswers: layout.acceptedAnswers(),
       explanation: spec.explanation,
       steps: spec.steps || [
         "先读清观察到的现象或实验记录。",

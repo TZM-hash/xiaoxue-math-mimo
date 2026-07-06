@@ -78,16 +78,15 @@
     };
   }
 
-  function objectiveChoice(point, spec) {
-    const options = [spec.correct, ...spec.wrongs].slice(0, 4);
-    const labels = ["A", "B", "C", "D"];
+  function objectiveChoice(deps, point, spec) {
+    const layout = window.MathCampQuestionSpec.choiceLayout(deps, { correct: spec.correct, wrongs: spec.wrongs });
     const aliases = Array.isArray(spec.aliases) ? spec.aliases : [];
     return {
-      text: `${spec.prompt}\n${options.map((option, index) => `${labels[index]}. ${option}`).join("\n")}`,
+      text: `${spec.prompt}\n${layout.optionText}`,
       answerType: "choice",
-      answer: "A",
-      acceptedAnswers: ["A", spec.correct, `A.${spec.correct}`, `A. ${spec.correct}`, ...aliases],
-      answerLabel: `A. ${spec.correct}`,
+      answer: layout.answer,
+      acceptedAnswers: layout.acceptedAnswers(aliases),
+      answerLabel: layout.answerLabel,
       questionType: spec.questionType || "选择题",
       explanation: spec.explanation,
       steps: spec.steps || [
@@ -2072,10 +2071,11 @@
     };
   }
 
-  function buildSourcePlan(count) {
+  function buildSourcePlan(count, sourcePolicy) {
     const total = Math.max(0, Math.floor(Number(count) || 0));
     if (!total) return [];
-    return Array.from({ length: total }, () => "inTextbook");
+    const sources = Array.isArray(sourcePolicy?.sources) && sourcePolicy.sources.length ? sourcePolicy.sources : ["inTextbook"];
+    return Array.from({ length: total }, () => sources[0] || "inTextbook");
   }
 
   function firstUseful(items, fallback) {
@@ -2521,7 +2521,7 @@
       const candidates = preferredFormat ? allSpecs.filter((item) => item.format === preferredFormat) : allSpecs;
       spec = choose(deps || {}, candidates.length ? candidates : allSpecs);
     }
-    const data = spec.format === "input" ? objectiveInput(point, spec) : objectiveChoice(point, spec);
+    const data = spec.format === "input" ? objectiveInput(point, spec) : objectiveChoice(deps || {}, point, spec);
     return baseQuestion(deps || {}, point, data);
   }
 

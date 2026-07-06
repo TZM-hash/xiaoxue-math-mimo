@@ -63,22 +63,50 @@ assert(bank.pointsBySource.extraOriginal.length > 0, "原创拓展题源点不�
 assert(bank.pointMap["c1-pinyin"], "一年级拼音知识点应存在");
 assert(bank.pointMap["c6-reading-strategy"], "六年级阅读策略知识点应存在");
 
+vm.runInContext(fs.readFileSync(path.join(root, "js/question-spec-utils.js"), "utf8"), context, { filename: "js/question-spec-utils.js" });
+assert(context.window.MathCampQuestionSpec, "选择题规格工具应暴露为 MathCampQuestionSpec");
 const generatorSource = fs.readFileSync(path.join(root, "js/chinese-question-generator.js"), "utf8");
 vm.runInContext(generatorSource, context, { filename: "js/chinese-question-generator.js" });
 const generator = context.window.MathCampChineseQuestionGenerator;
 assert(generator, "语文生成器应暴露为 MathCampChineseQuestionGenerator");
-assert.strictEqual(JSON.stringify(generator.buildSourcePlan(10, bank.sourceWeights)), JSON.stringify(Array.from({ length: 10 }, () => "inTextbook")), "语文自动组卷应只按杭州教材同步知识点出题，不再遵循课内/推荐/拓展比例");
-assert.strictEqual(JSON.stringify(generator.buildSourcePlan(4, bank.sourceWeights)), JSON.stringify(Array.from({ length: 4 }, () => "inTextbook")), "小题量语文组卷也应只取教材同步知识点");
+assert.strictEqual(bank.autoSourcePolicy.mode, "textbookOnly", "语文自动题源策略应明确为只取课内教材同步知识点");
+assert.strictEqual(JSON.stringify(generator.buildSourcePlan(10, bank.autoSourcePolicy)), JSON.stringify(Array.from({ length: 10 }, () => "inTextbook")), "语文自动组卷应只按杭州教材同步知识点出题，不再遵循课内/推荐/拓展比例");
+assert.strictEqual(JSON.stringify(generator.buildSourcePlan(4, bank.autoSourcePolicy)), JSON.stringify(Array.from({ length: 4 }, () => "inTextbook")), "小题量语文组卷也应只取教材同步知识点");
 
 function hasChoiceOptions(question) {
   return /\nA\. .+\nB\. .+\nC\. .+\nD\. /s.test(question.text || "");
 }
 
+function choiceOptions(question) {
+  return [...String(question.text || "").matchAll(/\n([A-D])\. ([^\n]+)/g)].map((match) => ({
+    key: match[1],
+    text: match[2].trim()
+  }));
+}
+
 function assertChoiceQuestion(question, message) {
   assert.strictEqual(question.answerType, "choice", `${message}：带 A/B/C/D 选项的题必须归类为选择题`);
   assert(hasChoiceOptions(question), `${message}：选择题选项应独立换行`);
-  assert.strictEqual(question.answer, "A", `${message}：选择题答案应使用选项字母`);
-  assert(question.acceptedAnswers?.includes("A"), `${message}：选择题应接受选项字母作答`);
+  assert(/^[A-D]$/.test(String(question.answer || "")), `${message}：选择题答案应使用当前正确选项字母`);
+  const selected = choiceOptions(question).find((option) => option.key === question.answer);
+  assert(selected, `${message}：答案字母应对应题干中的一个选项`);
+  assert.strictEqual(question.answerLabel, `${selected.key}. ${selected.text}`, `${message}：答案标签应跟随洗牌后的正确选项`);
+  assert(question.acceptedAnswers?.includes(question.answer), `${message}：选择题应接受选项字母作答`);
+  assert(question.acceptedAnswers?.includes(selected.text), `${message}：选择题应接受正确选项文本作答`);
+}
+
+function assertChoiceShuffleUsesAnswerLetter(point, message) {
+  const question = generator.makeQuestion({
+    uid: () => `cq-${point.id}-shuffle`,
+    pick: (items) => items[0],
+    shuffleOptions: (items) => {
+      const copy = [...items];
+      if (copy.length > 1) [copy[0], copy[1]] = [copy[1], copy[0]];
+      return copy;
+    }
+  }, point, {});
+  assertChoiceQuestion(question, message);
+  assert.notStrictEqual(question.answer, "A", `${message}：正确答案不能在选项洗牌后仍固定为 A`);
 }
 
 function assertInputQuestion(question, message) {
@@ -102,6 +130,7 @@ assert(question.explanation, "语文题应有解析");
 assert(Array.isArray(question.steps) && question.steps.length, "语文题应有答题步骤");
 assert.strictEqual(question.pointId, "c3-paragraph-reading", "语文题应保留知识点");
 assertChoiceQuestion(question, "语文默认考卷式题");
+assertChoiceShuffleUsesAnswerLetter(bank.pointMap["c1-pinyin"], "语文选择题洗牌");
 
 const pinyinQuestion = generator.makeQuestion({ uid: () => "cq-pinyin", pick: (items) => items[0] }, bank.pointMap["c1-pinyin"], {});
 assert(!/\b[a-z]+[1-5]\b/i.test(pinyinQuestion.text), "拼音题展示不能使用 ma1 这类数字声调");

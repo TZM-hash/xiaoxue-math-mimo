@@ -31,7 +31,7 @@
 
 - [ ] 创建 `window.MathCampChineseCurriculumData`，包含：
   - `curriculumProfile`
-  - `sourceWeights`
+  - `autoSourcePolicy`
   - `grades`
   - `sourceLabels`
 - [ ] 每个年级提供：
@@ -62,7 +62,7 @@
   - `curriculum.unit`
   - `curriculum.lessonTitle` 或 `curriculum.bookTitle`
   - `curriculum.knowledge`
-- [ ] 导出 `sourceWeights`、`curriculumData`、`pointsBySource`。
+- [ ] 导出 `autoSourcePolicy`、`curriculumData`、`pointsBySource`。
 - [ ] 运行 `$ErrorActionPreference = 'Stop'; node tests/chinese-question-bank.test.js`。
 
 ## 任务 4：实现题源比例调度与教材题生成

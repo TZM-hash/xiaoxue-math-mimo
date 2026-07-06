@@ -10,10 +10,10 @@
     copyrightNote: "题目材料使用原创表达或概述式知识点，不复制教材课文全文或推荐读物原文。"
   };
 
-  const sourceWeights = Object.freeze({
-    inTextbook: 0.5,
-    recommendedReading: 0.25,
-    extraOriginal: 0.25
+  const autoSourcePolicy = Object.freeze({
+    mode: "textbookOnly",
+    sources: ["inTextbook"],
+    note: "自动组卷只使用杭州教材同步知识点；推荐读物和原创拓展保留为专项题源。"
   });
 
   const sourceLabels = Object.freeze({
@@ -490,7 +490,7 @@
 
   window.MathCampChineseCurriculumData = {
     curriculumProfile,
-    sourceWeights,
+    autoSourcePolicy,
     sourceLabels,
     grades
   };

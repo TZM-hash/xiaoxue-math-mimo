@@ -42,6 +42,8 @@ for (const grade of [1, 2, 3, 4, 5, 6]) {
 assert(bank.pointMap["s1-life-plant-basic"], "一年级植物观察知识点应存在");
 assert(bank.pointMap["s6-earth-solar-system"], "六年级太阳系知识点应存在");
 
+vm.runInContext(fs.readFileSync(path.join(root, "js/question-spec-utils.js"), "utf8"), context, { filename: "js/question-spec-utils.js" });
+assert(context.window.MathCampQuestionSpec, "选择题规格工具应暴露为 MathCampQuestionSpec");
 vm.runInContext(fs.readFileSync(path.join(root, "js/science-question-generator.js"), "utf8"), context, { filename: "js/science-question-generator.js" });
 const generator = context.window.MathCampScienceQuestionGenerator;
 assert(generator, "科学生成器应暴露为 MathCampScienceQuestionGenerator");
@@ -50,13 +52,38 @@ function hasChoiceOptions(question) {
   return /\nA\. .+\nB\. .+\nC\. .+\nD\. /s.test(question.text || "");
 }
 
+function choiceOptions(question) {
+  return [...String(question.text || "").matchAll(/\n([A-D])\. ([^\n]+)/g)].map((match) => ({
+    key: match[1],
+    text: match[2].trim()
+  }));
+}
+
 function assertChoiceQuestion(question, message) {
   assert.strictEqual(question.subject, "science", `${message}：科学题应声明 subject=science`);
   assert.strictEqual(question.answerType, "choice", `${message}：带 A/B/C/D 选项的题必须归类为选择题`);
   assert(hasChoiceOptions(question), `${message}：选择题选项应独立换行`);
-  assert.strictEqual(question.answer, "A", `${message}：选择题答案应使用选项字母`);
-  assert(question.acceptedAnswers?.includes("A"), `${message}：选择题应接受选项字母作答`);
+  assert(/^[A-D]$/.test(String(question.answer || "")), `${message}：选择题答案应使用当前正确选项字母`);
+  const selected = choiceOptions(question).find((option) => option.key === question.answer);
+  assert(selected, `${message}：答案字母应对应题干中的一个选项`);
+  assert.strictEqual(question.answerLabel, `${selected.key}. ${selected.text}`, `${message}：答案标签应跟随洗牌后的正确选项`);
+  assert(question.acceptedAnswers?.includes(question.answer), `${message}：选择题应接受选项字母作答`);
+  assert(question.acceptedAnswers?.includes(selected.text), `${message}：选择题应接受正确选项文本作答`);
   assert(question.explanation && Array.isArray(question.steps) && question.steps.length >= 2, `${message}：应有解析和步骤`);
+}
+
+function assertChoiceShuffleUsesAnswerLetter(point, message) {
+  const question = generator.makeQuestion({
+    uid: () => `sq-${point.id}-shuffle`,
+    pick: (items) => items[0],
+    shuffleOptions: (items) => {
+      const copy = [...items];
+      if (copy.length > 1) [copy[0], copy[1]] = [copy[1], copy[0]];
+      return copy;
+    }
+  }, point, {});
+  assertChoiceQuestion(question, message);
+  assert.notStrictEqual(question.answer, "A", `${message}：正确答案不能在选项洗牌后仍固定为 A`);
 }
 
 function assertInputQuestion(question, message) {
@@ -74,6 +101,8 @@ function assertExamLikeQuestion(question, message) {
   assert(!/知识点规则|训练目标|最能体现这个知识点|随便|乱选|只凭感觉/.test(question.text), `${message}：科学题干应采用试卷式问法`);
   assert(/观察|实验|现象|证据|选择|判断|填入|哪一|哪个|什么|比较|记录/.test(question.text), `${message}：科学题干应有明确的科学作答动作`);
 }
+
+assertChoiceShuffleUsesAnswerLetter(bank.pointMap["s1-life-plant-basic"], "科学选择题洗牌");
 
 bank.points.forEach((point) => {
   const choice = generator.makeQuestion({ uid: () => `sq-${point.id}-choice`, pick: (items) => items[0] }, point, {});

@@ -1,52 +1,57 @@
+const fs = require("fs");
+const http = require("http");
+const net = require("net");
+const os = require("os");
 const path = require("path");
+const { spawn } = require("child_process");
 
-let chromium;
-try {
-  ({ chromium } = require("playwright"));
-} catch (_) {
-  console.log("Playwright is not installed; skipping browser smoke test.");
-  process.exit(0);
-}
+const requireBrowser = process.argv.includes("--required") || process.env.MATHCAMP_REQUIRE_BROWSER === "1";
+const root = path.resolve(__dirname, "..");
+const appUrl = "file:///" + path.join(root, "index.html").replace(/\\/g, "/");
+const viewports = [
+  { name: "desktop", width: 1366, height: 900 },
+  { name: "mobile", width: 390, height: 844 }
+];
 
-(async () => {
-  const root = path.resolve(__dirname, "..");
-  const url = "file:///" + path.join(root, "index.html").replace(/\\/g, "/");
-  const browser = await chromium.launch();
-  const viewports = [
-    { name: "desktop", width: 1366, height: 900 },
-    { name: "mobile", width: 390, height: 844 }
-  ];
-
-  try {
-    for (const viewport of viewports) {
-      const page = await browser.newPage({ viewport });
+async function runSmoke(createPage) {
+  for (const viewport of viewports) {
+    const page = await createPage(viewport);
+    try {
       await page.addInitScript(() => { window.__MATHCAMP_TEST__ = true; });
-      await page.goto(url);
+      await page.goto(appUrl);
       await page.waitForSelector("#practiceView", { timeout: 10000 });
       await page.waitForFunction(() => window.mathCampDebug && window.MathCampQuestionBankCoverage);
+
       const result = await page.evaluate(() => {
         const debug = window.mathCampDebug;
+        debug.selectSubject("math");
+        debug.els.gradeGrid.querySelectorAll("button")[3].click();
         const point = debug.pointMap["g4-angle-triangle"];
-        debug.state.grade = 4;
         debug.state.pointId = point.id;
         debug.state.setSize = 4;
+        debug.els.setSizeInput.value = "4";
         debug.els.pointSelect.value = point.id;
         debug.startNewSet({ autoFocus: false });
         const coverage = window.MathCampQuestionBankCoverage.buildCoverageReport(window.MathCampQuestionBank);
         return {
           setSize: debug.state.currentSet.length,
           hasDiagram: debug.state.currentSet.some((question) => question.diagram),
+          firstDiagramType: debug.state.currentSet[debug.state.index]?.diagram?.type || "",
+          diagramTypes: debug.state.currentSet.map((question) => question.diagram?.type || ""),
+          diagramHidden: document.getElementById("questionDiagram").hidden,
           diagramMarkup: document.getElementById("questionDiagram").innerHTML.length,
           highGaps: coverage.gaps.filter((gap) => gap.level === "high").length
         };
       });
+
       if (result.setSize !== 4) throw new Error(`${viewport.name}: practice set did not build`);
-      if (!result.hasDiagram || !result.diagramMarkup) throw new Error(`${viewport.name}: geometry diagram did not render`);
+      if (!result.hasDiagram || !result.diagramMarkup) throw new Error(`${viewport.name}: geometry diagram did not render ${JSON.stringify(result)}`);
       if (result.highGaps) throw new Error(`${viewport.name}: question bank has high coverage gaps`);
+
       const chineseResult = await page.evaluate(() => {
         const debug = window.mathCampDebug;
         debug.selectSubject("chinese");
-        debug.state.grade = 3;
+        debug.els.gradeGrid.querySelectorAll("button")[2].click();
         debug.state.pointId = "c3-paragraph-reading";
         debug.state.setSize = 3;
         debug.els.setSizeInput.value = "3";
@@ -59,16 +64,280 @@ try {
           hasExplanation: debug.state.currentSet.every((question) => question.explanation && question.steps && question.steps.length)
         };
       });
+
       if (chineseResult.subject !== "chinese") throw new Error(`${viewport.name}: Chinese subject did not activate`);
       if (chineseResult.setSize !== 3) throw new Error(`${viewport.name}: Chinese practice set did not build`);
       if (!chineseResult.hasChinesePoint || !chineseResult.hasExplanation) throw new Error(`${viewport.name}: Chinese questions missing metadata`);
+    } finally {
       await page.close();
     }
+  }
+}
+
+async function runWithPlaywright() {
+  let chromium;
+  try {
+    ({ chromium } = require("playwright"));
+  } catch (_) {
+    return false;
+  }
+
+  const browser = await chromium.launch();
+  try {
+    await runSmoke((viewport) => browser.newPage({ viewport }));
   } finally {
     await browser.close();
   }
+  console.log("Browser smoke tests passed with Playwright.");
+  return true;
+}
 
-  console.log("Browser smoke tests passed.");
+function requestJson(url, options = {}) {
+  return new Promise((resolve, reject) => {
+    const req = http.request(url, options, (res) => {
+      let body = "";
+      res.setEncoding("utf8");
+      res.on("data", (chunk) => { body += chunk; });
+      res.on("end", () => {
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          reject(new Error(`HTTP ${res.statusCode} from ${url}: ${body}`));
+          return;
+        }
+        try {
+          resolve(JSON.parse(body));
+        } catch (error) {
+          reject(error);
+        }
+      });
+    });
+    req.on("error", reject);
+    req.end();
+  });
+}
+
+async function reservePort() {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.listen(0, "127.0.0.1", () => {
+      const { port } = server.address();
+      server.close(() => resolve(port));
+    });
+    server.on("error", reject);
+  });
+}
+
+function commandExists(command) {
+  const pathDirs = (process.env.PATH || "").split(path.delimiter);
+  const extensions = process.platform === "win32"
+    ? (process.env.PATHEXT || ".EXE;.CMD;.BAT").split(";")
+    : [""];
+
+  return pathDirs.some((dir) => {
+    if (!dir) return false;
+    return extensions.some((extension) => fs.existsSync(path.join(dir, command + extension.toLowerCase()))
+      || fs.existsSync(path.join(dir, command + extension.toUpperCase())));
+  });
+}
+
+function browserCandidates() {
+  const envPath = process.env.MATHCAMP_CHROMIUM_PATH || process.env.CHROME_PATH;
+  const programFiles = process.env.ProgramFiles || process.env.PROGRAMFILES;
+  const programFilesX86 = process.env["ProgramFiles(x86)"] || process.env["PROGRAMFILES(X86)"];
+  const candidates = [
+    envPath,
+    process.platform === "win32" && programFiles && path.join(programFiles, "Google/Chrome/Application/chrome.exe"),
+    process.platform === "win32" && programFilesX86 && path.join(programFilesX86, "Google/Chrome/Application/chrome.exe"),
+    process.platform === "win32" && process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, "Google/Chrome/Application/chrome.exe"),
+    process.platform === "win32" && programFiles && path.join(programFiles, "Microsoft/Edge/Application/msedge.exe"),
+    process.platform === "win32" && programFilesX86 && path.join(programFilesX86, "Microsoft/Edge/Application/msedge.exe"),
+    process.platform === "darwin" && "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    process.platform === "darwin" && "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+    process.platform !== "win32" && "google-chrome",
+    process.platform !== "win32" && "chromium",
+    process.platform !== "win32" && "chromium-browser",
+    process.platform !== "win32" && "microsoft-edge"
+  ].filter(Boolean);
+
+  return candidates.filter((candidate) => candidate.includes(path.sep) ? fs.existsSync(candidate) : commandExists(candidate));
+}
+
+class CdpPage {
+  constructor(webSocketUrl, viewport) {
+    this.id = 1;
+    this.pending = new Map();
+    this.loaded = false;
+    this.viewport = viewport;
+    this.socket = new WebSocket(webSocketUrl);
+    this.opened = new Promise((resolve, reject) => {
+      this.socket.addEventListener("open", resolve, { once: true });
+      this.socket.addEventListener("error", reject, { once: true });
+    });
+    this.socket.addEventListener("message", (event) => this.handleMessage(event));
+    this.socket.addEventListener("close", () => {
+      for (const { reject } of this.pending.values()) reject(new Error("CDP socket closed"));
+      this.pending.clear();
+    });
+  }
+
+  handleMessage(event) {
+    const message = JSON.parse(event.data);
+    if (message.method === "Page.loadEventFired") {
+      this.loaded = true;
+      return;
+    }
+    if (!message.id || !this.pending.has(message.id)) return;
+    const { resolve, reject } = this.pending.get(message.id);
+    this.pending.delete(message.id);
+    if (message.error) {
+      reject(new Error(message.error.message));
+    } else {
+      resolve(message.result || {});
+    }
+  }
+
+  async command(method, params = {}) {
+    await this.opened;
+    const id = this.id++;
+    const payload = JSON.stringify({ id, method, params });
+    return new Promise((resolve, reject) => {
+      this.pending.set(id, { resolve, reject });
+      this.socket.send(payload);
+    });
+  }
+
+  async addInitScript(fn) {
+    await this.command("Page.enable");
+    await this.command("Runtime.enable");
+    await this.command("Page.addScriptToEvaluateOnNewDocument", { source: `(${fn.toString()})();` });
+    await this.command("Emulation.setDeviceMetricsOverride", {
+      width: this.viewport.width,
+      height: this.viewport.height,
+      deviceScaleFactor: 1,
+      mobile: this.viewport.width < 700
+    });
+  }
+
+  async goto(url) {
+    this.loaded = false;
+    await this.command("Page.navigate", { url });
+    await this.waitFor(() => this.loaded, { timeout: 10000 });
+  }
+
+  async evaluate(fn) {
+    const result = await this.command("Runtime.evaluate", {
+      expression: `(${fn.toString()})();`,
+      awaitPromise: true,
+      returnByValue: true
+    });
+    if (result.exceptionDetails) {
+      const detail = result.exceptionDetails.exception?.description
+        || result.exceptionDetails.exception?.value
+        || result.exceptionDetails.text
+        || "Evaluation failed";
+      throw new Error(detail);
+    }
+    return result.result ? result.result.value : undefined;
+  }
+
+  async waitForSelector(selector, options = {}) {
+    await this.waitForFunction((target) => Boolean(document.querySelector(target)), options, selector);
+  }
+
+  async waitForFunction(fn, options = {}, arg) {
+    const expression = arg === undefined
+      ? `(${fn.toString()})();`
+      : `(${fn.toString()})(${JSON.stringify(arg)});`;
+    await this.waitFor(async () => {
+      const result = await this.command("Runtime.evaluate", {
+        expression,
+        awaitPromise: true,
+        returnByValue: true
+      });
+      return Boolean(result.result && result.result.value);
+    }, options);
+  }
+
+  async waitFor(predicate, options = {}) {
+    const timeout = options.timeout || 10000;
+    const started = Date.now();
+    while (Date.now() - started < timeout) {
+      if (await predicate()) return;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    throw new Error("Timed out waiting for browser condition");
+  }
+
+  async close() {
+    if (this.socket.readyState === WebSocket.OPEN) {
+      this.socket.close();
+    }
+  }
+}
+
+async function runWithSystemBrowser() {
+  const [executable] = browserCandidates();
+  if (!executable) return false;
+
+  const port = await reservePort();
+  const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "mathcamp-browser-"));
+  const browser = spawn(executable, [
+    "--headless=new",
+    "--disable-gpu",
+    "--disable-background-networking",
+    "--no-first-run",
+    "--no-default-browser-check",
+    `--remote-debugging-port=${port}`,
+    `--user-data-dir=${userDataDir}`,
+    "about:blank"
+  ], { stdio: "ignore" });
+
+  try {
+    await waitForDevTools(port, browser);
+    await runSmoke(async (viewport) => {
+      const target = await newTarget(port);
+      return new CdpPage(target.webSocketDebuggerUrl, viewport);
+    });
+  } finally {
+    browser.kill();
+    await new Promise((resolve) => browser.once("exit", resolve));
+    fs.rmSync(userDataDir, { recursive: true, force: true });
+  }
+
+  console.log(`Browser smoke tests passed with ${path.basename(executable)}.`);
+  return true;
+}
+
+async function waitForDevTools(port, browser) {
+  const started = Date.now();
+  while (Date.now() - started < 10000) {
+    if (browser.exitCode !== null) {
+      throw new Error(`Browser exited before DevTools became available: ${browser.exitCode}`);
+    }
+    try {
+      await requestJson(`http://127.0.0.1:${port}/json/version`);
+      return;
+    } catch (_) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
+  throw new Error("Timed out waiting for browser DevTools endpoint");
+}
+
+async function newTarget(port) {
+  try {
+    return await requestJson(`http://127.0.0.1:${port}/json/new?about:blank`, { method: "PUT" });
+  } catch (_) {
+    return requestJson(`http://127.0.0.1:${port}/json/new?about:blank`);
+  }
+}
+
+(async () => {
+  if (await runWithPlaywright()) return;
+  if (await runWithSystemBrowser()) return;
+
+  const message = "No Playwright install or Chrome/Edge executable was found; skipping browser smoke test.";
+  if (requireBrowser) throw new Error(message);
+  console.log(message);
 })().catch((error) => {
   console.error(error);
   process.exit(1);

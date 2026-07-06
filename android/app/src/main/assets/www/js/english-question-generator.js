@@ -68,15 +68,14 @@
     };
   }
 
-  function choiceQuestion(point, spec) {
-    const labels = ["A", "B", "C", "D"];
-    const options = [spec.correct, ...spec.wrongs].slice(0, 4);
+  function choiceQuestion(deps, point, spec) {
+    const layout = window.MathCampQuestionSpec.choiceLayout(deps, { correct: spec.correct, wrongs: spec.wrongs });
     return {
-      text: `${spec.prompt}\n${options.map((option, index) => `${labels[index]}. ${option}`).join("\n")}`,
+      text: `${spec.prompt}\n${layout.optionText}`,
       answerType: "choice",
-      answer: "A",
-      acceptedAnswers: ["A", spec.correct, `A.${spec.correct}`, `A. ${spec.correct}`],
-      answerLabel: `A. ${spec.correct}`,
+      answer: layout.answer,
+      acceptedAnswers: layout.acceptedAnswers(),
+      answerLabel: layout.answerLabel,
       questionType: spec.questionType,
       audioPrompt: spec.audioPrompt,
       explanation: spec.explanation,
@@ -2349,7 +2348,7 @@
       const candidates = preferredFormat ? allSpecs.filter((item) => item.format === preferredFormat) : allSpecs;
       spec = choose(deps || {}, candidates.length ? candidates : allSpecs);
     }
-    const data = spec.format === "input" ? inputQuestion(point, spec) : choiceQuestion(point, spec);
+    const data = spec.format === "input" ? inputQuestion(point, spec) : choiceQuestion(deps || {}, point, spec);
     return baseQuestion(deps || {}, point, data);
   }
 

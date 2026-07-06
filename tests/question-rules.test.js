@@ -167,12 +167,15 @@ vm.createContext(context);
   "js/question-bank-coverage.js",
   "js/learning-insights.js",
   "js/pet-economy.js",
+  "js/question-spec-utils.js",
   "js/chinese-question-generator.js",
   "js/english-question-generator.js",
   "js/science-question-generator.js",
   "js/question-generator.js",
   "js/handwriting-input.js",
   "js/practice-engine.js",
+  "js/question-rules-engine.js",
+  "js/question-interaction.js",
   "js/report.js",
   "js/pet.js",
   "js/import-export.js",
@@ -1364,7 +1367,7 @@ function runCoverageAndInsightTests() {
 }
 
 function runUtf8EncodingTests() {
-  const files = ["js/app.js", "js/cloud-sync.js", "js/runtime-config.js", "js/question-bank-coverage.js", "js/learning-insights.js", "js/pet-economy.js", "js/subject-registry.js", "js/chinese-question-bank.js", "js/chinese-question-generator.js", "js/english-question-bank.js", "js/english-question-generator.js", "js/science-curriculum-data.js", "js/science-question-bank.js", "js/science-question-generator.js", "js/handwriting-input.js", "index.html", "tests/question-rules.test.js", "tests/frontend-layout.test.js", "tests/english-question-bank.test.js", "tests/science-question-bank.test.js"];
+  const files = ["js/app.js", "js/cloud-sync.js", "js/runtime-config.js", "js/question-bank-coverage.js", "js/learning-insights.js", "js/pet-economy.js", "js/question-spec-utils.js", "js/question-rules-engine.js", "js/question-interaction.js", "js/subject-registry.js", "js/chinese-question-bank.js", "js/chinese-question-generator.js", "js/english-question-bank.js", "js/english-question-generator.js", "js/science-curriculum-data.js", "js/science-question-bank.js", "js/science-question-generator.js", "js/handwriting-input.js", "index.html", "tests/question-rules.test.js", "tests/frontend-layout.test.js", "tests/english-question-bank.test.js", "tests/science-question-bank.test.js"];
   const mojibakeTokens = ["\u93c1", "\u93b7", "\u7edb", "\u95bf", "\u9983", "\u8133", "\u923f", "\u9241", "\u9286", "\u4fd9", "\u6992", "\u5744", "\u6624", "\ufffd"];
   const mojibake = new RegExp(mojibakeTokens.join("|"));
   files.forEach((file) => {

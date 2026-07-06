@@ -112,6 +112,7 @@ assertContains(html, 'src="js/science-curriculum-data.js"', "页面应加载科�
 assertContains(html, 'src="js/science-question-bank.js"', "页面应加载科学题库");
 assertContains(html, 'src="js/subject-registry.js"', "页面应加载学科注册表");
 assertContains(html, 'src="js/chinese-question-generator.js"', "页面应加载语文题目生成器");
+assertContains(html, 'src="js/question-spec-utils.js"', "页面应加载选择题规格工具");
 assertContains(html, 'src="js/english-question-generator.js"', "页面应加载英语题目生成器");
 assertContains(html, 'src="js/science-question-generator.js"', "页面应加载科学题目生成器");
 assertNotContains(html, 'src="js/handwriting-input.js"', "页面不应加载手写输入模块");
@@ -134,6 +135,8 @@ assertNotContains(html, 'id="weekGrid"', "学习报告不应保留近 7 天柱�
 assertNotContains(html, 'id="historyList"', "学习报告不应保留最近记录列表");
 assertContains(html, 'src="js/question-generator.js"', "页面应加载拆分后的题目生成模块");
 assertContains(html, 'src="js/practice-engine.js"', "页面应加载拆分后的练习引擎模块");
+assertContains(html, 'src="js/question-rules-engine.js"', "页面应加载拆分后的题目规则引擎");
+assertContains(html, 'src="js/question-interaction.js"', "页面应加载拆分后的答题交互模块");
 assertContains(html, 'src="js/report.js"', "页面应加载拆分后的报告模块");
 assertContains(html, 'src="js/pet.js"', "页面应加载拆分后的宠物模块");
 assertContains(html, 'src="js/import-export.js"', "页面应加载拆分后的导入导出模块");
@@ -498,6 +501,7 @@ assertContains(css, "#reportView .report-visual-panel:first-child {\n        gri
   "js/question-bank-coverage.js",
   "js/learning-insights.js",
   "js/pet-economy.js",
+  "js/question-spec-utils.js",
   "js/subject-registry.js",
   "js/chinese-question-bank.js",
   "js/chinese-question-generator.js",
@@ -508,6 +512,8 @@ assertContains(css, "#reportView .report-visual-panel:first-child {\n        gri
   "js/science-question-generator.js",
   "js/question-generator.js",
   "js/practice-engine.js",
+  "js/question-rules-engine.js",
+  "js/question-interaction.js",
   "js/report.js",
   "js/pet.js",
   "js/import-export.js",
@@ -542,8 +548,11 @@ assertContains(css, "#reportView .report-visual-panel:first-child {\n        gri
   "js/question-enhancements.js",
   "js/pet-dressup-meta.js",
   "js/pet-economy.js",
+  "js/question-spec-utils.js",
   "js/question-generator.js",
   "js/practice-engine.js",
+  "js/question-rules-engine.js",
+  "js/question-interaction.js",
   "js/report.js",
   "js/pet.js",
   "js/import-export.js",
