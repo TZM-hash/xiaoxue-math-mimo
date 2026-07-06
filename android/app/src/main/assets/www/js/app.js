@@ -493,6 +493,28 @@ const STORE = {
     function round1(value) {
       return Math.round(value * 10) / 10;
     }
+    // 把分数约分成最简形式，返回 { numerator, denominator, label, answer, accepted }。
+    // 用于分数题：answer 保留精确小数值，label 用最简分数显示，
+    // accepted 汇总所有可判对的写法（最简分数、原始分数、能整除时的精确小数）。
+    function simplifyFraction(numerator, denominator) {
+      const gcd = (x, y) => (y ? gcd(y, x % y) : Math.abs(x) || 1);
+      const divisor = gcd(numerator, denominator);
+      const n = numerator / divisor;
+      const d = denominator / divisor;
+      const label = d === 1 ? String(n) : `${n}/${d}`;
+      const raw = `${numerator}/${denominator}`;
+      const answer = numerator / denominator;
+      const accepted = [label, raw];
+      // 仅当小数能有限表示（约分后分母只含 2、5 因子）时，才接受小数写法
+      let dd = d;
+      while (dd % 2 === 0) dd /= 2;
+      while (dd % 5 === 0) dd /= 5;
+      if (dd === 1) {
+        const dec = String(answer);
+        if (!accepted.includes(dec)) accepted.push(dec);
+      }
+      return { numerator: n, denominator: d, label, raw, answer, accepted: [...new Set(accepted)], terminating: dd === 1 };
+    }
     function formatAnswer(value, label) {
       if (label) return label;
       const number = Number(value);
@@ -3818,12 +3840,14 @@ const STORE = {
             const d = pick([6, 8, 10, 12]);
             const a = rand(1, d - 2);
             const b = rand(1, d - a - 1);
+            const simplified = simplifyFraction(a + b, d);
             return baseQuestion(point, {
               text: `${a}/${d} + ${b}/${d} = ?`,
-              answer: round1((a + b) / d),
-              answerLabel: `${a + b}/${d}`,
-              explanation: `同分母分数相加，分母不变，分子相加。${a} + ${b} = ${a + b}。`,
-              steps: [`分母都是 ${d}。`, `分子相加得到 ${a + b}。`]
+              answer: (a + b) / d,
+              answerLabel: simplified.label,
+              acceptedAnswers: simplified.accepted,
+              explanation: `同分母分数相加，分母不变，分子相加。${a} + ${b} = ${a + b}，得 ${a + b}/${d}${simplified.label !== simplified.raw ? `，化简后是 ${simplified.label}` : ""}。`,
+              steps: [`分母都是 ${d}。`, `分子相加得到 ${a + b}，结果 ${a + b}/${d}${simplified.label !== simplified.raw ? ` 约分成 ${simplified.label}` : ""}。`]
             });
           }
         ],
@@ -3840,7 +3864,7 @@ const STORE = {
         ],
         percent: [
           () => {
-            const price = rand(60, 300);
+            const price = rand(6, 30) * 10;
             const discount = pick([
               { label: "七折", rate: 0.7 },
               { label: "七五折", rate: 0.75 },
@@ -3873,16 +3897,17 @@ const STORE = {
         ],
         statistics: [
           () => {
-            const a = rand(12, 40);
-            const b = rand(12, 40);
-            const c = rand(12, 40);
-            const d = rand(12, 40);
+            // 先定整数平均值，再造 4 个和为 4×均值的数据，保证能除尽
+            const mean = rand(15, 36);
+            const o1 = rand(-6, 6), o2 = rand(-6, 6), o3 = rand(-6, 6);
+            const a = mean + o1, b = mean + o2, c = mean + o3, d = mean - o1 - o2 - o3;
+            const total = a + b + c + d;
             return baseQuestion(point, {
               text: `四次跳绳分别是 ${a}、${b}、${c}、${d} 下，平均每次多少下？`,
-              answer: round1((a + b + c + d) / 4),
+              answer: mean,
               word: true,
-              explanation: `平均数 = 总数 ÷ 份数。先求总数，再除以 4。`,
-              steps: [`总数是 ${a + b + c + d}。`, `${a + b + c + d} ÷ 4 = ${formatAnswer(round1((a + b + c + d) / 4))}。`]
+              explanation: `平均数 = 总数 ÷ 份数。总数是 ${total}，${total} ÷ 4 = ${mean}。`,
+              steps: [`总数是 ${a} + ${b} + ${c} + ${d} = ${total}。`, `${total} ÷ 4 = ${mean}。`]
             });
           }
         ],
@@ -4091,12 +4116,14 @@ const STORE = {
             const d = pick([5, 6, 8, 10, 12]);
             const a = rand(2, d - 1);
             const b = rand(1, a - 1);
+            const simplified = simplifyFraction(a - b, d);
             return baseQuestion(point, {
-              text: `${a}/${d} - ${b}/${d} = ?（可填小数）`,
-              answer: round1((a - b) / d),
-              answerLabel: `${a - b}/${d}`,
-              explanation: `同分母分数相减，分母不变，分子相减。${a} - ${b} = ${a - b}。`,
-              steps: [`分母都是 ${d}。`, `分子相减：${a} - ${b} = ${a - b}。`]
+              text: `${a}/${d} - ${b}/${d} = ?${simplified.terminating ? "（可填分数或小数）" : "（用最简分数表示）"}`,
+              answer: (a - b) / d,
+              answerLabel: simplified.label,
+              acceptedAnswers: simplified.accepted,
+              explanation: `同分母分数相减，分母不变，分子相减。${a} - ${b} = ${a - b}，得 ${a - b}/${d}${simplified.label !== simplified.raw ? `，化简后是 ${simplified.label}` : ""}。`,
+              steps: [`分母都是 ${d}。`, `分子相减：${a} - ${b} = ${a - b}，结果 ${a - b}/${d}${simplified.label !== simplified.raw ? ` 约分成 ${simplified.label}` : ""}。`]
             });
           }
         ],
@@ -4114,13 +4141,13 @@ const STORE = {
         ],
         percent: [
           () => {
-            const price = rand(80, 360);
+            const price = rand(8, 36) * 10;
             const rate = pick([15, 20, 25, 30, 40]);
             return baseQuestion(point, {
               text: `${price} 元的商品降价 ${rate}%，降价多少元？`,
               answer: round1(price * rate / 100),
               explanation: `降价金额 = 原价 × 降价百分比。${price} × ${rate}% = ${formatAnswer(round1(price * rate / 100))}。`,
-              steps: [`把 ${rate}% 看成 ${rate}/100。`, `用 ${price} × ${rate}%。`]
+              steps: [`把 ${rate}% 看成 ${rate}/100。`, `用 ${price} × ${rate}% = ${formatAnswer(round1(price * rate / 100))}。`]
             });
           }
         ],
@@ -4139,15 +4166,17 @@ const STORE = {
         ],
         statistics: [
           () => {
-            const a = rand(18, 40);
-            const b = rand(18, 40);
-            const c = rand(18, 40);
+            // 先定整数平均值，再造 3 个和为 3×均值的数据，保证能除尽
+            const mean = rand(20, 38);
+            const o1 = rand(-8, 8), o2 = rand(-8, 8);
+            const a = mean + o1, b = mean + o2, c = mean - o1 - o2;
+            const total = a + b + c;
             return baseQuestion(point, {
               text: `三天分别读书 ${a}、${b}、${c} 页，平均每天读多少页？`,
-              answer: round1((a + b + c) / 3),
+              answer: mean,
               word: true,
-              explanation: `平均数 = 总数 ÷ 份数。(${a} + ${b} + ${c}) ÷ 3 = ${formatAnswer(round1((a + b + c) / 3))}。`,
-              steps: [`总页数：${a + b + c} 页。`, `平均：${a + b + c} ÷ 3。`]
+              explanation: `平均数 = 总数 ÷ 份数。(${a} + ${b} + ${c}) ÷ 3 = ${total} ÷ 3 = ${mean}。`,
+              steps: [`总页数：${a} + ${b} + ${c} = ${total} 页。`, `平均：${total} ÷ 3 = ${mean} 页。`]
             });
           }
         ],
@@ -4699,16 +4728,19 @@ const STORE = {
           const a = rand(1, Math.floor(d / 2));
           const b = rand(1, d - a - 1);
           const c = rand(1, Math.max(1, a + b - 1));
+          const simplified = simplifyFraction(a + b - c, d);
+          const raw = simplified.raw;
           return baseQuestion(point, {
-            text: `${a}/${d} + ${b}/${d} - ${c}/${d} = ?（可填小数）`,
-            answer: round1((a + b - c) / d),
-            answerLabel: `${a + b - c}/${d}`,
-            explanation: `同分母分数两步加减，分母不变，分子按顺序加减。`,
-            steps: [`第一步：${a}/${d} + ${b}/${d} = ${a + b}/${d}。`, `第二步：${a + b}/${d} - ${c}/${d} = ${a + b - c}/${d}。`],
+            text: `${a}/${d} + ${b}/${d} - ${c}/${d} = ?${simplified.terminating ? "（可填分数或小数）" : "（用最简分数表示）"}`,
+            answer: (a + b - c) / d,
+            answerLabel: simplified.label,
+            acceptedAnswers: simplified.accepted,
+            explanation: `同分母分数两步加减，分母不变，分子按顺序加减，得 ${raw}${simplified.label !== raw ? `，化简后是 ${simplified.label}` : ""}。`,
+            steps: [`第一步：${a}/${d} + ${b}/${d} = ${a + b}/${d}。`, `第二步：${a + b}/${d} - ${c}/${d} = ${raw}${simplified.label !== raw ? ` 约分成 ${simplified.label}` : ""}。`],
             templateType: "两步计算"
           });
         }
-        const total = rand(120, 600);
+        const total = rand(12, 60) * 10;
         const rate = pick([10, 15, 20, 25, 30, 40]);
         const extra = rand(8, 60);
         return baseQuestion(point, {
@@ -5722,13 +5754,15 @@ const STORE = {
         const denominator = pick([4, 5, 6, 8, 10, 12]);
         let a = rand(1, Math.floor(denominator / 2));
         let b = rand(1, denominator - a - 1);
-        const answer = round1((a + b) / denominator);
+        const simplified = simplifyFraction(a + b, denominator);
+        const answer = (a + b) / denominator;
         return baseQuestion(point, {
-          text: `${a}/${denominator} + ${b}/${denominator} = ?（可填小数）`,
+          text: `${a}/${denominator} + ${b}/${denominator} = ?${simplified.terminating ? "（可填分数或小数）" : "（用最简分数表示）"}`,
           answer,
-          answerLabel: `${a + b}/${denominator}`,
-          explanation: `同分母分数相加，分母不变，只把分子相加。${a} + ${b} = ${a + b}，所以答案是 ${a + b}/${denominator}。`,
-          steps: [`看分母：两个分母都是 ${denominator}。`, `分母不变。`, `分子相加：${a} + ${b} = ${a + b}。`]
+          answerLabel: simplified.label,
+          acceptedAnswers: simplified.accepted,
+          explanation: `同分母分数相加，分母不变，只把分子相加。${a} + ${b} = ${a + b}，得 ${a + b}/${denominator}${simplified.label !== simplified.raw ? `，化简后是 ${simplified.label}` : ""}。`,
+          steps: [`看分母：两个分母都是 ${denominator}。`, `分母不变，分子相加：${a} + ${b} = ${a + b}。`, `结果是 ${a + b}/${denominator}${simplified.label !== simplified.raw ? `，约分成最简 ${simplified.label}` : ""}。`]
         });
       }
       const total = rand(24, 120 + level * 20);
@@ -5817,7 +5851,7 @@ const STORE = {
     function makePercent(point, level) {
       const variants = [
         () => {
-          const price = rand(20, 120 + level * 40);
+          const price = rand(1, 6 + level * 2) * 20;
           const discount = pick([0.5, 0.6, 0.75, 0.8, 0.85, 0.9]);
           const answer = round1(price * discount);
           return baseQuestion(point, {
@@ -5829,7 +5863,7 @@ const STORE = {
           });
         },
         () => {
-          const total = rand(80, 360);
+          const total = rand(4, 18) * 20;
           const percent = pick([15, 20, 25, 30, 40, 50, 60]);
           const answer = round1(total * percent / 100);
           return baseQuestion(point, {
@@ -5841,7 +5875,7 @@ const STORE = {
           });
         },
         () => {
-          const oldPrice = rand(60, 260);
+          const oldPrice = rand(3, 13) * 20;
           const percent = pick([10, 15, 20, 25, 30]);
           const increase = round1(oldPrice * percent / 100);
           const answer = round1(oldPrice + increase);
@@ -5872,29 +5906,32 @@ const STORE = {
           });
           },
           () => {
-            const actualM = rand(120, 900);
             const scale = pick([1000, 2000, 5000, 10000]);
-            const answer = round1(actualM * 100 / scale);
+            // 先定整数图上距离，反推实际距离，保证换算不产生多余小数
+            const mapCm = rand(2, 12);
+            const actualM = mapCm * scale / 100;
+            const answer = mapCm;
             return baseQuestion(point, {
               text: `实际距离 ${actualM} 米，比例尺 1:${scale}，图上距离是多少厘米？`,
               answer,
               word: true,
-              explanation: `先把实际距离换成厘米，再除以比例尺中的 ${scale}。`,
-              steps: [`${actualM} 米 = ${actualM * 100} cm。`, `图上距离：${actualM * 100} ÷ ${scale} = ${formatAnswer(answer)} cm。`]
+              explanation: `先把实际距离换成厘米，再除以比例尺中的 ${scale}。${actualM} 米 = ${actualM * 100} cm，${actualM * 100} ÷ ${scale} = ${mapCm} cm。`,
+              steps: [`${actualM} 米 = ${actualM * 100} cm。`, `图上距离：${actualM * 100} ÷ ${scale} = ${mapCm} cm。`]
             });
           },
           () => {
             const scale = pick([5000, 10000, 20000]);
-            const actualM = rand(200, 1200);
-            const mapCm = round1(actualM * 100 / scale);
+            // 直接取整数图上距离，避免反推产生小数
+            const mapCm = rand(2, 8);
             const extraCm = pick([1, 2, 3]);
-            const answer = round1((mapCm + extraCm) * scale / 100);
+            const totalCm = mapCm + extraCm;
+            const answer = totalCm * scale / 100;
             return baseQuestion(point, {
-              text: `比例尺 1:${scale} 的图上，原来 ${formatAnswer(mapCm)} cm，又向前画 ${extraCm} cm，新的实际距离是多少米？`,
+              text: `比例尺 1:${scale} 的图上，原来 ${mapCm} cm，又向前画 ${extraCm} cm，新的实际距离是多少米？`,
               answer,
               word: true,
-              explanation: `先求新的图上距离，再按比例尺换算实际距离。图上距离是 ${formatAnswer(mapCm)} + ${extraCm} = ${formatAnswer(round1(mapCm + extraCm))} cm。`,
-              steps: [`图上距离合计 ${formatAnswer(round1(mapCm + extraCm))} cm。`, `实际厘米：${formatAnswer(round1(mapCm + extraCm))} × ${scale}。`, `换成米是 ${formatAnswer(answer)} 米。`],
+              explanation: `先求新的图上距离，再按比例尺换算实际距离。图上距离是 ${mapCm} + ${extraCm} = ${totalCm} cm，实际 ${totalCm} × ${scale} ÷ 100 = ${answer} 米。`,
+              steps: [`图上距离合计 ${totalCm} cm。`, `实际厘米：${totalCm} × ${scale} = ${totalCm * scale} cm。`, `换成米：${totalCm * scale} ÷ 100 = ${answer} 米。`],
               templateType: "比例尺两步"
             });
           }
@@ -6038,38 +6075,56 @@ const STORE = {
         word: true,
         templateType: data.templateType || "列式应用"
       });
+      // 情境词库：每个情境把"事物 + 量词 + 容器 + 容器量词 + 动词"绑定在一起，
+      // 保证换情境时量词、动词依然通顺（避免"3 块书""每书架"这类语病）。
+      // item=事物, mw=事物量词, holder=容器, hmw=容器量词, put=放入动词, take=取出动词。
+      const SCENARIOS = [
+        { item: "贴纸", mw: "张", holder: "盒子", hmw: "个", put: "放进", take: "用掉" },
+        { item: "故事书", mw: "本", holder: "书架", hmw: "个", put: "放上", take: "借走" },
+        { item: "饼干", mw: "块", holder: "袋子", hmw: "个", put: "装进", take: "吃掉" },
+        { item: "苹果", mw: "个", holder: "果篮", hmw: "个", put: "放入", take: "拿走" },
+        { item: "彩笔", mw: "支", holder: "笔筒", hmw: "个", put: "插入", take: "取走" },
+        { item: "邮票", mw: "枚", holder: "集邮册", hmw: "本", put: "贴上", take: "送出" },
+        { item: "糖果", mw: "颗", holder: "糖罐", hmw: "个", put: "放进", take: "分掉" },
+        { item: "金鱼", mw: "条", holder: "鱼缸", hmw: "个", put: "放养", take: "捞走" }
+      ];
+      const scene = () => pick(SCENARIOS);
       const lowAddSub = [
         () => {
           const total = point.id === "g1-simple-word" ? rand(8, 20) : rand(28, 96);
           const used = rand(2, Math.floor(total / 2));
+          const s = scene();
           return baseQuestion(point, {
-            text: `盒子里原来有 ${total} 颗贴纸，用掉 ${used} 颗，还剩多少颗？`,
+            text: `${s.holder}里原来有 ${total} ${s.mw}${s.item}，${s.take} ${used} ${s.mw}，还剩多少${s.mw}？`,
             answer: total - used,
             word: true,
             explanation: `题目问"还剩"，说明要从原来的数量里拿走一部分，用减法。${total} - ${used} = ${total - used}。`,
-            steps: [`原来有 ${total} 颗。`, `用掉 ${used} 颗，要做减法。`, `${total} - ${used} = ${total - used} 颗。`]
+            steps: [`原来有 ${total} ${s.mw}。`, `${s.take} ${used} ${s.mw}，要做减法。`, `${total} - ${used} = ${total - used} ${s.mw}。`]
           });
         },
         () => {
           const a = point.id === "g1-simple-word" ? rand(3, 9) : rand(12, 45);
           const b = point.id === "g1-simple-word" ? rand(2, 20 - a) : rand(8, 45);
+          const s = scene();
           return baseQuestion(point, {
-            text: `书架上有 ${a} 本故事书，又放上 ${b} 本。一共有多少本？`,
+            text: `${s.holder}里有 ${a} ${s.mw}${s.item}，又${s.put} ${b} ${s.mw}。一共有多少${s.mw}？`,
             answer: a + b,
             word: true,
             explanation: `题目问"一共"，就是把两部分合起来，用加法。${a} + ${b} = ${a + b}。`,
-            steps: [`先找到两部分：${a} 本和 ${b} 本。`, `求一共用加法。`, `${a} + ${b} = ${a + b} 本。`]
+            steps: [`先找到两部分：${a} ${s.mw}和 ${b} ${s.mw}。`, `求一共用加法。`, `${a} + ${b} = ${a + b} ${s.mw}。`]
           });
         },
         () => {
           const a = point.id === "g1-simple-word" ? rand(4, 12) : rand(16, 50);
           const diff = point.id === "g1-simple-word" ? rand(2, 8) : rand(6, 22);
+          const s = scene();
+          const who = pick([["小猫", "小兔"], ["哥哥", "弟弟"], ["红队", "蓝队"], ["小明", "小红"]]);
           return baseQuestion(point, {
-            text: `小猫有 ${a + diff} 枚贴纸，小兔有 ${a} 枚。小猫比小兔多多少枚？`,
+            text: `${who[0]}有 ${a + diff} ${s.mw}${s.item}，${who[1]}有 ${a} ${s.mw}。${who[0]}比${who[1]}多多少${s.mw}？`,
             answer: diff,
             word: true,
-            explanation: `问"多多少"就是比较两个数的差。用小猫的 ${a + diff} 减小兔的 ${a}。`,
-            steps: [`小猫 ${a + diff} 枚。`, `小兔 ${a} 枚。`, `${a + diff} - ${a} = ${diff} 枚。`]
+            explanation: `问"多多少"就是比较两个数的差。用${who[0]}的 ${a + diff} 减${who[1]}的 ${a}。`,
+            steps: [`${who[0]} ${a + diff} ${s.mw}。`, `${who[1]} ${a} ${s.mw}。`, `${a + diff} - ${a} = ${diff} ${s.mw}。`]
           });
         },
         () => {
@@ -6090,12 +6145,13 @@ const STORE = {
         () => {
           const each = rand(3, 9 + level);
           const boxes = rand(2, 8);
+          const s = scene();
           return baseQuestion(point, {
-            text: `每盒有 ${each} 支铅笔，老师准备了 ${boxes} 盒。一共有多少支铅笔？`,
+            text: `每${s.hmw}${s.holder}有 ${each} ${s.mw}${s.item}，老师准备了 ${boxes} ${s.hmw}${s.holder}。一共有多少${s.mw}${s.item}？`,
             answer: each * boxes,
             word: true,
-            explanation: `每盒数量一样，求一共有多少，用乘法。${each} × ${boxes} = ${each * boxes}。`,
-            steps: [`每盒 ${each} 支。`, `一共有 ${boxes} 盒。`, `用乘法：${each} × ${boxes} = ${each * boxes}。`]
+            explanation: `每${s.hmw}${s.holder}数量一样，求一共有多少，用乘法。${each} × ${boxes} = ${each * boxes}。`,
+            steps: [`每${s.hmw}${s.holder} ${each} ${s.mw}。`, `一共有 ${boxes} ${s.hmw}${s.holder}。`, `用乘法：${each} × ${boxes} = ${each * boxes}。`]
           });
         },
         () => {
@@ -6484,7 +6540,7 @@ const STORE = {
           });
         },
         () => {
-          const total = rand(240, 720);
+          const total = rand(12, 36) * 20;
           const firstRate = pick([20, 25, 30, 40]);
           const second = rand(30, 120);
           const note = rand(5, 18);
@@ -6513,7 +6569,7 @@ const STORE = {
           });
         },
         () => {
-          const pages = rand(120, 360);
+          const pages = rand(6, 18) * 20;
           const percent = pick([10, 15, 20, 25, 30, 40]);
           const answer = round1(pages * percent / 100);
           return baseQuestion(point, {
@@ -6525,7 +6581,7 @@ const STORE = {
           });
         },
         () => {
-          const price = rand(80, 300);
+          const price = rand(4, 15) * 20;
           const discount = pick([0.7, 0.75, 0.8, 0.85, 0.9]);
           const answer = round1(price * (1 - discount));
           return baseQuestion(point, {
@@ -6537,7 +6593,7 @@ const STORE = {
           });
         },
         () => {
-          const total = rand(180, 600);
+          const total = rand(9, 30) * 20;
           const firstRate = pick([20, 25, 30, 40]);
           const extra = rand(20, 90);
           const answer = round1(total * firstRate / 100 + extra);
