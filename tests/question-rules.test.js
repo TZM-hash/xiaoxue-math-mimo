@@ -1377,18 +1377,41 @@ function runCoverageAndInsightTests() {
     wrongbook: [{
       id: "insight-wrong",
       question: { id: "q-insight", grade: 4, pointId: "g4-word", topic: "word", text: "题中有会员折扣，但问题只问原价购买。实际要排除折扣这个干扰条件。", answer: 48 },
-      cause: "干扰条件",
+      cause: "读题理解",
       wrongCount: 1
     }],
     history: [
-      { grade: 4, pointId: "g4-word", correct: false, cause: "干扰条件", text: "多余条件导致列式错误" },
+      { grade: 4, pointId: "g4-word", correct: false, cause: "读题理解", text: "多余条件导致列式错误" },
       { grade: 4, pointId: "g4-word", correct: true, cause: "", text: "应用题" }
     ]
   });
   const insights = debug.buildWeakPointInsights(profile, { grade: 4, points: [debug.pointMap["g4-word"]], limit: 1 });
   assert.strictEqual(insights.length, 1, "weak-point insight should return a recommendation");
-  assert.strictEqual(insights[0].mainCause, "干扰条件", "insight should detect distractor-condition mistakes");
-  assert(insights[0].advice.includes("不用") || insights[0].advice.includes("无关"), "insight advice should tell the child to filter distractors");
+  assert.strictEqual(insights[0].mainCause, "读题理解", "insight should fold distractor-condition mistakes into reading comprehension");
+  assert(insights[0].advice.includes("必要条件") || insights[0].advice.includes("无关"), "insight advice should tell the child to filter distractors");
+}
+
+function runSubjectCauseOptionTests() {
+  const debug = context.mathCampDebug;
+  const expected = {
+    math: ["不会做", "计算粗心", "读题理解", "概念单位"],
+    chinese: ["不会做", "字词基础", "阅读理解", "表达规范"],
+    english: ["不会做", "单词不熟", "句型语法", "阅读定位"],
+    science: ["不会做", "概念不清", "观察实验", "证据推理"]
+  };
+  Object.entries(expected).forEach(([subject, labels]) => {
+    debug.selectSubject(subject);
+    assert.strictEqual(JSON.stringify(debug.causeOptionsForSubject(subject)), JSON.stringify(labels), `${subject} 应只暴露 4 个本学科错因选项`);
+    assert.strictEqual(JSON.stringify(debug.causeOptionsForQuestion({ subject, pointId: `${subject}-mock` })), JSON.stringify(labels), `${subject} 题目应使用本学科错因选项`);
+  });
+
+  debug.selectSubject("english");
+  debug.els.causeSelect.value = "未标记";
+  debug.els.causeQuickTags.children = [];
+  debug.renderCauseQuickTags({ subject: "english", pointId: "e3-vocabulary-school" });
+  const englishTags = debug.els.causeQuickTags.children.map((child) => child.dataset.causeChip);
+  assert.strictEqual(JSON.stringify(englishTags), JSON.stringify(expected.english), "英语答错面板不应显示数学错因");
+  assert(!englishTags.includes("计算粗心") && !englishTags.includes("概念单位"), "英语错因不能混入数学错因");
 }
 
 function runUtf8EncodingTests() {
@@ -1736,6 +1759,7 @@ runAdaptiveRouteTests();
 runQuestionSetDedupeTests();
 runArchiveVersionTests();
 runCoverageAndInsightTests();
+runSubjectCauseOptionTests();
 runUtf8EncodingTests();
 runInteractionBoundaryTests();
 runTwoStepMulDivTests();
@@ -1760,6 +1784,7 @@ console.log("Pet economy tests passed.");
 console.log("Type settings persistence tests passed.");
 console.log("Archive and cloud coverage tests passed.");
 console.log("Question coverage and insight tests passed.");
+console.log("Subject cause option tests passed.");
 console.log("Interaction boundary tests passed.");
 console.log("Two-step multiplication/division tests passed.");
 console.log("Vertical calculation tests passed.");

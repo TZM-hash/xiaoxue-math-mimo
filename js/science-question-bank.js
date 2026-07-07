@@ -9,7 +9,7 @@
   };
   const grades = [1, 2, 3, 4, 5, 6];
   const gradeNames = ["一年级", "二年级", "三年级", "四年级", "五年级", "六年级"];
-  const causes = ["未标记", "不会做", "概念不清", "观察实验", "证据推理"];
+  const causes = ["不会做", "概念不清", "观察实验", "证据推理"];
   const topicLabels = {
     life: "生命科学",
     matter: "物质科学",

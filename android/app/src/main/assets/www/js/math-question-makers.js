@@ -3324,10 +3324,10 @@
           const factor = rand(2, 8);
           const add = rand(5, 24);
           return readingQuestion({
-            text: `方程 ${factor}x + ${add} = ${factor * x + add}。要先求 x，第一步应该做什么？① 两边先减 ${add} ② 两边先乘 ${factor} ③ 把 ${add} 加一次`,
+            text: `方程阅读：先读题找条件，${factor}x + ${add} = ${factor * x + add}。要先求 x，第一步应该做什么？① 两边先减 ${add} ② 两边先乘 ${factor} ③ 把 ${add} 加一次`,
             answer: 1,
             explanation: `两步方程先去掉加上的数，再处理乘法。`,
-            steps: [`先看 x 外面有乘 ${factor} 和加 ${add}。`, `要先去掉加上的 ${add}。`, `所以选 ①。`],
+            steps: [`先读题找条件：x 外面有乘 ${factor} 和加 ${add}。`, `要先去掉加上的 ${add}。`, `所以选 ①。`],
             templateType: "方程阅读"
           });
         }

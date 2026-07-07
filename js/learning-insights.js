@@ -1,10 +1,10 @@
 (function () {
   "use strict";
 
-  var CAUSE_LABELS = ["计算粗心", "读题理解", "概念单位", "干扰条件", "不会做"];
-  var CHINESE_CAUSE_LABELS = ["未标记", "不会做", "字词基础", "阅读理解", "表达规范"];
-  var ENGLISH_CAUSE_LABELS = ["未标记", "不会做", "单词不熟", "句型语法", "阅读定位"];
-  var SCIENCE_CAUSE_LABELS = ["未标记", "不会做", "概念不清", "观察实验", "证据推理"];
+  var CAUSE_LABELS = ["不会做", "计算粗心", "读题理解", "概念单位"];
+  var CHINESE_CAUSE_LABELS = ["不会做", "字词基础", "阅读理解", "表达规范"];
+  var ENGLISH_CAUSE_LABELS = ["不会做", "单词不熟", "句型语法", "阅读定位"];
+  var SCIENCE_CAUSE_LABELS = ["不会做", "概念不清", "观察实验", "证据推理"];
 
   function list(value) {
     return Array.isArray(value) ? value : [];
@@ -56,7 +56,7 @@
       return "不会做";
     }
 
-    if (/干扰|无关|多余|背景|误导|只问|实际/.test(text)) return "干扰条件";
+    if (/干扰|无关|多余|背景|误导|只问|实际/.test(text)) return "读题理解";
     if (/读题|理解|条件|关系|先求|问什么|必要/.test(text) || topic === "reading" || topic === "word") return "读题理解";
     if (/单位|概念|公式|周长|面积|体积|比例|百分|分数|角|圆|图形/.test(text) || ["geometry", "unit", "ratio", "percent", "fraction"].includes(topic)) return "概念单位";
     if (/计算|粗心|口算|竖式|进位|退位|小数点|口诀/.test(text) || ["addsub", "muldiv", "decimal", "vertical", "mixed", "twostep"].includes(topic)) return "计算粗心";

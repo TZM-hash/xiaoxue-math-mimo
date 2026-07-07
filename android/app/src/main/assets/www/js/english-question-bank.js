@@ -9,7 +9,7 @@
   };
   const grades = [3, 4, 5, 6];
   const gradeNames = ["一年级", "二年级", "三年级", "四年级", "五年级", "六年级"];
-  const causes = ["未标记", "不会做", "单词不熟", "句型语法", "阅读定位"];
+  const causes = ["不会做", "单词不熟", "句型语法", "阅读定位"];
   const topicLabels = {
     vocabulary: "词汇理解",
     phonics: "自然拼读",

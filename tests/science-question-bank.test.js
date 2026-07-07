@@ -21,7 +21,7 @@ assert(curriculum, "科学教材知识库应暴露为 MathCampScienceCurriculumD
 assert.strictEqual(curriculum.curriculumProfile.region, "浙江省杭州市", "科学教材知识库应以杭州地区为口径");
 assert(/小学科学/.test(curriculum.curriculumProfile.textbook), "科学教材应标注小学科学主线");
 assert(bank, "科学题库应暴露为 MathCampScienceQuestionBank");
-assert.strictEqual(JSON.stringify(bank.causes), JSON.stringify(["未标记", "不会做", "概念不清", "观察实验", "证据推理"]), "科学错因应保持 5 类");
+assert.strictEqual(JSON.stringify(bank.causes), JSON.stringify(["不会做", "概念不清", "观察实验", "证据推理"]), "科学错因应保持 4 个学科选项");
 
 for (const grade of [1, 2, 3, 4, 5, 6]) {
   const gradeData = curriculum.grades[grade];

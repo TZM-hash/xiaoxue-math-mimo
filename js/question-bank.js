@@ -1,7 +1,7 @@
 ﻿(function () {
     const grades = [1, 2, 3, 4, 5, 6];
     const gradeNames = ["一年级", "二年级", "三年级", "四年级", "五年级", "六年级"];
-    const causes = ["未标记", "不会做", "计算粗心", "读题理解", "概念单位"];
+    const causes = ["不会做", "计算粗心", "读题理解", "概念单位"];
     const causeTagsByTopic = {
       addsub: ["计算粗心", "读题理解", "不会做"],
       compare: ["读题理解", "计算粗心", "不会做"],

@@ -40,8 +40,8 @@ for (const grade of [1, 2, 3, 4, 5, 6]) {
 assert(bank, "语文题库应暴露为 MathCampChineseQuestionBank");
 assert.strictEqual(
   JSON.stringify(bank.causes),
-  JSON.stringify(["未标记", "不会做", "字词基础", "阅读理解", "表达规范"]),
-  "语文错因应保持 5 类"
+  JSON.stringify(["不会做", "字词基础", "阅读理解", "表达规范"]),
+  "语文错因应保持 4 个学科选项"
 );
 
 for (const grade of [1, 2, 3, 4, 5, 6]) {

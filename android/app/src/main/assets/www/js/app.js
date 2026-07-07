@@ -726,9 +726,45 @@
       const text = String(value || "");
       return /^[A-Za-z0-9_-]{1,80}$/.test(text) ? text : uid(prefix);
     }
+    function subjectIdFromPointId(pointId) {
+      const text = String(pointId || "");
+      if (/^c\d-/.test(text)) return "chinese";
+      if (/^e\d-/.test(text)) return "english";
+      if (/^s\d-/.test(text)) return "science";
+      return "math";
+    }
+    function subjectIdFromQuestion(question) {
+      return safeSubjectId(question?.subject || subjectIdFromPointId(question?.pointId));
+    }
+    function bankForSubject(subjectId) {
+      const safe = safeSubjectId(subjectId);
+      if (SubjectRegistry.subjectBank) return SubjectRegistry.subjectBank(safe) || window.MathCampQuestionBank;
+      if (safe === "chinese") return window.MathCampChineseQuestionBank || window.MathCampQuestionBank;
+      if (safe === "english") return window.MathCampEnglishQuestionBank || window.MathCampQuestionBank;
+      if (safe === "science") return window.MathCampScienceQuestionBank || window.MathCampQuestionBank;
+      return window.MathCampQuestionBank;
+    }
+    function cleanCauseOptions(list) {
+      return [...new Set((Array.isArray(list) ? list : []).map((cause) => String(cause || "").trim()).filter((cause) => cause && cause !== "未标记"))].slice(0, 4);
+    }
+    function causeOptionsForSubject(subjectId = "math") {
+      const options = cleanCauseOptions(bankForSubject(subjectId)?.causes);
+      return options.length ? options : cleanCauseOptions(causes);
+    }
+    function causeOptionsForQuestion(question) {
+      return causeOptionsForSubject(subjectIdFromQuestion(question));
+    }
+    function allCauseOptions() {
+      return cleanCauseOptions([
+        ...causeOptionsForSubject("math"),
+        ...causeOptionsForSubject("chinese"),
+        ...causeOptionsForSubject("english"),
+        ...causeOptionsForSubject("science")
+      ]);
+    }
     function normalizeCause(cause) {
       const text = String(cause || "").trim();
-      if (causes.includes(text)) return text;
+      if (allCauseOptions().includes(text)) return text;
       const legacy = {
         "粗心计算错": "计算粗心",
         "进位/退位错误": "计算粗心",
@@ -742,9 +778,11 @@
         "单位漏换": "概念单位",
         "最后一步算错": "计算粗心",
         "单位没换算": "概念单位",
-        "小数/分数理解不稳": "概念单位"
+        "小数/分数理解不稳": "概念单位",
+        "干扰条件": "读题理解"
       };
-      return legacy[text] || "未标记";
+      const normalized = legacy[text] || "";
+      return allCauseOptions().includes(normalized) ? normalized : "未标记";
     }
     function uniquifyRecordIds(items, prefix = "id") {
       const seen = new Set();
@@ -1603,7 +1641,7 @@
       return activeBank().gradeNames || gradeNames;
     }
     function bankCauses() {
-      return activeBank().causes || causes;
+      return causeOptionsForSubject(activeSubjectId());
     }
     function bankPoints() {
       return activeBank().points || points;
@@ -6432,7 +6470,7 @@
     }
     function renderCauseQuickTags(question) {
       if (!els.causeQuickTags || !els.causeSelect) return;
-      const tags = ["不会做", "计算粗心", "读题理解", "概念单位"];
+      const tags = causeOptionsForQuestion(question);
       const selected = els.causeSelect.value || "未标记";
       els.causeQuickTags.innerHTML = "";
       tags.forEach((cause) => {
@@ -7457,10 +7495,12 @@
     }
 
     function kidExplainHTML(question, cause = "未标记") {
-      const point = pointMap[question?.pointId];
+      const questionBank = bankForSubject(subjectIdFromQuestion(question));
+      const point = questionBank?.pointMap?.[question?.pointId] || pointMap[question?.pointId];
       const kp = knowledgeProfileFor(point);
-      const pitfall = causes.includes(normalizeCause(cause))
-        ? causeAdvice(cause)
+      const normalizedCause = normalizeCause(cause);
+      const pitfall = causeOptionsForQuestion(question).includes(normalizedCause)
+        ? (LearningInsights.adviceForCause?.(normalizedCause, point) || normalizedCause)
         : (question?.commonPitfalls || kp.pitfalls || ["容易跳步或看错符号"])[0];
       const steps = (question?.steps && question.steps.length ? question.steps : [question?.explanation || methodHintFor(question)]).slice(0, 4);
       return petCopy(`
@@ -7769,7 +7809,7 @@
     }
     function causeSelectHTML(selected, id) {
       const normalizedSelected = normalizeCause(selected);
-      return `<select data-wrong-cause="${escapeAttr(id)}" aria-label="修改错因">${causes.map((cause) => `<option value="${escapeAttr(cause)}" ${cause === normalizedSelected ? "selected" : ""}>${escapeHTML(cause)}</option>`).join("")}</select>`;
+      return `<select data-wrong-cause="${escapeAttr(id)}" aria-label="修改错因">${bankCauses().map((cause) => `<option value="${escapeAttr(cause)}" ${cause === normalizedSelected ? "selected" : ""}>${escapeHTML(cause)}</option>`).join("")}</select>`;
     }
     function renderWrongbook() {
       const list = filteredWrongbook();
@@ -9205,6 +9245,9 @@
         awardQuestionReward,
         safeThemeId,
         themeRegistry: THEME_REGISTRY,
+        causeOptionsForSubject,
+        causeOptionsForQuestion,
+        renderCauseQuickTags,
         currentWeekItems,
         learningInsights: LearningInsights,
         questionBankCoverage: QuestionBankCoverage,

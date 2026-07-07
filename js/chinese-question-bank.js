@@ -3,7 +3,7 @@
 
   const grades = [1, 2, 3, 4, 5, 6];
   const gradeNames = ["一年级", "二年级", "三年级", "四年级", "五年级", "六年级"];
-  const causes = ["未标记", "不会做", "字词基础", "阅读理解", "表达规范"];
+  const causes = ["不会做", "字词基础", "阅读理解", "表达规范"];
   const curriculumData = window.MathCampChineseCurriculumData || {};
   const autoSourcePolicy = curriculumData.autoSourcePolicy || { mode: "textbookOnly", sources: ["inTextbook"] };
   const sourceLabels = curriculumData.sourceLabels || {
