@@ -555,7 +555,9 @@
 
   [
     window.MathCampGrade2ReferenceQuestionSeeds,
-    window.MathCampGrade2OriginalQuestionSeeds
+    window.MathCampGrade2OriginalQuestionSeeds,
+    window.MathCampGrade3ReferenceQuestionSeeds,
+    window.MathCampGrade3OriginalQuestionSeeds
   ].forEach((module) => mergeSeedBank(module && module.BANK));
 
   function subjectForPoint(point) {

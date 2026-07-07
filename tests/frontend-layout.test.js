@@ -147,6 +147,10 @@ assertContains(html, 'src="js/grade2-reference-source-meta.js"', "页面应加�
 assertContains(html, 'src="js/grade2-reference-scan-index.js"', "页面应加载二年级资料逐页扫描索引");
 assertContains(html, 'src="js/grade2-reference-question-seeds.js"', "页面应加载二年级资料派生题源");
 assertContains(html, 'src="js/grade2-original-question-seeds.js"', "页面应加载二年级原创扩展题源");
+assertContains(html, 'src="js/grade3-reference-source-meta.js"', "页面应加载三年级资料来源清单");
+assertContains(html, 'src="js/grade3-reference-scan-index.js"', "页面应加载三年级资料逐页扫描索引");
+assertContains(html, 'src="js/grade3-reference-question-seeds.js"', "页面应加载三年级资料派生题源");
+assertContains(html, 'src="js/grade3-original-question-seeds.js"', "页面应加载三年级原创扩展题源");
 assertContains(html, 'src="js/external-question-seeds.js"', "页面应加载扩展题源模块");
 assertContains(html, 'src="js/english-question-generator.js"', "页面应加载英语题目生成器");
 assertContains(html, 'src="js/science-question-generator.js"', "页面应加载科学题目生成器");
@@ -216,6 +220,7 @@ assertContains(app, "data-start-logic-reading", "app should wire the logic readi
 assertContains(app, "makeReading", "app should generate dedicated logic reading questions");
 assertContains(app, "function normalizeQuestionDiagram", "app should sanitize generated geometry diagrams");
 assertContains(app, "function normalizeQuestionSourceImage", "app should sanitize PDF screenshot question images");
+assertContains(app, "assets\\/reference\\/(?:grade2|grade3)\\/", "PDF screenshot image sanitizer should allow grade2 and grade3 reference assets");
 assertContains(app, "function renderQuestionDiagram", "app should render generated geometry diagrams");
 assertContains(app, "question-source-image", "practice rendering should mount PDF screenshot question images");
 assertContains(app, '"grid-shape"', "app should allow grid-shape geometry diagrams");
@@ -590,6 +595,10 @@ assertContains(css, "#reportView .report-visual-panel:first-child {\n        gri
   "js/grade2-reference-scan-index.js",
   "js/grade2-reference-question-seeds.js",
   "js/grade2-original-question-seeds.js",
+  "js/grade3-reference-source-meta.js",
+  "js/grade3-reference-scan-index.js",
+  "js/grade3-reference-question-seeds.js",
+  "js/grade3-original-question-seeds.js",
   "js/external-question-seeds.js",
   "js/subject-registry.js",
   "js/chinese-question-bank.js",
@@ -644,6 +653,10 @@ assertContains(css, "#reportView .report-visual-panel:first-child {\n        gri
   "js/grade2-reference-scan-index.js",
   "js/grade2-reference-question-seeds.js",
   "js/grade2-original-question-seeds.js",
+  "js/grade3-reference-source-meta.js",
+  "js/grade3-reference-scan-index.js",
+  "js/grade3-reference-question-seeds.js",
+  "js/grade3-original-question-seeds.js",
   "js/external-question-seeds.js",
   "js/question-generator.js",
   "js/practice-engine.js",

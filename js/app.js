@@ -738,7 +738,7 @@
     function normalizeQuestionSourceImage(image) {
       if (!isPlainObject(image)) return null;
       const src = String(image.src || "").trim();
-      if (!/^assets\/reference\/grade2\/[A-Za-z0-9._-]+\.png$/.test(src)) return null;
+      if (!/^assets\/reference\/(?:grade2|grade3)\/[A-Za-z0-9._-]+\.png$/.test(src)) return null;
       return {
         src,
         alt: String(image.alt || "参考资料题图").slice(0, 80),
@@ -3577,10 +3577,10 @@
     function runQuestionQualityAudit(sampleSize = 48) {
       return runQuestionRuleSelfTest(sampleSize);
     }
-    function flattenGrade2SeedModule(module, bucketLabel) {
+    function flattenGradeSeedModule(module, bucketLabel, gradeLabel) {
       return Object.entries(module?.BANK || {}).flatMap(([pointId, items]) => (items || []).map((item) => ({
         pointId,
-        bucketLabel,
+        bucketLabel: gradeLabel ? `${gradeLabel}${bucketLabel}` : bucketLabel,
         id: item.id,
         answerType: item.answerType || "text",
         templateType: item.templateType || item.questionType || "",
@@ -3590,10 +3590,12 @@
         sourceImage: item.sourceImage || null
       })));
     }
-    function grade2SourceAuditItems() {
+    function questionSourceAuditItems() {
       return [
-        ...flattenGrade2SeedModule(window.MathCampGrade2ReferenceQuestionSeeds, "参考资料派生"),
-        ...flattenGrade2SeedModule(window.MathCampGrade2OriginalQuestionSeeds, "原创扩展")
+        ...flattenGradeSeedModule(window.MathCampGrade2ReferenceQuestionSeeds, "参考资料派生", "二年级"),
+        ...flattenGradeSeedModule(window.MathCampGrade2OriginalQuestionSeeds, "原创扩展", "二年级"),
+        ...flattenGradeSeedModule(window.MathCampGrade3ReferenceQuestionSeeds, "参考资料派生", "三年级"),
+        ...flattenGradeSeedModule(window.MathCampGrade3OriginalQuestionSeeds, "原创扩展", "三年级")
       ];
     }
     function matchesSourceFilter(item, filter) {
@@ -3607,7 +3609,7 @@
     }
     function runQuestionSourceAudit(filter = "all") {
       const normalizedFilter = ["all", "reference", "original", "self-drawn", "scan", "pdf-image"].includes(filter) ? filter : "all";
-      const items = grade2SourceAuditItems();
+      const items = questionSourceAuditItems();
       const filtered = items.filter((item) => matchesSourceFilter(item, normalizedFilter));
       const countBy = (predicate) => items.filter(predicate).length;
       return {

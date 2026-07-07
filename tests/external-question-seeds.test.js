@@ -21,6 +21,10 @@ vm.createContext(context);
   "js/grade2-reference-scan-index.js",
   "js/grade2-reference-question-seeds.js",
   "js/grade2-original-question-seeds.js",
+  "js/grade3-reference-source-meta.js",
+  "js/grade3-reference-scan-index.js",
+  "js/grade3-reference-question-seeds.js",
+  "js/grade3-original-question-seeds.js",
   "js/external-question-seeds.js",
   "js/chinese-question-generator.js",
   "js/english-question-generator.js",
@@ -37,10 +41,18 @@ const referenceMeta = context.window.MathCampGrade2ReferenceSourceMeta;
 const scanIndex = context.window.MathCampGrade2ReferenceScanIndex;
 const referenceSeeds = context.window.MathCampGrade2ReferenceQuestionSeeds;
 const originalSeeds = context.window.MathCampGrade2OriginalQuestionSeeds;
+const grade3ReferenceMeta = context.window.MathCampGrade3ReferenceSourceMeta;
+const grade3ScanIndex = context.window.MathCampGrade3ReferenceScanIndex;
+const grade3ReferenceSeeds = context.window.MathCampGrade3ReferenceQuestionSeeds;
+const grade3OriginalSeeds = context.window.MathCampGrade3OriginalQuestionSeeds;
 assert(referenceMeta, "二年级资料来源清单应独立暴露为 MathCampGrade2ReferenceSourceMeta");
 assert(scanIndex, "二年级资料逐页扫描索引应独立暴露为 MathCampGrade2ReferenceScanIndex");
 assert(referenceSeeds, "二年级资料派生题源应独立暴露为 MathCampGrade2ReferenceQuestionSeeds");
 assert(originalSeeds, "二年级原创扩展题源应独立暴露为 MathCampGrade2OriginalQuestionSeeds");
+assert(grade3ReferenceMeta, "三年级资料来源清单应独立暴露为 MathCampGrade3ReferenceSourceMeta");
+assert(grade3ScanIndex, "三年级资料逐页扫描索引应独立暴露为 MathCampGrade3ReferenceScanIndex");
+assert(grade3ReferenceSeeds, "三年级资料派生题源应独立暴露为 MathCampGrade3ReferenceQuestionSeeds");
+assert(grade3OriginalSeeds, "三年级原创扩展题源应独立暴露为 MathCampGrade3OriginalQuestionSeeds");
 
 const banks = {
   math: context.window.MathCampQuestionBank,
@@ -189,6 +201,8 @@ function flattenBank(bank) {
 
 const referenceSeedItems = flattenBank(referenceSeeds.BANK);
 const originalSeedItems = flattenBank(originalSeeds.BANK);
+const grade3ReferenceSeedItems = flattenBank(grade3ReferenceSeeds.BANK);
+const grade3OriginalSeedItems = flattenBank(grade3OriginalSeeds.BANK);
 assert(Array.isArray(referenceMeta.files) && referenceMeta.files.length >= 8, "资料来源清单应记录 Reference/grade2 下的资料文件");
 assert(referenceMeta.files.every((item) => item.grade === 2 && item.path.includes("Reference/grade2")), "资料来源清单应限定为二年级资料");
 assert(scanIndex.pages.length >= 182, "二年级资料逐页扫描索引应覆盖全部 PDF 页");
@@ -221,6 +235,66 @@ referenceImageItems.forEach((item) => {
   assert(item.sourceImage.sourceFile && item.sourceImage.cropNote, "PDF 截图题应记录截图来源和裁剪说明");
 });
 
+assert(Array.isArray(grade3ReferenceMeta.files) && grade3ReferenceMeta.files.length >= 8, "资料来源清单应记录 Reference/grade3 下的全部资料文件");
+assert(grade3ReferenceMeta.files.every((item) => item.grade === 3 && item.path.includes("Reference/grade3")), "三年级资料来源清单应限定为三年级资料");
+assert(grade3ReferenceMeta.files.some((item) => item.fileName.includes("活页默写") && item.subject === "english"), "三年级资料来源清单应包含新增英语默写 PDF");
+const grade3PdfPageTotal = (grade3ScanIndex.pdfSources || []).reduce((sum, source) => sum + Number(source.pages || 0), 0);
+assert.strictEqual(grade3ScanIndex.pages.length, grade3PdfPageTotal, "三年级逐页扫描索引应与 PDF 页数合计一致");
+assert(grade3ScanIndex.pages.length >= 356, "三年级资料逐页扫描索引应覆盖新增后全部 PDF 页");
+assert(grade3ScanIndex.pages.every((page) => page.grade === 3 && page.sourceId && Number.isInteger(page.page) && page.page >= 1), "三年级逐页扫描索引应记录年级、来源和页码");
+assert(grade3ScanIndex.pages.some((page) => page.extractStatus === "text-extractable"), "三年级逐页扫描索引应标注可抽文字页");
+assert(grade3ScanIndex.pages.some((page) => page.extractStatus === "scan-image"), "三年级逐页扫描索引应标注扫描图片页");
+["math", "chinese", "english"].forEach((subject) => {
+  assert(grade3ScanIndex.pages.some((page) => page.subject === subject), `三年级逐页扫描索引应覆盖 ${subject}`);
+});
+assert(grade3ReferenceSeedItems.length >= 2100, "三年级资料派生题源完整扫描后应至少 2100 道");
+assert(grade3OriginalSeedItems.length >= 50, "三年级原创扩展题源第一批应至少 50 道");
+assert(grade3ReferenceSeedItems.every((item) => item.id.startsWith("ref-g3-") && item.sourceMeta?.kind === "referenceDerived"), "三年级资料派生题应使用 ref-g3-* id 且标记 referenceDerived");
+assert(grade3OriginalSeedItems.every((item) => item.id.startsWith("orig-g3-") && item.sourceMeta?.kind === "codexOriginal"), "三年级原创扩展题应使用 orig-g3-* id 且标记 codexOriginal");
+assert(grade3ReferenceSeedItems.every((item) => item.sourceMeta?.sourceFile && item.sourceMeta?.sourceNote), "三年级资料派生题应保留资料文件与维护注释");
+assert(grade3OriginalSeedItems.every((item) => item.sourceMeta?.maintainerNote), "三年级原创扩展题应保留原创维护注释");
+assert(grade3ReferenceSeedItems.every((item) => !item.sourceMeta?.maintainerNote && item.sourceMeta?.sourcePath?.includes("Reference/grade3")), "三年级资料派生题不得混入原创维护字段，且必须指向 Reference/grade3");
+assert(grade3OriginalSeedItems.every((item) => !item.sourceMeta?.sourceFile && !item.sourceMeta?.sourcePage), "三年级原创扩展题不得伪装成参考资料页码题");
+
+const grade3ReferenceDiagramItems = grade3ReferenceSeedItems.filter((item) => item.diagram);
+const grade3ReferenceDiagramTypes = new Set(grade3ReferenceDiagramItems.map((item) => item.diagram.type));
+assert(grade3ReferenceDiagramItems.length >= 120, "三年级资料派生题应包含一批自绘图形题");
+["rectangle", "square", "grid-shape", "segment-chain", "block-view", "shape-count"].forEach((type) => {
+  assert(grade3ReferenceDiagramTypes.has(type), `三年级资料派生图形题应覆盖 ${type}`);
+});
+assert(grade3ReferenceDiagramItems.every((item) => item.sourceMeta?.visualPolicy === "self-drawn-diagram"), "三年级资料派生图形题应标注自绘示意图策略");
+
+const grade3ReferenceImageItems = grade3ReferenceSeedItems.filter((item) => item.sourceImage);
+assert(grade3ReferenceImageItems.length >= 8, "三年级资料派生题应包含 PDF 清晰页截图题");
+assert(grade3ReferenceImageItems.every((item) => item.sourceMeta?.visualPolicy === "pdf-crop-image"), "三年级 PDF 截图题应标注 pdf-crop-image 策略");
+assert(grade3ReferenceImageItems.every((item) => /^assets\/reference\/grade3\/.+\.png$/.test(item.sourceImage?.src || "")), "三年级 PDF 截图题应引用应用内三年级参考图片资产");
+grade3ReferenceImageItems.forEach((item) => {
+  assert(fs.existsSync(path.join(root, item.sourceImage.src)), `三年级 PDF 截图资产应存在：${item.sourceImage.src}`);
+  assert(item.sourceImage.sourceFile && item.sourceImage.cropNote, "三年级 PDF 截图题应记录截图来源和裁剪说明");
+});
+
+const grade3MathSeedPoints = banks.math.points
+  .filter((point) => point.grade === 3 && seeds.forPoint(point).some((seed) => /^ref-g3-|^orig-g3-/.test(seed.id)))
+  .map((point) => point.id);
+const grade3ChineseSeedPoints = banks.chinese.points
+  .filter((point) => point.grade === 3 && seeds.forPoint(point).some((seed) => /^ref-g3-|^orig-g3-/.test(seed.id)))
+  .map((point) => point.id);
+const grade3EnglishSeedPoints = banks.english.points
+  .filter((point) => point.grade === 3 && seeds.forPoint(point).some((seed) => /^ref-g3-|^orig-g3-/.test(seed.id)))
+  .map((point) => point.id);
+assert(new Set(grade3MathSeedPoints).size >= 13, "三年级数学扩展题源应覆盖全部现有三年级数学知识点");
+assert(new Set(grade3ChineseSeedPoints).size >= 12, "三年级语文扩展题源应覆盖能力线和教材同步知识点");
+assert(new Set(grade3EnglishSeedPoints).size >= 5, "三年级英语扩展题源应覆盖词汇、拼读、句型、语法和阅读");
+["g3-multi-add", "g3-vertical", "g3-perimeter", "g3-fraction-intro", "g3-statistics", "g3-appendix"].forEach((pointId) => {
+  assert(grade3MathSeedPoints.includes(pointId), `三年级数学资料扩充应覆盖 ${pointId}`);
+});
+["c3-word-meaning", "c3-paragraph-reading", "c3-writing-piece", "c3-textbook-context-word", "c3-textbook-around-one-idea"].forEach((pointId) => {
+  assert(grade3ChineseSeedPoints.includes(pointId), `三年级语文资料扩充应覆盖 ${pointId}`);
+});
+["e3-vocabulary-school", "e3-phonics-short-vowels", "e3-pattern-greetings", "e3-grammar-basic-be", "e3-reading-dialogue"].forEach((pointId) => {
+  assert(grade3EnglishSeedPoints.includes(pointId), `三年级英语资料扩充应覆盖 ${pointId}`);
+});
+
 const grade2MathSeedPoints = banks.math.points
   .filter((point) => point.grade === 2 && seeds.forPoint(point).some((seed) => /^ref-g2-|^orig-g2-/.test(seed.id)))
   .map((point) => point.id);
@@ -241,6 +315,13 @@ assert(new Set(grade2ChineseSeedPoints).size >= 12, "二年级语文扩展题源
   const point = banks[subject].pointMap[pointId];
   const question = seeds.makeQuestion(depsFor(subject), point, { preferExternal: true });
   assertQuestionShape(question, point, `${subject}:${pointId} 二年级扩展题`);
+});
+
+["g3-perimeter", "g3-fraction-intro", "c3-textbook-context-word", "e3-vocabulary-school"].forEach((pointId) => {
+  const subject = pointId.startsWith("c") ? "chinese" : pointId.startsWith("e") ? "english" : "math";
+  const point = banks[subject].pointMap[pointId];
+  const question = seeds.makeQuestion(depsFor(subject), point, { preferExternal: true });
+  assertQuestionShape(question, point, `${subject}:${pointId} 三年级扩展题`);
 });
 
 const diagramQuestion = seeds.makeQuestion({
