@@ -1559,6 +1559,11 @@ function runChallengeSubjectIsolationAndResetTests() {
 
 function runFloatingPetAssistantTests() {
   const debug = context.mathCampDebug;
+  assert.strictEqual(debug.shouldShowFloatingPetAssistant({ view: "practice", layer: "focus", width: 390 }), true, "移动端做题专注页应显示悬浮猫咪");
+  assert.strictEqual(debug.shouldShowFloatingPetAssistant({ view: "wrongbook", layer: "focus", width: 390 }), false, "错题本等非做题页不应显示悬浮猫咪");
+  assert.strictEqual(debug.shouldShowFloatingPetAssistant({ view: "practice", layer: "setup", width: 390 }), false, "练习设置页不应显示悬浮猫咪");
+  assert.strictEqual(debug.shouldShowFloatingPetAssistant({ view: "practice", layer: "focus", width: 1280 }), false, "桌面端应继续使用固定陪练区");
+
   const left = debug.normalizeFloatingPetPosition({ x: -80, y: -40 }, { width: 390, height: 780 });
   assert.strictEqual(left.side, "left", "悬浮猫咪拖到左侧后应吸附左边缘");
   assert(left.x >= 12 && left.y >= 12, "悬浮猫咪位置应限制在可视区域内");
@@ -1576,6 +1581,26 @@ function runFloatingPetAssistantTests() {
   });
   assert(message.title.includes("错因") || message.title.includes("建议"), "错因动作应给出弹窗标题");
   assert(message.body.includes("单词不熟") || message.body.includes("招财"), "错因动作应使用当前学科推荐错因");
+
+  const lowCareProfile = debug.normalizeProfile({
+    id: "low-care-pet",
+    name: "照料提醒",
+    grade: 2,
+    rewards: {
+      pet: {
+        mood: 18,
+        hunger: 22,
+        clean: 29,
+        bond: 27,
+        lastDecayDate: debug.todayKey()
+      }
+    }
+  });
+  const alert = debug.floatingPetCareAlert(lowCareProfile);
+  assert(alert, "低于安全值时应生成照料提醒");
+  assert(alert.body.includes("心情值 18") && alert.body.includes("饥饿值 22") && alert.body.includes("清洁值 29") && alert.body.includes("亲密值 27"), "照料提醒应列出低于安全值的项目");
+  const careMessage = debug.floatingPetActionMessage("care");
+  assert(careMessage.title.includes("需要照料") || careMessage.title.includes("状态稳定"), "悬浮猫咪应支持照料提醒动作");
 }
 
 function runUtf8EncodingTests() {

@@ -344,6 +344,9 @@ assertContains(app, "function normalizeFloatingPetPosition", "floating pet shoul
 assertContains(app, "function applyFloatingPetPosition", "floating pet should apply remembered position");
 assertContains(app, "function openFloatingPetPanel", "floating pet should open a popup-style action panel");
 assertContains(app, "function handleFloatingPetAction", "floating pet should route hint/explain/cause actions");
+assertContains(app, "function shouldShowFloatingPetAssistant", "floating pet should only appear in mobile/tablet focused practice");
+assertContains(app, "function floatingPetCareAlert", "floating pet should detect low care state before prompting");
+assertContains(app, "data-floating-pet-care-action=\"petspace\"", "floating pet care prompt should offer a lightweight care action");
 assertContains(app, "mathcamp-floating-pet-position-v1", "floating pet should remember the custom position");
 assertContains(app, "buildQuestionBankCoverage", "app debug API should expose the question-bank coverage report");
 assertContains(questionBank, 'reading: ["读题理解", "不会做", "计算粗心"]', "question bank should define reading cause tags");

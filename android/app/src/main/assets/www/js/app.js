@@ -1682,6 +1682,7 @@
       timedTimerId: null,
       autoNextId: null,
       petActionTimer: null,
+      floatingPetCareAlertShown: false,
       petRoomFeedbackTimer: null,
       petRoomWalkTimer: null,
       petRoomWalkWarmupTimers: [],
@@ -4168,6 +4169,15 @@
         height: Math.max(520, Number(window.innerHeight) || document.documentElement.clientHeight || 780)
       };
     }
+    function shouldShowFloatingPetAssistant(options = {}) {
+      const view = options.view || state.view;
+      const layer = options.layer || state.practiceLayer;
+      const width = Number(options.width);
+      const compact = Number.isFinite(width)
+        ? width <= 1180
+        : window.matchMedia("(max-width: 1180px)").matches;
+      return view === "practice" && layer === "focus" && compact;
+    }
     function normalizeFloatingPetPosition(raw = {}, viewport = floatingPetViewport()) {
       const size = 66;
       const margin = 12;
@@ -4208,7 +4218,38 @@
       els.floatingPetPanel.hidden = true;
       els.floatingPetAssistant?.classList.remove("panel-open");
     }
+    function floatingPetCareAlert(profile = activeProfile(), threshold = 30) {
+      const pet = petState(profile);
+      const labels = { mood: "心情值", hunger: "饥饿值", clean: "清洁值", bond: "亲密值" };
+      const tips = {
+        mood: "摸摸它或玩一会儿",
+        hunger: "喂一点猫粮",
+        clean: "用毛巾或泡泡澡清洁",
+        bond: "多陪它互动一下"
+      };
+      const needs = ["mood", "hunger", "clean", "bond"]
+        .map((key) => ({ key, label: labels[key], value: clamp(Number(pet[key]) || 0, 0, 100), tip: tips[key] }))
+        .filter((item) => item.value < threshold);
+      if (!needs.length) return null;
+      const worst = needs.slice().sort((a, b) => a.value - b.value)[0];
+      return {
+        title: `${petDisplayName(profile)}需要照料`,
+        body: `${needs.map((item) => `${item.label} ${item.value}`).join("，")}，已经低于安全值 ${threshold}。先${worst.tip}，招财会更有精神陪你学习。`,
+        needs
+      };
+    }
     function floatingPetActionMessage(action, question = state.currentSet[state.index]) {
+      if (action === "care") {
+        const alert = floatingPetCareAlert();
+        if (alert) {
+          return {
+            title: alert.title,
+            body: alert.body,
+            extraHTML: `<button class="secondary compact-btn" type="button" data-floating-pet-care-action="petspace">去照料</button>`
+          };
+        }
+        return { title: "招财状态稳定", body: "招财现在状态还不错，可以安心开始练习。", extraHTML: "" };
+      }
       if (!question) {
         return { title: "招财小助手", body: "先开始一轮练习，招财就能根据当前题目给你提示。", extraHTML: "" };
       }
@@ -4256,9 +4297,30 @@
     }
     function syncFloatingPetBadge() {
       if (!els.floatingPetBadge) return;
-      const show = Boolean(state.lastWrongRecordId || isWaitingForCauseSave());
+      const careAlert = floatingPetCareAlert();
+      const show = Boolean(state.lastWrongRecordId || isWaitingForCauseSave() || careAlert);
       els.floatingPetBadge.hidden = !show;
-      els.floatingPetBadge.textContent = show ? "建议" : "";
+      els.floatingPetBadge.textContent = (state.lastWrongRecordId || isWaitingForCauseSave()) ? "建议" : (careAlert ? "照料" : "");
+    }
+    function maybeOpenFloatingPetCareAlert() {
+      if (state.floatingPetCareAlertShown || !shouldShowFloatingPetAssistant()) return;
+      if (!floatingPetCareAlert()) return;
+      state.floatingPetCareAlertShown = true;
+      window.setTimeout(() => {
+        if (shouldShowFloatingPetAssistant() && els.floatingPetPanel?.hidden) openFloatingPetPanel("care");
+      }, 240);
+    }
+    function syncFloatingPetVisibility() {
+      if (!els.floatingPetAssistant) return;
+      const visible = shouldShowFloatingPetAssistant();
+      els.floatingPetAssistant.hidden = !visible;
+      if (!visible) {
+        closeFloatingPetPanel();
+        return;
+      }
+      applyFloatingPetPosition();
+      syncFloatingPetBadge();
+      maybeOpenFloatingPetCareAlert();
     }
     function floatingPetPoint(event) {
       const touch = event.touches?.[0] || event.changedTouches?.[0];
@@ -4307,9 +4369,7 @@
     }
     function initFloatingPetAssistant() {
       if (!els.floatingPetAssistant || !els.floatingPetButton) return;
-      els.floatingPetAssistant.hidden = false;
-      applyFloatingPetPosition();
-      syncFloatingPetBadge();
+      syncFloatingPetVisibility();
     }
 
     function setFeedback(kind, message, face = "") {
@@ -4583,6 +4643,7 @@
       document.body.classList.toggle("practice-return-visible", layer === "focus");
       if (layer === "focus") setTypeSettingsOpen(false);
       if (layer !== "focus") closePetHintPopover();
+      syncFloatingPetVisibility();
     }
 
     function enterPracticeFocus() {
@@ -9103,6 +9164,7 @@
       profile.settings = { ...(profile.settings || {}), answerMode: state.answerMode };
       saveProfiles();
       syncCustomSelects();
+      syncFloatingPetVisibility();
     });
     els.adaptiveToggle.addEventListener("change", () => { state.adaptive = els.adaptiveToggle.checked; });
     els.dailyGoalInput.addEventListener("change", () => {
@@ -9192,6 +9254,12 @@
     });
     els.floatingPetClose?.addEventListener("click", closeFloatingPetPanel);
     els.floatingPetPanel?.addEventListener("click", (event) => {
+      const careBtn = event.target.closest("[data-floating-pet-care-action]");
+      if (careBtn) {
+        closeFloatingPetPanel();
+        showView("petspace");
+        return;
+      }
       const saveBtn = event.target.closest("[data-floating-pet-save-cause]");
       if (saveBtn) {
         els.causeSelect.value = saveBtn.dataset.floatingPetSaveCause;
@@ -9713,6 +9781,7 @@
         renderPracticeQuestion();
       }
       syncCustomSelects();
+      syncFloatingPetVisibility();
     });
     window.mathCampSelfTest = runQuestionRuleSelfTest;
     window.mathCampQualityAudit = runQuestionQualityAudit;
@@ -9776,6 +9845,8 @@
         buildParentDiagnosis,
         renderParentDiagnosis,
         renderCauseQuickTags,
+        shouldShowFloatingPetAssistant,
+        floatingPetCareAlert,
         normalizeFloatingPetPosition,
         floatingPetActionMessage,
         applyFloatingPetPosition,
