@@ -217,14 +217,17 @@ const grade3ReferenceSeedItems = flattenBank(grade3ReferenceSeeds.BANK);
 const grade3OriginalSeedItems = flattenBank(grade3OriginalSeeds.BANK);
 const grade4ReferenceSeedItems = flattenBank(grade4ReferenceSeeds.BANK);
 const grade4OriginalSeedItems = flattenBank(grade4OriginalSeeds.BANK);
-assert(Array.isArray(referenceMeta.files) && referenceMeta.files.length >= 8, "资料来源清单应记录 Reference/grade2 下的资料文件");
+assert(Array.isArray(referenceMeta.files) && referenceMeta.files.length >= 9, "资料来源清单应记录 Reference/grade2 下的资料文件");
 assert(referenceMeta.files.every((item) => item.grade === 2 && item.path.includes("Reference/grade2")), "资料来源清单应限定为二年级资料");
-assert(scanIndex.pages.length >= 182, "二年级资料逐页扫描索引应覆盖全部 PDF 页");
+assert(referenceMeta.files.some((item) => item.fileName.includes("奥数") && item.subject === "math"), "二年级资料来源清单应包含新增奥数 PDF");
+assert(scanIndex.pages.length >= 214, "二年级资料逐页扫描索引应覆盖全部 PDF 页和新增奥数 PDF");
 assert(scanIndex.pages.every((page) => page.sourceId && Number.isInteger(page.page) && page.page >= 1), "逐页扫描索引应记录来源和页码");
 assert(scanIndex.pages.some((page) => page.extractStatus === "text-extractable"), "逐页扫描索引应标注可抽文字页");
 assert(scanIndex.pages.some((page) => page.extractStatus === "scan-image"), "逐页扫描索引应标注扫描图片页");
-assert(referenceSeedItems.length >= 1000, "二年级资料派生题源完整扫描后应至少 1000 道");
-assert(originalSeedItems.length >= 40, "二年级原创扩展题源第一批应至少 40 道");
+assert(referenceSeedItems.length >= 1500, "二年级资料派生题源完整扫描后应至少 1500 道");
+assert(originalSeedItems.length >= 60, "二年级原创扩展题源应包含新增原创奥数题后至少 60 道");
+assert(referenceSeedItems.filter((item) => item.id.includes("olympiad")).length >= 130, "二年级奥数 PDF 应按题号和页面截图批量入库");
+assert(originalSeedItems.filter((item) => item.id.startsWith("orig-g2-olympiad-")).length >= 12, "二年级原创奥数题应独立入库");
 assert(referenceSeedItems.every((item) => item.id.startsWith("ref-g2-") && item.sourceMeta?.kind === "referenceDerived"), "资料派生题应使用 ref-g2-* id 且标记 referenceDerived");
 assert(originalSeedItems.every((item) => item.id.startsWith("orig-g2-") && item.sourceMeta?.kind === "codexOriginal"), "原创扩展题应使用 orig-g2-* id 且标记 codexOriginal");
 assert(referenceSeedItems.every((item) => item.sourceMeta?.sourceFile && item.sourceMeta?.sourceNote), "资料派生题应保留资料文件与维护注释");
@@ -241,7 +244,7 @@ assert(referenceDiagramItems.length >= 80, "资料派生题应包含一批自绘
 assert(referenceDiagramItems.every((item) => item.sourceMeta?.visualPolicy === "self-drawn-diagram"), "资料派生图形题应标注自绘示意图策略");
 
 const referenceImageItems = referenceSeedItems.filter((item) => item.sourceImage);
-assert(referenceImageItems.length >= 7, "资料派生题应包含 PDF 清晰页截图题");
+assert(referenceImageItems.length >= 39, "资料派生题应包含 PDF 清晰页截图题和二年级奥数整页截图题");
 assert(referenceImageItems.every((item) => item.sourceMeta?.visualPolicy === "pdf-crop-image"), "PDF 截图题应标注 pdf-crop-image 策略");
 assert(referenceImageItems.every((item) => /^assets\/reference\/grade2\/.+\.png$/.test(item.sourceImage?.src || "")), "PDF 截图题应引用应用内二年级参考图片资产");
 referenceImageItems.forEach((item) => {
@@ -249,20 +252,23 @@ referenceImageItems.forEach((item) => {
   assert(item.sourceImage.sourceFile && item.sourceImage.cropNote, "PDF 截图题应记录截图来源和裁剪说明");
 });
 
-assert(Array.isArray(grade3ReferenceMeta.files) && grade3ReferenceMeta.files.length >= 8, "资料来源清单应记录 Reference/grade3 下的全部资料文件");
+assert(Array.isArray(grade3ReferenceMeta.files) && grade3ReferenceMeta.files.length >= 9, "资料来源清单应记录 Reference/grade3 下的全部资料文件");
 assert(grade3ReferenceMeta.files.every((item) => item.grade === 3 && item.path.includes("Reference/grade3")), "三年级资料来源清单应限定为三年级资料");
 assert(grade3ReferenceMeta.files.some((item) => item.fileName.includes("活页默写") && item.subject === "english"), "三年级资料来源清单应包含新增英语默写 PDF");
+assert(grade3ReferenceMeta.files.some((item) => item.fileName.includes("奥数") && item.subject === "math"), "三年级资料来源清单应包含新增奥数 PDF");
 const grade3PdfPageTotal = (grade3ScanIndex.pdfSources || []).reduce((sum, source) => sum + Number(source.pages || 0), 0);
 assert.strictEqual(grade3ScanIndex.pages.length, grade3PdfPageTotal, "三年级逐页扫描索引应与 PDF 页数合计一致");
-assert(grade3ScanIndex.pages.length >= 356, "三年级资料逐页扫描索引应覆盖新增后全部 PDF 页");
+assert(grade3ScanIndex.pages.length >= 360, "三年级资料逐页扫描索引应覆盖新增后全部 PDF 页");
 assert(grade3ScanIndex.pages.every((page) => page.grade === 3 && page.sourceId && Number.isInteger(page.page) && page.page >= 1), "三年级逐页扫描索引应记录年级、来源和页码");
 assert(grade3ScanIndex.pages.some((page) => page.extractStatus === "text-extractable"), "三年级逐页扫描索引应标注可抽文字页");
 assert(grade3ScanIndex.pages.some((page) => page.extractStatus === "scan-image"), "三年级逐页扫描索引应标注扫描图片页");
 ["math", "chinese", "english"].forEach((subject) => {
   assert(grade3ScanIndex.pages.some((page) => page.subject === subject), `三年级逐页扫描索引应覆盖 ${subject}`);
 });
-assert(grade3ReferenceSeedItems.length >= 2100, "三年级资料派生题源完整扫描后应至少 2100 道");
-assert(grade3OriginalSeedItems.length >= 50, "三年级原创扩展题源第一批应至少 50 道");
+assert(grade3ReferenceSeedItems.length >= 2190, "三年级资料派生题源完整扫描并补充奥数题后应至少 2190 道");
+assert(grade3OriginalSeedItems.length >= 60, "三年级原创扩展题源应包含新增原创奥数题后至少 60 道");
+assert(grade3ReferenceSeedItems.filter((item) => item.id.includes("olympiad")).length >= 40, "三年级奥数 PDF 不应只保留单题示例");
+assert(grade3OriginalSeedItems.filter((item) => item.id.startsWith("orig-g3-olympiad-")).length >= 12, "三年级原创奥数题应独立入库");
 assert(grade3ReferenceSeedItems.every((item) => item.id.startsWith("ref-g3-") && item.sourceMeta?.kind === "referenceDerived"), "三年级资料派生题应使用 ref-g3-* id 且标记 referenceDerived");
 assert(grade3OriginalSeedItems.every((item) => item.id.startsWith("orig-g3-") && item.sourceMeta?.kind === "codexOriginal"), "三年级原创扩展题应使用 orig-g3-* id 且标记 codexOriginal");
 assert(grade3ReferenceSeedItems.every((item) => item.sourceMeta?.sourceFile && item.sourceMeta?.sourceNote), "三年级资料派生题应保留资料文件与维护注释");
@@ -279,7 +285,7 @@ assert(grade3ReferenceDiagramItems.length >= 120, "三年级资料派生题应�
 assert(grade3ReferenceDiagramItems.every((item) => item.sourceMeta?.visualPolicy === "self-drawn-diagram"), "三年级资料派生图形题应标注自绘示意图策略");
 
 const grade3ReferenceImageItems = grade3ReferenceSeedItems.filter((item) => item.sourceImage);
-assert(grade3ReferenceImageItems.length >= 8, "三年级资料派生题应包含 PDF 清晰页截图题");
+assert(grade3ReferenceImageItems.length >= 13, "三年级资料派生题应包含 PDF 清晰页截图题和奥数整页截图题");
 assert(grade3ReferenceImageItems.every((item) => item.sourceMeta?.visualPolicy === "pdf-crop-image"), "三年级 PDF 截图题应标注 pdf-crop-image 策略");
 assert(grade3ReferenceImageItems.every((item) => /^assets\/reference\/grade3\/.+\.png$/.test(item.sourceImage?.src || "")), "三年级 PDF 截图题应引用应用内三年级参考图片资产");
 grade3ReferenceImageItems.forEach((item) => {
@@ -287,21 +293,24 @@ grade3ReferenceImageItems.forEach((item) => {
   assert(item.sourceImage.sourceFile && item.sourceImage.cropNote, "三年级 PDF 截图题应记录截图来源和裁剪说明");
 });
 
-assert(Array.isArray(grade4ReferenceMeta.files) && grade4ReferenceMeta.files.length >= 9, "资料来源清单应记录 Reference/grade4 下的全部资料文件");
+assert(Array.isArray(grade4ReferenceMeta.files) && grade4ReferenceMeta.files.length >= 10, "资料来源清单应记录 Reference/grade4 下的全部资料文件");
 assert(grade4ReferenceMeta.files.every((item) => item.grade === 4 && item.path.includes("Reference/grade4")), "四年级资料来源清单应限定为四年级资料");
 assert(grade4ReferenceMeta.files.some((item) => item.fileName.includes("我来啦英语") && item.subject === "english"), "四年级资料来源清单应包含英语入门 PDF");
 assert(grade4ReferenceMeta.files.some((item) => item.fileType === "docx" && item.subject === "math"), "四年级资料来源清单应包含数学 DOCX 期中卷");
+assert(grade4ReferenceMeta.files.some((item) => item.fileName.includes("奥数") && item.subject === "math"), "四年级资料来源清单应包含新增奥数 PDF");
 const grade4PdfPageTotal = (grade4ScanIndex.pdfSources || []).reduce((sum, source) => sum + Number(source.pages || 0), 0);
 assert.strictEqual(grade4ScanIndex.pages.length, grade4PdfPageTotal, "四年级逐页扫描索引应与 PDF 页数合计一致");
-assert(grade4ScanIndex.pages.length >= 364, "四年级资料逐页扫描索引应覆盖全部 PDF 页");
+assert(grade4ScanIndex.pages.length >= 369, "四年级资料逐页扫描索引应覆盖全部 PDF 页");
 assert(grade4ScanIndex.pages.every((page) => page.grade === 4 && page.sourceId && Number.isInteger(page.page) && page.page >= 1), "四年级逐页扫描索引应记录年级、来源和页码");
 assert(grade4ScanIndex.pages.some((page) => page.extractStatus === "text-extractable"), "四年级逐页扫描索引应标注可抽文字页");
 assert(grade4ScanIndex.pages.some((page) => page.extractStatus === "scan-image"), "四年级逐页扫描索引应标注扫描图片页");
 ["math", "chinese", "english"].forEach((subject) => {
   assert(grade4ScanIndex.pages.some((page) => page.subject === subject), `四年级逐页扫描索引应覆盖 ${subject}`);
 });
-assert(grade4ReferenceSeedItems.length >= 2200, "四年级资料派生题源完整扫描后应至少 2200 道");
-assert(grade4OriginalSeedItems.length >= 50, "四年级原创扩展题源第一批应至少 50 道");
+assert(grade4ReferenceSeedItems.length >= 2265, "四年级资料派生题源完整扫描并补充奥数题后应至少 2265 道");
+assert(grade4OriginalSeedItems.length >= 60, "四年级原创扩展题源应包含新增原创奥数题后至少 60 道");
+assert(grade4ReferenceSeedItems.filter((item) => item.id.includes("olympiad")).length >= 60, "四年级奥数 PDF 不应只保留单题示例");
+assert(grade4OriginalSeedItems.filter((item) => item.id.startsWith("orig-g4-olympiad-")).length >= 12, "四年级原创奥数题应独立入库");
 assert(grade4ReferenceSeedItems.every((item) => item.id.startsWith("ref-g4-") && item.sourceMeta?.kind === "referenceDerived"), "四年级资料派生题应使用 ref-g4-* id 且标记 referenceDerived");
 assert(grade4OriginalSeedItems.every((item) => item.id.startsWith("orig-g4-") && item.sourceMeta?.kind === "codexOriginal"), "四年级原创扩展题应使用 orig-g4-* id 且标记 codexOriginal");
 assert(grade4ReferenceSeedItems.every((item) => item.sourceMeta?.sourceFile && item.sourceMeta?.sourceNote), "四年级资料派生题应保留资料文件与维护注释");
@@ -318,7 +327,7 @@ assert(grade4ReferenceDiagramItems.length >= 120, "四年级资料派生题应�
 assert(grade4ReferenceDiagramItems.every((item) => item.sourceMeta?.visualPolicy === "self-drawn-diagram"), "四年级资料派生图形题应标注自绘示意图策略");
 
 const grade4ReferenceImageItems = grade4ReferenceSeedItems.filter((item) => item.sourceImage);
-assert(grade4ReferenceImageItems.length >= 8, "四年级资料派生题应包含 PDF 清晰页截图题");
+assert(grade4ReferenceImageItems.length >= 14, "四年级资料派生题应包含 PDF 清晰页截图题和奥数整页截图题");
 assert(grade4ReferenceImageItems.every((item) => item.sourceMeta?.visualPolicy === "pdf-crop-image"), "四年级 PDF 截图题应标注 pdf-crop-image 策略");
 assert(grade4ReferenceImageItems.every((item) => /^assets\/reference\/grade4\/.+\.png$/.test(item.sourceImage?.src || "")), "四年级 PDF 截图题应引用应用内四年级参考图片资产");
 grade4ReferenceImageItems.forEach((item) => {

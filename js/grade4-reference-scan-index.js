@@ -136,6 +136,13 @@
         "g4-mul-div",
         "g4-two-step"
       ]
+    },
+    {
+      sourceId: "g4-math-olympiad-training",
+      pages: 5,
+      textPages: [1, 2, 3, 4, 5],
+      subject: "math",
+      pointCycle: ["g4-thinking", "g4-appendix", "g4-reading", "g4-word", "g4-angle-triangle"]
     }
   ];
 

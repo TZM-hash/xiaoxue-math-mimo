@@ -77,6 +77,24 @@
         "c2-sentence",
         "c2-reading"
       ]
+    },
+    {
+      sourceId: "g2-math-olympiad-100",
+      pages: 32,
+      textPages: Array.from({ length: 32 }, (_, index) => index + 1),
+      subject: "math",
+      pointCycle: [
+        "g2-thinking",
+        "g2-appendix",
+        "g2-reading",
+        "g2-simple-word",
+        "g2-two-step",
+        "g2-two-step-muldiv",
+        "g2-table",
+        "g2-time-money",
+        "g2-angle-view",
+        "g2-length-measure"
+      ]
     }
   ];
 

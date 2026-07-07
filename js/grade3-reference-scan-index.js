@@ -142,6 +142,13 @@
         "c3-textbook-around-one-idea",
         "c3-textbook-practical-expression"
       ]
+    },
+    {
+      sourceId: "g3-math-olympiad-training",
+      pages: 4,
+      textPages: [1, 2, 3, 4],
+      subject: "math",
+      pointCycle: ["g3-thinking", "g3-appendix", "g3-reading", "g3-word-two-step"]
     }
   ];
 

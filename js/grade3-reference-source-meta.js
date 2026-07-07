@@ -99,6 +99,18 @@
       extractStatus: "scan-image",
       usableFor: ["字词句", "段落阅读", "古诗理解", "习作片段"],
       note: "扫描型试卷，题库按题型结构改写；扫描不清晰处跳过原题细节。"
+    },
+    {
+      id: "g3-math-olympiad-training",
+      subject: "math",
+      grade: 3,
+      fileType: "pdf",
+      fileName: "小学三年级奥数综合训练.pdf",
+      path: "Reference/grade3/小学三年级奥数综合训练.pdf",
+      pages: 4,
+      extractStatus: "text-extractable",
+      usableFor: ["奥数综合", "逆推还原", "火柴棒游戏", "植树问题", "年龄问题"],
+      note: "文本可抽取的小学奥数综合训练，按清晰题型改写为思维训练和附加题。"
     }
   ];
 

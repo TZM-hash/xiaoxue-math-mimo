@@ -111,6 +111,18 @@
       extractStatus: "scan-image",
       usableFor: ["培优推理", "角与图形", "大数与估算", "应用题"],
       note: "扫描型大文件，按清晰题型结构生成可追溯派生题；不伪造 OCR 原文。"
+    },
+    {
+      id: "g4-math-olympiad-training",
+      subject: "math",
+      grade: 4,
+      fileType: "pdf",
+      fileName: "小学四年级奥数培训综合训练及答案.pdf",
+      path: "Reference/grade4/小学四年级奥数培训综合训练及答案.pdf",
+      pages: 5,
+      extractStatus: "text-extractable",
+      usableFor: ["奥数培训", "巧算综合", "图形计数", "植树问题", "和差倍推理"],
+      note: "文本可抽取的小学奥数培训综合训练，含答案页，按题型结构整理为可判分派生题。"
     }
   ];
 

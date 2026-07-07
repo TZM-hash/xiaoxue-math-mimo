@@ -99,6 +99,18 @@
       extractStatus: "binary-doc",
       usableFor: ["看图写话", "顺序表达", "人物地点事情"],
       note: "旧版 Word 文档，第一批先按看图写话能力点生成自评题；后续可另行转换并截取清晰图片。"
+    },
+    {
+      id: "g2-math-olympiad-100",
+      subject: "math",
+      grade: 2,
+      fileType: "pdf",
+      fileName: "小学二年级必学奥数题100题.pdf",
+      path: "Reference/grade2/小学二年级必学奥数题100题.pdf",
+      pages: 32,
+      extractStatus: "text-extractable",
+      usableFor: ["奥数100题", "年龄和倍", "逻辑推理", "图形规律", "周期问题", "统筹优化"],
+      note: "新增二年级奥数 100 题资料；文本层编码不稳定，维护时以清晰页截图和人工可辨题面改写为准。"
     }
   ];
 

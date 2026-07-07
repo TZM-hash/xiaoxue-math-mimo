@@ -188,6 +188,20 @@
       "从英语活页默写扫描页裁图，按三上问候句型改写。",
       pdfCrop("g3-english-wcx-copybook", 22, "assets/reference/grade3/g3-english-copybook-words-p022.png", "三年级英语句型默写截图", "三年级英语活页默写句型参考截图")
     );
+    imageChoice(
+      "ref-g3-img-math-olympiad-001",
+      "g3-thinking",
+      "g3-math-olympiad-training",
+      2,
+      "参考截图来自三年级奥数火柴棒题。遇到“移动一根火柴棒使等式成立”这类题，最适合先做什么？",
+      "先观察等式两边和可改变的数字形状",
+      ["直接把所有火柴都拿走", "只看题号", "先写作文"],
+      "火柴棒题要先看等式是否平衡，再判断移动一根后哪些数字或符号会改变。",
+      ["观察原等式。", "找可移动的一根。", "验证移动后等式是否成立。"],
+      "奥数火柴棒截图题",
+      "从三年级奥数综合训练第 2 页裁图，按火柴棒思维题型改写。",
+      pdfCrop("g3-math-olympiad-training", 2, "assets/reference/grade3/g3-math-olympiad-matchstick-p002.png", "三年级奥数火柴棒题截图", "三年级奥数综合训练火柴棒参考截图")
+    );
   }
 
   function pad(value, size = 3) {
@@ -725,6 +739,69 @@
     ENGLISH_TEMPLATES[pointId] = ENGLISH_TEMPLATES[bases[index % bases.length]];
   });
 
+  function addOlympiadPageImageSeeds() {
+    const sourceId = "g3-math-olympiad-training";
+    const pointCycle = ["g3-thinking", "g3-appendix", "g3-reading", "g3-word-two-step"];
+    [1, 2, 3, 4].forEach((page, index) => {
+      imageChoice(
+        `ref-g3-img-math-olympiad-page-${pad(page)}`,
+        pointCycle[index % pointCycle.length],
+        sourceId,
+        page,
+        `参考截图来自三年级奥数综合训练第 ${page} 页。做这一页的奥数题时，最适合先做什么？`,
+        "先整理数量关系，再选择倒推、列表、画图或列式",
+        ["直接猜一个答案", "只看图片颜色", "把所有数字都相乘"],
+        "三年级奥数综合题常混合文字和图形信息，先把关系整理清楚再计算更稳。",
+        ["读题并圈出关键条件。", "选择合适的整理方法。", "代回题意检查。"],
+        "奥数页截图审题",
+        `小学三年级奥数综合训练第 ${page} 页整页截图入库。`,
+        pdfCrop(sourceId, page, `assets/reference/grade3/g3-math-olympiad-page-p${pad(page)}.png`, `三年级奥数综合训练第 ${page} 页截图`, "整页截图，供奥数题号级派生题回查")
+      );
+    });
+  }
+
+  function addOlympiadDerivedSeeds() {
+    const sourceId = "g3-math-olympiad-training";
+    const steps = ["读清题目条件。", "选用倒推、列表、画图或列式整理。", "计算后代回原题检查。"];
+    const entries = [
+      { n: 1, p: 1, point: "g3-thinking", type: "逆推还原", q: "幼儿园买来一些苹果，昨天吃了一半，今天又吃了剩下的一半，还剩 18 个。一共买来多少个苹果？", a: "72", exp: "今天吃前有 18 × 2 = 36 个，昨天吃前有 36 × 2 = 72 个。", accept: ["72", "72个"] },
+      { n: 2, p: 1, point: "g3-appendix", type: "连续数巧算", q: "131+132+133+134+135 可以写成几乘几？结果是多少？", a: "133×5=665", exp: "5 个连续数的平均数是中间数 133，和是 133 × 5 = 665。", accept: ["133×5=665", "665"] },
+      { n: 3, p: 1, point: "g3-thinking", type: "三视图", q: "根据上面看、正面看、侧面看的图形判断立体图形时，最适合先确定什么？", a: "每个位置的最高层数", exp: "三视图题要先把俯视位置确定，再用正面和侧面高度限制每列层数。", accept: ["每个位置的最高层数", "最高层数", "位置和高度"] },
+      { n: 4, p: 1, point: "g3-word-two-step", type: "水果代换", q: "天平显示 3 个苹果等于 1 个梨加 1 个苹果，梨重 200 克；菠萝等于 6 个苹果。菠萝重多少克？", a: "600", exp: "3 个苹果 = 梨 + 1 个苹果，所以梨 = 2 个苹果。梨 200 克，则苹果 100 克，菠萝 6 个苹果是 600 克。", accept: ["600", "600克"] },
+      { n: 5, p: 1, point: "g3-thinking", type: "动物代换", q: "1 头大象 + 5 头牛 = 10 吨，2 头大象 + 5 头牛 = 15 吨，1 头大象 + 1 条鲸鱼 = 12 吨。鲸鱼多少吨？", a: "7", exp: "两式相减得大象 5 吨；代回得牛 1 吨；鲸鱼是 12 - 5 = 7 吨。", accept: ["7", "7吨"] },
+      { n: 6, p: 1, point: "g3-reading", type: "统筹优化", q: "烧开水 13 分钟、洗红领巾 5 分钟、整理房间 10 分钟，这些事可并行安排。至少需要多少分钟完成？", a: "13", exp: "洗红领巾和整理房间都可以安排在烧水的 13 分钟内完成。", accept: ["13", "13分钟"] },
+      { n: 7, p: 1, point: "g3-word-two-step", type: "爬楼梯", q: "楼梯题中“每两层之间有 15 级台阶”，从 1 楼到 6 楼要走几个楼层间隔？", a: "5", exp: "从 1 楼到 6 楼经过 1-2、2-3、3-4、4-5、5-6，共 5 个间隔。", accept: ["5", "5个"] },
+      { n: 8, p: 2, point: "g3-appendix", type: "火柴棒", q: "火柴棒题要求移动一根使 5×135=405 成立，第一步最应该观察什么？", a: "哪些数字移动一根后会变形", exp: "火柴棒数字题要先找能通过一根火柴改变的数字或符号，再验证等式。", accept: ["哪些数字移动一根后会变形", "可变数字", "数字形状"] },
+      { n: 9, p: 2, point: "g3-appendix", type: "最大乘积", q: "用 1、3、5、7 组成“□□□×□”，要使积最大，三位数和一位数应怎样搭配？", a: "531×7", exp: "一位数放最大的 7，剩下 5、3、1 组成尽量大的三位数 531。", accept: ["531×7", "531*7"] },
+      { n: 10, p: 2, point: "g3-vertical", type: "竖式谜", q: "竖式谜题中，看到乘积末尾是 25，乘数是 5，最适合先看哪一位？", a: "个位", exp: "乘法竖式从个位突破最稳，末尾 25 能帮助判断被乘数个位。", accept: ["个位"] },
+      { n: 11, p: 2, point: "g3-word-two-step", type: "蜗牛爬树", q: "蜗牛爬 15 米树，白天上爬 4 米，夜间下滑 3 米。第几天能到树顶？", a: "12", exp: "前 11 天每天净上升 1 米，到第 12 天白天从 11 米爬到 15 米。", accept: ["12", "第12天", "12天"] },
+      { n: 12, p: 2, point: "g3-perimeter", type: "拼长方形周长", q: "两张长 10 厘米、宽 5 厘米的长方形纸拼成一个周长最小的新长方形，周长是多少厘米？", a: "40", exp: "沿长边拼成 10×10 的正方形，周长最小，为 10 × 4 = 40 厘米。", accept: ["40", "40厘米"] },
+      { n: 13, p: 3, point: "g3-reading", type: "买三赠一", q: "书店 72 元一套，买三本赠一本。做平均价格题时，应先求什么？", a: "实际得到的本数", exp: "优惠题要先看实际付钱的数量和实际得到的数量，再求平均每本价格。", accept: ["实际得到的本数", "得到的本数"] },
+      { n: 14, p: 3, point: "g3-thinking", type: "年龄倍数", q: "小明今年 5 岁，奶奶今年 65 岁。今年奶奶年龄是小明的多少倍？明年呢？", a: "13倍，11倍", exp: "今年 65 ÷ 5 = 13；明年 66 ÷ 6 = 11。", accept: ["13倍，11倍", "13,11", "13倍 11倍"] },
+      { n: 15, p: 3, point: "g3-word-two-step", type: "植树问题", q: "一条 343 米的公路边每隔 7 米架设一根电线杆，两端都架，一共要多少根？", a: "50", exp: "343 ÷ 7 = 49 个间隔，两端都架时杆数是 49 + 1 = 50。", accept: ["50", "50根"] },
+      { n: 16, p: 3, point: "g3-reading", type: "错看除数", q: "一道除法题把除数 8 看成 3，得到商 24。正确的商是多少？", a: "9", exp: "被除数是 3 × 24 = 72，正确商是 72 ÷ 8 = 9。", accept: ["9"] },
+      { n: 17, p: 3, point: "g3-vertical", type: "竖式补全", q: "补全除法竖式时，最适合先利用哪两个信息？", a: "商和余数", exp: "除法竖式可从商、乘积、余数的关系逐层还原。", accept: ["商和余数", "商、余数"] },
+      { n: 18, p: 3, point: "g3-unit", type: "闰年生日", q: "小明今年 20 岁，但只过了 5 个生日。他的生日是几月几日？", a: "2月29日", exp: "4 年才出现一次的生日是闰年的 2 月 29 日。", accept: ["2月29日", "2.29", "2月29"] },
+      { n: 19, p: 3, point: "g3-thinking", type: "年龄排序", q: "佳佳比丽丽大，小青不是最大的，但她比佳佳和丽丽都大。四人中乐乐也在其中，谁最大？", a: "乐乐", exp: "小青比佳佳、丽丽大但不是最大，所以最大的是乐乐。", accept: ["乐乐"] },
+      { n: 20, p: 4, point: "g3-reading", type: "楼层职业推理", q: "四层楼中丁住第 4 层；工程师在第 1 层；教师、医生、工人从低到高相邻。丁的职业是什么？", a: "工人", exp: "第 1 层是工程师，教师在 2 层、医生在 3 层、工人在 4 层，所以丁是工人。", accept: ["工人"] }
+    ];
+
+    entries.forEach((item) => {
+      const answer = String(item.a);
+      add(item.point, [{
+        id: `ref-g3-olympiad-q${pad(item.n)}`,
+        answerType: "text",
+        text: `根据奥数 PDF 第 ${item.n} 题改写：${item.q}`,
+        answer,
+        acceptedAnswers: (item.accept || [answer]).map(String),
+        explanation: item.exp,
+        steps,
+        templateType: item.type,
+        sourceMeta: source(sourceId, item.p, `小学三年级奥数综合训练第 ${item.p} 页第 ${item.n} 题改写。`, "manual-rewrite")
+      }]);
+    });
+  }
+
   function addGeneratedFromScanIndex() {
     (scanIndex.pages || []).forEach((pageRecord, pageIndex) => {
       const pointId = pageRecord.pointHint;
@@ -743,6 +820,8 @@
   }
 
   addImageSeeds();
+  addOlympiadPageImageSeeds();
+  addOlympiadDerivedSeeds();
   addGeneratedFromScanIndex();
 
   window.MathCampGrade3ReferenceQuestionSeeds = {
