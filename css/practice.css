@@ -390,6 +390,137 @@
       line-height: 1.4;
       text-align: center;
     }
+    .floating-pet-assistant {
+      --floating-pet-x: calc(100vw - 86px);
+      --floating-pet-y: calc(100dvh - 168px);
+      position: fixed;
+      left: 0;
+      top: 0;
+      z-index: 80;
+      transform: translate3d(var(--floating-pet-x), var(--floating-pet-y), 0);
+      display: block;
+      width: 70px;
+      min-height: 70px;
+      pointer-events: none;
+      touch-action: none;
+    }
+    .floating-pet-assistant[hidden] { display: none !important; }
+    .floating-pet-button {
+      position: relative;
+      width: 66px;
+      min-height: 66px;
+      padding: 4px;
+      border-radius: 22px;
+      border: 1px solid color-mix(in oklch, var(--subject-accent), white 45%);
+      background:
+        radial-gradient(circle at 50% 24%, rgba(255,255,255,.92) 0 28px, transparent 29px),
+        linear-gradient(145deg, color-mix(in oklch, var(--subject-soft), white 8%), rgba(255,255,255,.88));
+      box-shadow: 0 16px 34px color-mix(in oklch, var(--subject-shadow), transparent 22%);
+      pointer-events: auto;
+      cursor: grab;
+      touch-action: none;
+    }
+    .floating-pet-button img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      pointer-events: none;
+      filter: drop-shadow(0 7px 10px rgba(44, 86, 108, .14));
+    }
+    .floating-pet-badge {
+      position: absolute;
+      right: -5px;
+      top: -7px;
+      min-width: 34px;
+      min-height: 22px;
+      padding: 0 7px;
+      border-radius: 999px;
+      display: inline-grid;
+      place-items: center;
+      background: color-mix(in oklch, var(--warning), white 18%);
+      color: color-mix(in oklch, var(--fg), black 10%);
+      border: 1px solid rgba(255,255,255,.8);
+      box-shadow: 0 8px 14px rgba(44, 86, 108, .14);
+      font-size: 11px;
+      font-weight: 950;
+      line-height: 1;
+    }
+    .floating-pet-assistant.is-dragging .floating-pet-button {
+      cursor: grabbing;
+      transform: scale(.97);
+      box-shadow: 0 10px 22px color-mix(in oklch, var(--subject-shadow), transparent 38%);
+    }
+    .floating-pet-panel {
+      position: absolute;
+      right: 0;
+      bottom: 78px;
+      width: min(286px, calc(100vw - 28px));
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+      border-radius: 16px;
+      border: 1px solid color-mix(in oklch, var(--subject-accent), white 48%);
+      background:
+        linear-gradient(145deg, rgba(255,255,255,.96), color-mix(in oklch, var(--subject-soft), white 18%));
+      box-shadow: 0 20px 48px rgba(35, 74, 98, .18);
+      pointer-events: auto;
+    }
+    .floating-pet-panel[hidden] { display: none !important; }
+    .floating-pet-assistant[data-side="left"] .floating-pet-panel {
+      left: 0;
+      right: auto;
+    }
+    .floating-pet-panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .floating-pet-panel-head strong {
+      font: 950 14px/1.25 var(--font-display);
+      color: color-mix(in oklch, var(--subject-ink), black 2%);
+    }
+    .floating-pet-panel-head button {
+      width: 30px;
+      min-height: 30px;
+      padding: 0;
+      border-radius: 999px;
+      background: rgba(255,255,255,.82);
+      color: color-mix(in oklch, var(--fg), white 8%);
+      box-shadow: none;
+    }
+    .floating-pet-panel p {
+      margin: 0;
+      padding: 9px 10px;
+      border-radius: 12px;
+      background: rgba(255,255,255,.68);
+      color: color-mix(in oklch, var(--fg), black 2%);
+      font-size: 13px;
+      font-weight: 850;
+      line-height: 1.55;
+    }
+    .floating-pet-actions {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .floating-pet-actions button {
+      min-height: 34px;
+      padding: 0 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      box-shadow: none;
+    }
+    .floating-pet-extra {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .floating-pet-extra:empty { display: none; }
+    @media (min-width: 1181px) {
+      .floating-pet-assistant { display: none !important; }
+    }
     .mobile-pet-hint-spark {
       position: absolute;
       pointer-events: none;

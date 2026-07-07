@@ -5,6 +5,7 @@
       sound: "mathcamp-sound-enabled-v4",
       theme: "mathcamp-theme-v1",
       subject: "mathcamp-selected-subject-v1",
+      floatingPet: "mathcamp-floating-pet-position-v1",
       system: "mathcamp-system-settings-v1"
     };
     const SubjectRegistry = window.MathCampSubjects || {};
@@ -313,6 +314,14 @@
       mobilePetHintTitle: document.getElementById("mobilePetHintTitle"),
       mobilePetHintText: document.getElementById("mobilePetHintText"),
       mobilePetHintClose: document.getElementById("mobilePetHintClose"),
+      floatingPetAssistant: document.getElementById("floatingPetAssistant"),
+      floatingPetButton: document.getElementById("floatingPetButton"),
+      floatingPetBadge: document.getElementById("floatingPetBadge"),
+      floatingPetPanel: document.getElementById("floatingPetPanel"),
+      floatingPetTitle: document.getElementById("floatingPetTitle"),
+      floatingPetMessage: document.getElementById("floatingPetMessage"),
+      floatingPetExtra: document.getElementById("floatingPetExtra"),
+      floatingPetClose: document.getElementById("floatingPetClose"),
       causePanel: document.getElementById("causePanel"),
       causeSelect: document.getElementById("causeSelect"),
       causeQuickTags: document.getElementById("causeQuickTags"),
@@ -1698,6 +1707,16 @@
       }
     };
     if (!state.profiles.some((profile) => profile.id === state.activeId)) state.activeId = state.profiles[0].id;
+    const floatingPetDrag = {
+      active: false,
+      moved: false,
+      suppressClick: false,
+      startX: 0,
+      startY: 0,
+      originX: 0,
+      originY: 0,
+      current: null
+    };
 
     function activeSubjectId() {
       return safeSubjectId(state.subject || "math");
@@ -4085,7 +4104,7 @@
     }
 
     function shouldUseMobilePetHintPopover() {
-      return state.practiceLayer === "focus" && window.matchMedia("(max-width: 620px)").matches;
+      return false;
     }
 
     function closePetHintPopover() {
@@ -4141,6 +4160,156 @@
       els.mobilePetHintPopover.hidden = false;
       els.mobilePetHintPopover.closest(".companion")?.classList.add("hint-open");
       els.mobilePetHintPopover.closest(".companion")?.classList.toggle("result-open", kind === "result");
+    }
+
+    function floatingPetViewport() {
+      return {
+        width: Math.max(320, Number(window.innerWidth) || document.documentElement.clientWidth || 390),
+        height: Math.max(520, Number(window.innerHeight) || document.documentElement.clientHeight || 780)
+      };
+    }
+    function normalizeFloatingPetPosition(raw = {}, viewport = floatingPetViewport()) {
+      const size = 66;
+      const margin = 12;
+      const maxX = Math.max(margin, Number(viewport.width || 390) - size - margin);
+      const maxY = Math.max(margin, Number(viewport.height || 780) - size - 30);
+      const inputX = Number(raw.x);
+      const inputY = Number(raw.y);
+      const y = clamp(Number.isFinite(inputY) ? inputY : maxY - 72, margin, maxY);
+      const side = raw.side === "left" || raw.side === "right"
+        ? raw.side
+        : (Number.isFinite(inputX) && inputX < Number(viewport.width || 390) / 2 ? "left" : "right");
+      const x = side === "left" ? margin : maxX;
+      return { x, y, side };
+    }
+    function readFloatingPetPosition() {
+      try {
+        return normalizeFloatingPetPosition(JSON.parse(storageGet(STORE.floatingPet, "{}") || "{}"));
+      } catch (_) {
+        return normalizeFloatingPetPosition({});
+      }
+    }
+    function saveFloatingPetPosition(position) {
+      const normalized = normalizeFloatingPetPosition(position);
+      storageSet(STORE.floatingPet, JSON.stringify(normalized));
+      return normalized;
+    }
+    function applyFloatingPetPosition(position = readFloatingPetPosition()) {
+      if (!els.floatingPetAssistant) return position;
+      const normalized = normalizeFloatingPetPosition(position);
+      els.floatingPetAssistant.style.setProperty("--floating-pet-x", `${Math.round(normalized.x)}px`);
+      els.floatingPetAssistant.style.setProperty("--floating-pet-y", `${Math.round(normalized.y)}px`);
+      els.floatingPetAssistant.dataset.side = normalized.side;
+      floatingPetDrag.current = normalized;
+      return normalized;
+    }
+    function closeFloatingPetPanel() {
+      if (!els.floatingPetPanel) return;
+      els.floatingPetPanel.hidden = true;
+      els.floatingPetAssistant?.classList.remove("panel-open");
+    }
+    function floatingPetActionMessage(action, question = state.currentSet[state.index]) {
+      if (!question) {
+        return { title: "招财小助手", body: "先开始一轮练习，招财就能根据当前题目给你提示。", extraHTML: "" };
+      }
+      if (action === "explain") {
+        const steps = (question.steps && question.steps.length ? question.steps : [question.explanation || methodHintFor(question)]).slice(0, 2);
+        return {
+          title: "招财讲一下",
+          body: `${methodHintFor(question)} ${steps.join(" ")}`,
+          extraHTML: ""
+        };
+      }
+      if (action === "cause") {
+        const cause = recommendCauseForQuestion(question, els.answerInput?.value || "");
+        const canSave = Boolean(state.lastWrongRecordId);
+        return {
+          title: "错因建议",
+          body: canSave
+            ? `招财建议先标记为“${cause}”。${petCoachForCause(question, cause)}`
+            : `如果这题答错，我会优先判断是不是“${cause}”。先做完，我再帮你确认。`,
+          extraHTML: canSave ? `<button class="secondary compact-btn" type="button" data-floating-pet-save-cause="${escapeAttr(cause)}">保存“${escapeHTML(cause)}”</button>` : ""
+        };
+      }
+      return { title: "招财提示", body: methodHintFor(question), extraHTML: "" };
+    }
+    function openFloatingPetPanel(action = "") {
+      if (!els.floatingPetPanel || !els.floatingPetMessage) return;
+      const message = floatingPetActionMessage(action || "hint");
+      if (els.floatingPetTitle) els.floatingPetTitle.textContent = message.title;
+      els.floatingPetMessage.textContent = message.body;
+      if (els.floatingPetExtra) els.floatingPetExtra.innerHTML = message.extraHTML || "";
+      els.floatingPetPanel.hidden = false;
+      els.floatingPetAssistant?.classList.add("panel-open");
+    }
+    function handleFloatingPetAction(action) {
+      const current = state.currentSet[state.index];
+      if (action === "hint" && current) {
+        state.stepHintOpen = true;
+        const hint = methodHintFor(current);
+        if (els.methodHint) els.methodHint.textContent = hint;
+        if (!isWaitingForCauseSave()) renderAnswerModePanel(current);
+        updatePetStatus(`招财：这题属于"${pointLabel(current.pointId)}"。${hint}`, "提示");
+        setPetAction("hint", "提示");
+      }
+      openFloatingPetPanel(action || "hint");
+    }
+    function syncFloatingPetBadge() {
+      if (!els.floatingPetBadge) return;
+      const show = Boolean(state.lastWrongRecordId || isWaitingForCauseSave());
+      els.floatingPetBadge.hidden = !show;
+      els.floatingPetBadge.textContent = show ? "建议" : "";
+    }
+    function floatingPetPoint(event) {
+      const touch = event.touches?.[0] || event.changedTouches?.[0];
+      return {
+        x: Number(touch?.clientX ?? event.clientX) || 0,
+        y: Number(touch?.clientY ?? event.clientY) || 0
+      };
+    }
+    function beginFloatingPetDrag(event) {
+      if (!els.floatingPetAssistant) return;
+      const point = floatingPetPoint(event);
+      const current = floatingPetDrag.current || applyFloatingPetPosition();
+      floatingPetDrag.active = true;
+      floatingPetDrag.moved = false;
+      floatingPetDrag.startX = point.x;
+      floatingPetDrag.startY = point.y;
+      floatingPetDrag.originX = current.x;
+      floatingPetDrag.originY = current.y;
+      els.floatingPetAssistant.classList.add("is-dragging");
+    }
+    function moveFloatingPetDrag(event) {
+      if (!floatingPetDrag.active) return;
+      const point = floatingPetPoint(event);
+      const dx = point.x - floatingPetDrag.startX;
+      const dy = point.y - floatingPetDrag.startY;
+      if (Math.abs(dx) + Math.abs(dy) > 6) floatingPetDrag.moved = true;
+      const raw = { x: floatingPetDrag.originX + dx, y: floatingPetDrag.originY + dy };
+      const viewport = floatingPetViewport();
+      const size = 66;
+      const margin = 12;
+      const x = clamp(raw.x, margin, Math.max(margin, viewport.width - size - margin));
+      const y = clamp(raw.y, margin, Math.max(margin, viewport.height - size - 30));
+      applyFloatingPetPosition({ x, y, side: x < viewport.width / 2 ? "left" : "right" });
+      if (event.cancelable) event.preventDefault();
+    }
+    function endFloatingPetDrag() {
+      if (!floatingPetDrag.active) return;
+      floatingPetDrag.active = false;
+      els.floatingPetAssistant?.classList.remove("is-dragging");
+      const saved = saveFloatingPetPosition(floatingPetDrag.current || {});
+      applyFloatingPetPosition(saved);
+      if (floatingPetDrag.moved) {
+        floatingPetDrag.suppressClick = true;
+        window.setTimeout(() => { floatingPetDrag.suppressClick = false; }, 80);
+      }
+    }
+    function initFloatingPetAssistant() {
+      if (!els.floatingPetAssistant || !els.floatingPetButton) return;
+      els.floatingPetAssistant.hidden = false;
+      applyFloatingPetPosition();
+      syncFloatingPetBadge();
     }
 
     function setFeedback(kind, message, face = "") {
@@ -6643,6 +6812,7 @@
       const title = els.causePanel?.querySelector(".cause-panel-title");
       if (title) title.textContent = `招财建议先标记为“${recommended}”。点它确认保存，也可以改选。`;
       els.causePanel.classList.add("active");
+      syncFloatingPetBadge();
       const mode = question?.interaction?.mode || "input";
       const inlineMode = isMobilePracticeViewport() && (mode === "choice" || mode === "judge");
       if (!inlineMode) return;
@@ -7112,6 +7282,7 @@
       els.causePanel.classList.remove("active");
       els.causeSelect.value = "未标记";
       renderCauseQuickTags(current);
+      syncFloatingPetBadge();
       els.saveCauseBtn.textContent = "直接下一题";
       els.saveCauseBtn.disabled = false;
       state.stepHintOpen = false;
@@ -7541,6 +7712,7 @@
         els.causePanel.classList.remove("active");
       }
       state.lastWrongRecordId = "";
+      syncFloatingPetBadge();
       saveChallengeDraft({ persist: true });
       scheduleNextQuestion(900);
     }
@@ -9007,6 +9179,30 @@
       setPetAction("hint", "提示");
     });
     els.mobilePetHintClose?.addEventListener("click", closePetHintPopover);
+    els.floatingPetButton?.addEventListener("pointerdown", beginFloatingPetDrag);
+    window.addEventListener("pointermove", moveFloatingPetDrag);
+    window.addEventListener("pointerup", endFloatingPetDrag);
+    window.addEventListener("pointercancel", endFloatingPetDrag);
+    els.floatingPetButton?.addEventListener("click", (event) => {
+      if (floatingPetDrag.suppressClick) {
+        event.preventDefault();
+        return;
+      }
+      openFloatingPetPanel("hint");
+    });
+    els.floatingPetClose?.addEventListener("click", closeFloatingPetPanel);
+    els.floatingPetPanel?.addEventListener("click", (event) => {
+      const saveBtn = event.target.closest("[data-floating-pet-save-cause]");
+      if (saveBtn) {
+        els.causeSelect.value = saveBtn.dataset.floatingPetSaveCause;
+        renderCauseQuickTags(state.currentSet[state.index]);
+        saveCurrentCause();
+        closeFloatingPetPanel();
+        return;
+      }
+      const actionBtn = event.target.closest("[data-floating-pet-action]");
+      if (actionBtn) handleFloatingPetAction(actionBtn.dataset.floatingPetAction);
+    });
     els.challengeResultClose?.addEventListener("click", closeDesktopResultPopover);
     els.challengeResultOverlay?.addEventListener("click", function(e) { if (e.target === els.challengeResultOverlay || e.target.classList.contains("crs-backdrop")) closeDesktopResultPopover(); });
     els.petShopGrid?.addEventListener("click", (event) => {
@@ -9500,6 +9696,7 @@
     renderNumberPad();
     syncFromProfile();
     startNewSet({ autoFocus: false });
+    initFloatingPetAssistant();
     if (!isAndroidWebView()) generatePrintSheet();
     initCloudSync();
     if (state.musicOn) {
@@ -9579,6 +9776,10 @@
         buildParentDiagnosis,
         renderParentDiagnosis,
         renderCauseQuickTags,
+        normalizeFloatingPetPosition,
+        floatingPetActionMessage,
+        applyFloatingPetPosition,
+        openFloatingPetPanel,
         currentWeekItems,
         learningInsights: LearningInsights,
         questionBankCoverage: QuestionBankCoverage,

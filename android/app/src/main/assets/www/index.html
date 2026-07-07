@@ -1084,6 +1084,26 @@ CREATE POLICY "allow_all_user_settings" ON user_settings FOR ALL USING (true) WI
       </article>
     </div>
 
+    <section class="floating-pet-assistant" id="floatingPetAssistant" aria-label="悬浮招财助手" hidden>
+      <button class="floating-pet-button" type="button" id="floatingPetButton" aria-label="打开招财提示，可拖动位置">
+        <img src="assets/cat-states-app/cat_idle.png" alt="招财" data-pet-image />
+        <span class="floating-pet-badge" id="floatingPetBadge" hidden>建议</span>
+      </button>
+      <article class="floating-pet-panel" id="floatingPetPanel" role="dialog" aria-labelledby="floatingPetTitle" hidden>
+        <div class="floating-pet-panel-head">
+          <strong id="floatingPetTitle">招财小助手</strong>
+          <button type="button" id="floatingPetClose" aria-label="关闭招财助手">×</button>
+        </div>
+        <p id="floatingPetMessage">需要帮助时点一个动作。</p>
+        <div class="floating-pet-actions" aria-label="招财助手动作">
+          <button class="secondary" type="button" data-floating-pet-action="hint">给我提示</button>
+          <button class="secondary" type="button" data-floating-pet-action="explain">讲一下</button>
+          <button class="secondary" type="button" data-floating-pet-action="cause">错因建议</button>
+        </div>
+        <div class="floating-pet-extra" id="floatingPetExtra"></div>
+      </article>
+    </section>
+
     <div class="archive-modal" id="archiveModal" role="dialog" aria-modal="true" aria-labelledby="archiveTitle" hidden>
       <article class="archive-modal-panel data-card">
         <div class="item-top">

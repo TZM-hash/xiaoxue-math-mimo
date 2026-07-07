@@ -115,6 +115,12 @@ assertContains(html, 'class="home-mode-grid"', "mobile home should include mode 
 assertContains(html, 'id="homeStartPracticeBtn"', "mobile home practice card should start a round");
 assertContains(html, '<span>今日练习</span>', "首页主练习入口应保持轻量的一键今日练习");
 assertContains(html, '<strong>开始今日练习</strong>', "首页主练习入口应让用户一键开始");
+assertContains(html, 'id="floatingPetAssistant"', "移动/平板应包含悬浮招财助手容器");
+assertContains(html, 'id="floatingPetButton"', "悬浮招财应有可点击可拖动的猫咪入口");
+assertContains(html, 'id="floatingPetPanel"', "悬浮招财应有弹窗风格提示面板");
+assertContains(html, 'data-floating-pet-action="hint"', "悬浮招财面板应包含提示动作");
+assertContains(html, 'data-floating-pet-action="explain"', "悬浮招财面板应包含讲一下动作");
+assertContains(html, 'data-floating-pet-action="cause"', "悬浮招财面板应包含错因建议动作");
 assertContains(html, 'id="closeTypeSettingsBtn"', "type settings page should include a home return button");
 assertNotContains(html, 'id="systemProfileGradeInput"', "system settings should not expose a separate grade selector");
 assertContains(html, 'src="js/home-route.js"', "页面应加载今日学习路线模块");
@@ -333,6 +339,12 @@ assertContains(app, "function recommendCauseForQuestion", "app should infer a re
 assertContains(app, "function petCoachForCause", "app should turn 招财 into a subject-aware study assistant");
 assertContains(app, "function buildParentDiagnosis", "app should build a parent-facing diagnosis from mistakes");
 assertContains(app, "renderParentDiagnosis", "app should render the parent diagnosis card in the report");
+assertContains(app, "floatingPetAssistant: document.getElementById", "app should bind the floating pet assistant");
+assertContains(app, "function normalizeFloatingPetPosition", "floating pet should clamp and snap its draggable position");
+assertContains(app, "function applyFloatingPetPosition", "floating pet should apply remembered position");
+assertContains(app, "function openFloatingPetPanel", "floating pet should open a popup-style action panel");
+assertContains(app, "function handleFloatingPetAction", "floating pet should route hint/explain/cause actions");
+assertContains(app, "mathcamp-floating-pet-position-v1", "floating pet should remember the custom position");
 assertContains(app, "buildQuestionBankCoverage", "app debug API should expose the question-bank coverage report");
 assertContains(questionBank, 'reading: ["读题理解", "不会做", "计算粗心"]', "question bank should define reading cause tags");
 assertContains(questionBank, 'thinking: ["读题理解", "概念单位", "不会做"]', "question bank should define thinking cause tags");
@@ -405,6 +417,10 @@ assertContains(css, "body.pet-modal-open #petspaceView.view.active", "pet modals
 assertContains(css, ".pet-achievement-board", "CSS should style the achievement board");
 assertContains(css, "#petspaceView.active #petGrowthPanelModal .pet-stage-card", "mobile growth modal should reveal the moved pet stage card");
 assertNotContains(css, ".word-relation-panel", "CSS should not keep removed word relation panel styles");
+assertContains(css, ".floating-pet-assistant", "CSS should style the floating pet assistant");
+assertContains(css, ".floating-pet-panel", "CSS should style the floating pet popup panel");
+assertContains(css, "@media (min-width: 1181px)", "desktop should be able to hide the floating pet assistant");
+assertContains(css, ".floating-pet-assistant.is-dragging", "dragging state should visually stabilize the floating pet");
 assertContains(css, ".cause-chip.recommended", "错因标签应突出招财推荐项");
 assertContains(css, 'content: "建议";', "推荐错因标签应显示建议标记");
 assertContains(css, "body.practice-view-active:not(.practice-focus-mode):not(.type-settings-open) .home-settings-card", "mobile home should show the summary card only on the home state");
@@ -494,6 +510,8 @@ assertContains(css, "@media (max-width: 1180px) {\n      html:has(body.practice-
 assertContains(css, "body.practice-view-active.practice-focus-mode .app {\n        height: auto;\n        min-height: 100dvh;\n        overflow: visible;", "mobile and tablet focused practice app should grow with content");
 assertContains(css, "body.practice-view-active.practice-focus-mode .practice-workspace.focus-mode > .main-stack,\n      body.practice-view-active.practice-focus-mode .practice-workspace > .main-stack {\n        grid-template-rows: auto auto auto !important;\n        padding-bottom: max(16px, env(safe-area-inset-bottom));", "mobile and tablet focused practice stack should expose all lower controls");
 assertContains(css, "body.practice-view-active.practice-focus-mode .answer-panel {\n        min-height: 0;\n        max-height: none;\n        overflow: visible;", "mobile and tablet focused practice answers should scroll with the page");
+assertContains(css, "body.practice-view-active.practice-focus-mode .practice-card > .companion {\n        display: none !important;", "mobile and tablet focused practice should hide the fixed companion now that the floating pet handles coaching");
+assertContains(app, "function shouldUseMobilePetHintPopover() {\n      return false;", "mobile focused practice should not route hints or results through the hidden fixed companion");
 assertContains(css, "#petBagModal .pet-bag-grid", "tablet bag grid should avoid item overlap");
 assertContains(css, "grid-template-columns: repeat(2, minmax(0, 1fr));", "tablet bag should use a stable two-column grid");
 assertContains(css, ".pet-collection-source", "CSS 应包含装扮馆来源文案样式");

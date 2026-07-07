@@ -1557,6 +1557,27 @@ function runChallengeSubjectIsolationAndResetTests() {
   assert.strictEqual(debug.state.mode, "normal", "切换科目后应回到普通初始化状态");
 }
 
+function runFloatingPetAssistantTests() {
+  const debug = context.mathCampDebug;
+  const left = debug.normalizeFloatingPetPosition({ x: -80, y: -40 }, { width: 390, height: 780 });
+  assert.strictEqual(left.side, "left", "悬浮猫咪拖到左侧后应吸附左边缘");
+  assert(left.x >= 12 && left.y >= 12, "悬浮猫咪位置应限制在可视区域内");
+
+  const right = debug.normalizeFloatingPetPosition({ x: 370, y: 900 }, { width: 390, height: 780 });
+  assert.strictEqual(right.side, "right", "悬浮猫咪拖到右侧后应吸附右边缘");
+  assert(right.x <= 390 - 76 && right.y <= 780 - 96, "悬浮猫咪右下位置不应越界");
+
+  const message = debug.floatingPetActionMessage("cause", {
+    subject: "english",
+    pointId: "e3-vocabulary-school",
+    topic: "vocabulary",
+    text: "Choose the word for 教室.",
+    explanation: "classroom 是教室。"
+  });
+  assert(message.title.includes("错因") || message.title.includes("建议"), "错因动作应给出弹窗标题");
+  assert(message.body.includes("单词不熟") || message.body.includes("招财"), "错因动作应使用当前学科推荐错因");
+}
+
 function runUtf8EncodingTests() {
   const files = ["js/app.js", "js/cloud-sync.js", "js/runtime-config.js", "js/question-bank-coverage.js", "js/learning-insights.js", "js/pet-economy.js", "js/question-spec-utils.js", "js/external-question-seeds.js", "js/question-rules-engine.js", "js/question-interaction.js", "js/subject-registry.js", "js/chinese-question-bank.js", "js/chinese-question-generator.js", "js/english-question-bank.js", "js/english-question-generator.js", "js/science-curriculum-data.js", "js/science-question-bank.js", "js/science-question-generator.js", "js/handwriting-input.js", "index.html", "tests/question-rules.test.js", "tests/frontend-layout.test.js", "tests/english-question-bank.test.js", "tests/science-question-bank.test.js", "tests/external-question-seeds.test.js"];
   const mojibakeTokens = ["\u93c1", "\u93b7", "\u7edb", "\u95bf", "\u9983", "\u8133", "\u923f", "\u9241", "\u9286", "\u4fd9", "\u6992", "\u5744", "\u6624", "\ufffd"];
@@ -1906,6 +1927,7 @@ runSubjectCauseOptionTests();
 runRecommendedCauseAndParentDiagnosisTests();
 runLightSmartExperienceTests();
 runChallengeSubjectIsolationAndResetTests();
+runFloatingPetAssistantTests();
 runUtf8EncodingTests();
 runInteractionBoundaryTests();
 runTwoStepMulDivTests();
@@ -1934,6 +1956,7 @@ console.log("Subject cause option tests passed.");
 console.log("Recommended cause and parent diagnosis tests passed.");
 console.log("Light smart experience tests passed.");
 console.log("Challenge subject isolation and reset tests passed.");
+console.log("Floating pet assistant tests passed.");
 console.log("Interaction boundary tests passed.");
 console.log("Two-step multiplication/division tests passed.");
 console.log("Vertical calculation tests passed.");
