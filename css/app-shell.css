@@ -7,9 +7,9 @@
       background:
         linear-gradient(90deg, color-mix(in oklch, var(--border), transparent 76%) 1px, transparent 1px),
         linear-gradient(180deg, color-mix(in oklch, var(--border), transparent 78%) 1px, transparent 1px),
-        radial-gradient(circle at 8% 2%, color-mix(in oklch, var(--accent-2), white 42%) 0 180px, transparent 181px),
-        radial-gradient(circle at 94% 6%, color-mix(in oklch, var(--sun), white 30%) 0 145px, transparent 146px),
-        linear-gradient(180deg, color-mix(in oklch, var(--soft), white 30%) 0, var(--bg) 520px);
+        radial-gradient(circle at 8% 2%, color-mix(in oklch, var(--subject-accent-2), white 42%) 0 180px, transparent 181px),
+        radial-gradient(circle at 94% 6%, color-mix(in oklch, var(--subject-warm), white 30%) 0 145px, transparent 146px),
+        linear-gradient(180deg, color-mix(in oklch, var(--subject-soft), white 28%) 0, var(--bg) 520px);
       background-size: 38px 38px, 38px 38px, auto, auto, auto;
       -webkit-font-smoothing: antialiased;
       text-rendering: optimizeLegibility;
@@ -282,15 +282,21 @@
     .tab-btn[aria-selected="true"] {
       color: var(--fg);
       background: var(--surface);
-      border-color: color-mix(in oklch, var(--accent), white 36%);
+      border-color: color-mix(in oklch, var(--subject-accent), white 36%);
       box-shadow: 0 10px 22px rgba(44, 86, 108, .08);
+    }
+    .tab-btn[data-open-subject] {
+      color: var(--subject-ink);
+      background:
+        linear-gradient(180deg, color-mix(in oklch, var(--subject-soft), white 18%), rgba(255,255,255,.72));
+      border-color: color-mix(in oklch, var(--subject-accent), white 42%);
     }
     .nav-label-mobile {
       display: none;
     }
     .tab-btn:hover {
       color: color-mix(in oklch, var(--fg), white 4%);
-      border-color: color-mix(in oklch, var(--accent), white 44%);
+      border-color: color-mix(in oklch, var(--subject-accent), white 44%);
       transform: translateY(-1px);
     }
     .tab-btn:active {
@@ -516,11 +522,11 @@
       box-shadow: var(--shadow);
     }
     .hero::after {
-      content: "⭐  🧮  ✨";
+      content: var(--subject-hero-symbols);
       position: absolute;
       right: clamp(18px, 4vw, 46px);
       top: clamp(14px, 3vw, 28px);
-      color: color-mix(in oklch, var(--accent), white 12%);
+      color: color-mix(in oklch, var(--subject-accent), white 12%);
       font-size: 24px;
       letter-spacing: .24em;
       opacity: .72;
@@ -560,6 +566,12 @@
       gap: 12px;
       align-items: stretch;
       min-height: 0;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,.92), rgba(255,255,255,.68)),
+        radial-gradient(circle at 12% 12%, color-mix(in oklch, var(--subject-accent-2), white 58%), transparent 190px),
+        linear-gradient(120deg, color-mix(in oklch, var(--subject-soft), white 28%), color-mix(in oklch, var(--subject-accent), white 86%));
+      border-color: color-mix(in oklch, var(--subject-accent), white 54%);
+      box-shadow: 0 18px 42px var(--subject-shadow);
     }
     .home-dashboard::after { display: none; }
     .today-plan-card {
@@ -702,11 +714,11 @@
     }
     .home-route-step:hover {
       transform: translateY(-1px);
-      border-color: color-mix(in oklch, var(--accent), white 42%);
+      border-color: color-mix(in oklch, var(--subject-accent), white 42%);
     }
     .home-route-step.is-current {
-      border-color: color-mix(in oklch, var(--accent), white 34%);
-      background: linear-gradient(180deg, color-mix(in oklch, var(--accent), white 86%), rgba(255,255,255,.72));
+      border-color: color-mix(in oklch, var(--subject-accent), white 34%);
+      background: linear-gradient(180deg, color-mix(in oklch, var(--subject-accent), white 86%), rgba(255,255,255,.72));
     }
     .home-route-step.is-complete {
       background: linear-gradient(180deg, color-mix(in oklch, var(--success), white 86%), rgba(255,255,255,.72));
@@ -725,7 +737,7 @@
       place-items: center;
       border-radius: 999px;
       color: white;
-      background: color-mix(in oklch, var(--accent), black 8%);
+      background: color-mix(in oklch, var(--subject-accent), black 8%);
       font: 950 12px/1 var(--font-display);
     }
     .home-route-step-head strong {
@@ -1251,7 +1263,7 @@
     }
     .grade-choice:hover {
       transform: translateY(-1px);
-      border-color: color-mix(in oklch, var(--accent), white 46%);
+      border-color: color-mix(in oklch, var(--subject-accent), white 46%);
     }
     .grade-choice-main {
       min-height: 20px;
@@ -1261,7 +1273,7 @@
       justify-content: center;
       border-radius: 999px;
       background: transparent;
-      color: color-mix(in oklch, var(--accent), black 22%);
+      color: color-mix(in oklch, var(--subject-accent), black 22%);
       line-height: 1;
     }
     .grade-choice-main b {
@@ -1272,12 +1284,12 @@
       font-weight: 950;
     }
     .choice[aria-pressed="true"] {
-      color: color-mix(in oklch, var(--accent), black 18%);
-      background: color-mix(in oklch, var(--accent), white 82%);
-      border-color: color-mix(in oklch, var(--accent), white 36%);
+      color: color-mix(in oklch, var(--subject-accent), black 18%);
+      background: color-mix(in oklch, var(--subject-accent), white 82%);
+      border-color: color-mix(in oklch, var(--subject-accent), white 36%);
     }
     .grade-choice[aria-pressed="true"] {
-      background: color-mix(in oklch, var(--accent), white 82%);
+      background: color-mix(in oklch, var(--subject-accent), white 82%);
       box-shadow: 0 6px 14px rgba(44, 86, 108, .07);
     }
     .hint-box {
@@ -1354,7 +1366,7 @@
       min-height: 26px;
       padding: 0 8px;
       border-radius: 999px;
-      background: color-mix(in oklch, var(--accent-2), white 78%);
+      background: color-mix(in oklch, var(--subject-accent-2), white 78%);
       color: color-mix(in oklch, var(--fg), white 10%);
       font-size: 12px;
       font-weight: 900;
@@ -1387,7 +1399,7 @@
     .stat strong, .metric strong {
       display: block;
       font: 950 34px/1 var(--font-display);
-      color: color-mix(in oklch, var(--accent), black 12%);
+      color: color-mix(in oklch, var(--subject-accent), black 12%);
     }
     .status-strip .stat strong { font-size: 21px; }
     .stat span, .metric span { color: var(--muted); font-size: 13px; font-weight: 850; }

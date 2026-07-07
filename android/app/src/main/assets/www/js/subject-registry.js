@@ -3,10 +3,46 @@
 
   const SUBJECT_IDS = ["math", "chinese", "english", "science"];
   const SUBJECT_META = {
-    chinese: { id: "chinese", label: "语文", short: "语", bankKey: "MathCampChineseQuestionBank" },
-    math: { id: "math", label: "数学", short: "数", bankKey: "MathCampQuestionBank" },
-    english: { id: "english", label: "英语", short: "英", bankKey: "MathCampEnglishQuestionBank" },
-    science: { id: "science", label: "科学", short: "科", bankKey: "MathCampScienceQuestionBank" }
+    chinese: {
+      id: "chinese",
+      label: "语文",
+      short: "语",
+      icon: "文",
+      metaColor: "#c66b3d",
+      themeLabel: "纸页阅读",
+      themeCopy: "阅读、写作、古诗文会使用更温暖的纸页色和文字符号。",
+      bankKey: "MathCampChineseQuestionBank"
+    },
+    math: {
+      id: "math",
+      label: "数学",
+      short: "数",
+      icon: "数",
+      metaColor: "#3aa47c",
+      themeLabel: "清爽计算",
+      themeCopy: "计算、应用、图形保持清亮绿色和算式符号。",
+      bankKey: "MathCampQuestionBank"
+    },
+    english: {
+      id: "english",
+      label: "英语",
+      short: "英",
+      icon: "En",
+      metaColor: "#4f7ed8",
+      themeLabel: "蓝调语言",
+      themeCopy: "词汇、句型、阅读会使用轻快蓝色和字母提示。",
+      bankKey: "MathCampEnglishQuestionBank"
+    },
+    science: {
+      id: "science",
+      label: "科学",
+      short: "科",
+      icon: "科",
+      metaColor: "#2f9b87",
+      themeLabel: "实验探究",
+      themeCopy: "观察、实验、探究会使用自然青绿和实验符号。",
+      bankKey: "MathCampScienceQuestionBank"
+    }
   };
 
   function safeSubjectId(value) {

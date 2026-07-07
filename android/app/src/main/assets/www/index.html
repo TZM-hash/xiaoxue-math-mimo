@@ -14,8 +14,11 @@
     try {
       const savedTheme = localStorage.getItem("mathcamp-theme-v1") || "classic";
       document.documentElement.dataset.theme = savedTheme === "dark" ? "classic" : savedTheme;
+      const savedSubject = localStorage.getItem("mathcamp-selected-subject-v1") || "math";
+      document.documentElement.dataset.subject = ["chinese", "math", "english", "science"].includes(savedSubject) ? savedSubject : "math";
     } catch (_) {
       document.documentElement.dataset.theme = "classic";
+      document.documentElement.dataset.subject = "math";
     }
     if (
       (navigator.userAgent || "").includes("MiaoMiaoMathAndroid") ||

@@ -22,9 +22,57 @@
       --cat-gold: oklch(73% 0.16 78);
       --cat-pink: oklch(78% 0.10 22);
       --cat-photo: url("../assets/cat-states-app/cat_idle.png");
+      --subject-accent: oklch(55% 0.13 162);
+      --subject-accent-2: oklch(64% 0.15 225);
+      --subject-soft: oklch(96% 0.025 162);
+      --subject-ink: oklch(29% 0.055 162);
+      --subject-warm: oklch(84% 0.15 82);
+      --subject-shadow: rgba(41, 118, 92, .16);
+      --subject-symbols: "＋  −  ×  ÷";
+      --subject-hero-symbols: "⭐  🧮  ✨";
       --font-display: "Avenir Next", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
       --font-body: "PingFang SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
       --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    :root[data-subject="math"] {
+      --subject-accent: oklch(55% 0.13 162);
+      --subject-accent-2: oklch(64% 0.15 225);
+      --subject-soft: oklch(96% 0.025 162);
+      --subject-ink: oklch(29% 0.055 162);
+      --subject-warm: oklch(84% 0.15 82);
+      --subject-shadow: rgba(41, 118, 92, .16);
+      --subject-symbols: "＋  −  ×  ÷";
+      --subject-hero-symbols: "⭐  🧮  ✨";
+    }
+    :root[data-subject="chinese"] {
+      --subject-accent: oklch(57% 0.13 48);
+      --subject-accent-2: oklch(63% 0.12 20);
+      --subject-soft: oklch(96% 0.03 72);
+      --subject-ink: oklch(30% 0.06 48);
+      --subject-warm: oklch(82% 0.12 78);
+      --subject-shadow: rgba(141, 88, 46, .17);
+      --subject-symbols: "词  句  段  篇";
+      --subject-hero-symbols: "📖  句  ✦";
+    }
+    :root[data-subject="english"] {
+      --subject-accent: oklch(56% 0.14 245);
+      --subject-accent-2: oklch(64% 0.12 210);
+      --subject-soft: oklch(96% 0.026 232);
+      --subject-ink: oklch(30% 0.06 245);
+      --subject-warm: oklch(83% 0.11 96);
+      --subject-shadow: rgba(64, 101, 171, .16);
+      --subject-symbols: "Aa  Bb  Cc";
+      --subject-hero-symbols: "Aa  📘  ✨";
+    }
+    :root[data-subject="science"] {
+      --subject-accent: oklch(54% 0.12 174);
+      --subject-accent-2: oklch(65% 0.11 142);
+      --subject-soft: oklch(96% 0.03 160);
+      --subject-ink: oklch(28% 0.055 174);
+      --subject-warm: oklch(83% 0.13 92);
+      --subject-shadow: rgba(40, 122, 105, .16);
+      --subject-symbols: "观察  实验  记录";
+      --subject-hero-symbols: "🔬  🌱  ✦";
     }
     :root[data-theme="classic"] {
       --bg: oklch(98% 0.008 225);

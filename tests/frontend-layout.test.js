@@ -57,6 +57,7 @@ const questionGenerator = read("js/question-generator.js");
 const questionBank = read("js/question-bank.js");
 const questionBankCoverage = read("js/question-bank-coverage.js");
 const learningInsights = read("js/learning-insights.js");
+const subjectRegistry = read("js/subject-registry.js");
 const practiceEngine = read("js/practice-engine.js");
 const reportModule = read("js/report.js");
 const petModule = read("js/pet.js");
@@ -100,6 +101,8 @@ assertContains(html, 'id="heroTitle">今日学习路线</h1>', "home hero title 
 assertContains(html, 'data-top-mode-action', "mobile top action should use the type setting entry");
 assertContains(html, 'nav-label-mobile">⚙️ 题型设置</span>', "mobile top action should be labeled as type settings");
 assertContains(html, 'data-open-subject', "top navigation should include the subject selector entry");
+assertContains(html, 'document.documentElement.dataset.subject', "page should initialize the saved subject before app startup");
+assertContains(html, 'mathcamp-selected-subject-v1', "page should read the persisted subject during first paint");
 assertContains(html, 'id="subjectModal"', "page should include a subject selector modal");
 assertContains(html, 'data-subject-choice="chinese"', "subject selector should include Chinese");
 assertContains(html, 'data-subject-choice="math"', "subject selector should include math");
@@ -422,7 +425,7 @@ assertContains(css, ".question-line.label-line", "question labels such as 材料
 assertContains(css, "font-size: clamp(18px, 2.2vw, 24px);", "word-style prompts should use a stable readable size instead of oversized mobile text");
 assertContains(css, ".answer-input {\n      min-height: 58px;\n      font-size: clamp(18px, 2.2vw, 24px);", "typed answers should use the same readable scale as prompts");
 assertContains(css, ".judge-statement {\n      display: block;\n      color: color-mix(in oklch, var(--fg), white 4%);\n      font-size: clamp(18px, 2.2vw, 24px);", "judge answer statements should not enlarge answers beyond prompt scale");
-assertContains(css, ".judge-statement b {\n      color: color-mix(in oklch, var(--accent), black 18%);\n      font-size: inherit;", "highlighted judge answers should keep the same size as the statement");
+assertContains(css, ".judge-statement b {\n      color: color-mix(in oklch, var(--subject-accent), black 18%);\n      font-size: inherit;", "highlighted judge answers should keep the same size as the statement");
 assertContains(css, "body.practice-view-active.practice-focus-mode .question.word {\n        min-height: 76px;\n        margin-bottom: 8px;\n        font-size: clamp(18px, 2.4vw, 22px);", "focused mobile/tablet word prompts should stay readable without becoming huge");
 assertContains(css, "body.practice-view-active:not(.practice-focus-mode) .practice-workspace > .panel {\n        box-sizing: border-box;\n        min-height: 0;\n        height: 100%;\n        max-height: 100%;\n        padding: 8px 10px;\n        align-self: stretch;\n        overflow-x: hidden;\n        overflow-y: auto;", "desktop practice setup panel should scroll when knowledge details expand");
 assertContains(css, "@media (max-height: 860px)", "desktop practice should have a low-height scroll fallback");
@@ -456,9 +459,21 @@ assertContains(css, ".tab-btn[data-open-subject] { grid-column: 5 / 9; }", "narr
 assertContains(css, "#subjectModal .hub-action-grid", "subject selector modal should have its own responsive grid");
 assertContains(css, ".subject-choice-card.is-active", "subject selector should show the active subject");
 assertContains(app, "subjectModal: document.getElementById(\"subjectModal\")", "app should register the subject selector modal");
+assertContains(app, "function applySubjectTheme", "app should sync the current subject to the document theme layer");
+assertContains(app, "document.documentElement.dataset.subject = subject", "subject theme should be exposed as a root data attribute");
+assertContains(app, "subjectThemeMeta", "app should read subject theme metadata for copy and colors");
 assertContains(app, "document.querySelectorAll(\"[data-open-subject]\")", "app should open the subject selector from navigation");
 assertContains(app, "document.querySelectorAll(\"[data-subject-choice]\")", "app should bind subject choice buttons");
 assertContains(app, "closeHubModals();\n      UI.notify(`已选择${SUBJECTS[next].label}。`);", "selecting a subject should close the subject selector modal");
+assertContains(subjectRegistry, "themeLabel", "subject registry should define visual theme labels");
+assertContains(subjectRegistry, "metaColor", "subject registry should define per-subject browser theme colors");
+["chinese", "math", "english", "science"].forEach((subject) => {
+  assertContains(css, `:root[data-subject="${subject}"]`, `${subject} should have CSS subject theme tokens`);
+});
+assertContains(css, "--subject-symbols", "CSS should define subject-specific practice symbols");
+assertContains(css, "content: var(--subject-symbols);", "practice card decoration should follow the active subject");
+assertContains(css, "content: var(--subject-hero-symbols);", "home hero decoration should follow the active subject");
+assertContains(css, ".tab-btn[data-open-subject]", "subject selector tab should visually reflect the active subject");
 assertContains(css, ".practice-focus-mode .method-card,\n      .practice-focus-mode .appendix-card", "tablet practice companion should show method and appendix cards");
 assertContains(css, "body.practice-view-active #practiceView.view.active.view-enter", "tablet practice view should not animate itself below the viewport on first load");
 assertContains(css, "@media (max-width: 1180px) {\n      html:has(body.practice-view-active.practice-focus-mode),\n      body.practice-view-active.practice-focus-mode {\n        height: auto;\n        min-height: 100%;\n        overflow-x: hidden;\n        overflow-y: auto;", "mobile and tablet focused practice should allow page scrolling");

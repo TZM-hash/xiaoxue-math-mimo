@@ -9,10 +9,10 @@
     };
     const SubjectRegistry = window.MathCampSubjects || {};
     const SUBJECTS = Object.freeze(SubjectRegistry.SUBJECT_META || {
-      chinese: { label: "语文" },
-      math: { label: "数学" },
-      english: { label: "英语" },
-      science: { label: "科学" }
+      chinese: { label: "语文", short: "语", icon: "文", metaColor: "#c66b3d", themeLabel: "纸页阅读", themeCopy: "阅读、写作、古诗文会使用更温暖的纸页色和文字符号。" },
+      math: { label: "数学", short: "数", icon: "数", metaColor: "#3aa47c", themeLabel: "清爽计算", themeCopy: "计算、应用、图形保持清亮绿色和算式符号。" },
+      english: { label: "英语", short: "英", icon: "En", metaColor: "#4f7ed8", themeLabel: "蓝调语言", themeCopy: "词汇、句型、阅读会使用轻快蓝色和字母提示。" },
+      science: { label: "科学", short: "科", icon: "科", metaColor: "#2f9b87", themeLabel: "实验探究", themeCopy: "观察、实验、探究会使用自然青绿和实验符号。" }
     });
     const EFFECT_SETTING_KEYS = Object.freeze([
       "cursorEffects",
@@ -908,6 +908,19 @@
         button.title = active ? `当前主题：${THEME_REGISTRY[state.theme].label}` : `切换到${button.textContent.trim()}主题`;
       });
     }
+    function subjectThemeMeta(subjectId = activeSubjectId()) {
+      return SUBJECTS[safeSubjectId(subjectId)] || SUBJECTS.math;
+    }
+    function updateMetaColor() {
+      const meta = document.querySelector("meta[name='theme-color']");
+      if (!meta) return;
+      meta.setAttribute("content", subjectThemeMeta().metaColor || THEME_REGISTRY[state.theme].metaColor);
+    }
+    function applySubjectTheme(subjectId = activeSubjectId()) {
+      const subject = safeSubjectId(subjectId);
+      document.documentElement.dataset.subject = subject;
+      updateMetaColor();
+    }
     function applyTheme(id, options = {}) {
       const requested = safeThemeId(id);
       const nextTheme = unlockedSystemThemeId(requested);
@@ -916,8 +929,7 @@
       }
       state.theme = nextTheme;
       document.documentElement.dataset.theme = state.theme;
-      const meta = document.querySelector("meta[name='theme-color']");
-      if (meta) meta.setAttribute("content", THEME_REGISTRY[state.theme].metaColor);
+      updateMetaColor();
       updateThemeButtons();
       syncCustomSelects();
       if (options.save !== false) {
@@ -1970,6 +1982,7 @@
     function renderHomeDashboard(profile = activeProfile()) {
       if (!els.homeWeakList) return;
       renderHomeSettingsCard(profile);
+      const subjectMeta = subjectThemeMeta();
       const weak = weakestPoints(3);
       const pet = petState(profile);
       const stage = petStageCopy(petGrowthStage(pet), profile);
@@ -1978,8 +1991,8 @@
       if (els.homePlanCopy) {
         const first = weak[0];
         els.homePlanCopy.textContent = first
-          ? `今天按 4 步走：先复习到期错题，再练"${first.label}"，最后用小测或闯关收尾。`
-          : "今天按 4 步走：先复习到期错题，再完成一组基础练习，最后用小测或闯关收尾。";
+          ? `${subjectMeta.label} · ${subjectMeta.themeLabel}：先复习到期错题，再练"${first.label}"，最后用小测或闯关收尾。`
+          : `${subjectMeta.label} · ${subjectMeta.themeLabel}：先复习到期错题，再完成一组基础练习，最后用小测或闯关收尾。`;
       }
       if (els.homeCockpitMeter) {
         const quality = petLearningQuality(profile);
@@ -4116,6 +4129,7 @@
       syncAnswerModeAvailability();
       els.adaptiveToggle.checked = state.adaptive;
       applyTheme(state.theme, { notify: false });
+      applySubjectTheme();
       renderChrome();
       renderGradeOptions();
       renderPointSelects();
@@ -5899,7 +5913,16 @@
 
     function renderSubjectChoices() {
       document.querySelectorAll("[data-subject-choice]").forEach((button) => {
-        const active = safeSubjectId(button.dataset.subjectChoice) === state.subject;
+        const subjectId = safeSubjectId(button.dataset.subjectChoice);
+        const meta = subjectThemeMeta(subjectId);
+        const active = subjectId === state.subject;
+        const icon = button.querySelector("span");
+        const label = button.querySelector("strong");
+        const copy = button.querySelector("small");
+        if (icon) icon.textContent = meta.icon || meta.short || meta.label;
+        if (label) label.textContent = meta.label;
+        if (copy) copy.textContent = meta.themeCopy || `${meta.label}专项练习`;
+        button.title = `${meta.label}主题：${meta.themeLabel || "学科空间"}`;
         button.classList.toggle("is-active", active);
         button.setAttribute("aria-pressed", active ? "true" : "false");
       });
@@ -5911,6 +5934,7 @@
       const next = safeSubjectId(subjectId);
       state.subject = next;
       storageSet(STORE.subject, next);
+      applySubjectTheme(next);
       const profile = activeProfile();
       bindProfileToActiveSubject(profile);
       const supportedGrades = bankGrades();
@@ -9102,6 +9126,7 @@
     };
 
     applyTheme(state.theme, { save: false });
+    applySubjectTheme();
     document.body.classList.toggle("practice-view-active", state.view === "practice");
     syncCompactOnlyFeatures();
     updateSoundButtons();

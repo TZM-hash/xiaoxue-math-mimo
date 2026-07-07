@@ -11,11 +11,11 @@
       align-items: stretch;
     }
     .practice-card::before {
-      content: "＋  −  ×  ÷";
+      content: var(--subject-symbols);
       position: absolute;
       right: 22px;
       top: 16px;
-      color: color-mix(in oklch, var(--accent-2), transparent 46%);
+      color: color-mix(in oklch, var(--subject-accent-2), transparent 46%);
       font: 950 28px/1 var(--font-display);
       letter-spacing: .18em;
       animation: sparkle-drift 4.2s ease-in-out infinite;
@@ -92,12 +92,12 @@
       display: inline-flex;
       align-items: center;
       border-radius: 999px;
-      background: color-mix(in oklch, var(--accent-2), white 76%);
+      background: color-mix(in oklch, var(--subject-accent-2), white 76%);
       color: color-mix(in oklch, var(--fg), white 10%);
       font-size: 13px;
       font-weight: 900;
     }
-    .tag.topic { background: color-mix(in oklch, var(--sun), white 66%); }
+    .tag.topic { background: color-mix(in oklch, var(--subject-warm), white 66%); }
     .question {
       margin: 0 0 20px;
       min-height: 112px;
@@ -449,7 +449,7 @@
       text-wrap: pretty;
     }
     .judge-statement b {
-      color: color-mix(in oklch, var(--accent), black 18%);
+      color: color-mix(in oklch, var(--subject-accent), black 18%);
       font-size: inherit;
     }
     .choice-options, .judge-options {
@@ -480,13 +480,13 @@
     }
     .answer-option:hover {
       transform: translateY(-1px) scale(1.01);
-      border-color: color-mix(in oklch, var(--accent-2), white 30%);
+      border-color: color-mix(in oklch, var(--subject-accent-2), white 30%);
       box-shadow: 0 10px 20px rgba(44, 86, 108, .08);
     }
     .answer-option[aria-pressed="true"] {
-      border-color: color-mix(in oklch, var(--accent), white 26%);
-      background: color-mix(in oklch, var(--accent), white 80%);
-      color: color-mix(in oklch, var(--accent), black 24%);
+      border-color: color-mix(in oklch, var(--subject-accent), white 26%);
+      background: color-mix(in oklch, var(--subject-accent), white 80%);
+      color: color-mix(in oklch, var(--subject-accent), black 24%);
       transform: translateY(-1px) scale(1.02);
     }
     .answer-option:disabled {

@@ -1408,6 +1408,7 @@ function runChineseSubjectIntegrationTests() {
   debug.state.profiles = [profile];
   debug.state.activeId = profile.id;
   debug.selectSubject("chinese");
+  assert.strictEqual(context.document.documentElement.dataset.subject, "chinese", "切换语文后根节点应同步学科主题");
   debug.state.grade = 3;
   debug.state.pointId = "auto";
   debug.state.setSize = 10;
@@ -1543,6 +1544,7 @@ function runEnglishSubjectIntegrationTests() {
   debug.state.activeId = profile.id;
   debug.selectSubject("english");
   assert.strictEqual(debug.state.subject, "english", "应能切换到英语学科");
+  assert.strictEqual(context.document.documentElement.dataset.subject, "english", "切换英语后根节点应同步学科主题");
   assert.strictEqual(debug.state.grade, 3, "英语三年级起点，低年级切换后应自动落到三年级");
 
   debug.state.pointId = "auto";
@@ -1644,6 +1646,7 @@ function runScienceSubjectIntegrationTests() {
   debug.state.activeId = profile.id;
   debug.selectSubject("science");
   assert.strictEqual(debug.state.subject, "science", "应能切换到科学学科");
+  assert.strictEqual(context.document.documentElement.dataset.subject, "science", "切换科学后根节点应同步学科主题");
   assert.strictEqual(debug.state.grade, 3, "科学应保留当前小学年级");
 
   debug.state.pointId = "auto";
