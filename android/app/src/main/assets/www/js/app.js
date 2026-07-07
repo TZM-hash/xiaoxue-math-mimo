@@ -738,7 +738,7 @@
     function normalizeQuestionSourceImage(image) {
       if (!isPlainObject(image)) return null;
       const src = String(image.src || "").trim();
-      if (!/^assets\/reference\/(?:grade2|grade3)\/[A-Za-z0-9._-]+\.png$/.test(src)) return null;
+      if (!/^assets\/reference\/(?:grade2|grade3|grade4)\/[A-Za-z0-9._-]+\.png$/.test(src)) return null;
       return {
         src,
         alt: String(image.alt || "参考资料题图").slice(0, 80),
@@ -3595,7 +3595,9 @@
         ...flattenGradeSeedModule(window.MathCampGrade2ReferenceQuestionSeeds, "参考资料派生", "二年级"),
         ...flattenGradeSeedModule(window.MathCampGrade2OriginalQuestionSeeds, "原创扩展", "二年级"),
         ...flattenGradeSeedModule(window.MathCampGrade3ReferenceQuestionSeeds, "参考资料派生", "三年级"),
-        ...flattenGradeSeedModule(window.MathCampGrade3OriginalQuestionSeeds, "原创扩展", "三年级")
+        ...flattenGradeSeedModule(window.MathCampGrade3OriginalQuestionSeeds, "原创扩展", "三年级"),
+        ...flattenGradeSeedModule(window.MathCampGrade4ReferenceQuestionSeeds, "参考资料派生", "四年级"),
+        ...flattenGradeSeedModule(window.MathCampGrade4OriginalQuestionSeeds, "原创扩展", "四年级")
       ];
     }
     function matchesSourceFilter(item, filter) {

@@ -25,6 +25,10 @@ vm.createContext(context);
   "js/grade3-reference-scan-index.js",
   "js/grade3-reference-question-seeds.js",
   "js/grade3-original-question-seeds.js",
+  "js/grade4-reference-source-meta.js",
+  "js/grade4-reference-scan-index.js",
+  "js/grade4-reference-question-seeds.js",
+  "js/grade4-original-question-seeds.js",
   "js/external-question-seeds.js",
   "js/chinese-question-generator.js",
   "js/english-question-generator.js",
@@ -45,6 +49,10 @@ const grade3ReferenceMeta = context.window.MathCampGrade3ReferenceSourceMeta;
 const grade3ScanIndex = context.window.MathCampGrade3ReferenceScanIndex;
 const grade3ReferenceSeeds = context.window.MathCampGrade3ReferenceQuestionSeeds;
 const grade3OriginalSeeds = context.window.MathCampGrade3OriginalQuestionSeeds;
+const grade4ReferenceMeta = context.window.MathCampGrade4ReferenceSourceMeta;
+const grade4ScanIndex = context.window.MathCampGrade4ReferenceScanIndex;
+const grade4ReferenceSeeds = context.window.MathCampGrade4ReferenceQuestionSeeds;
+const grade4OriginalSeeds = context.window.MathCampGrade4OriginalQuestionSeeds;
 assert(referenceMeta, "二年级资料来源清单应独立暴露为 MathCampGrade2ReferenceSourceMeta");
 assert(scanIndex, "二年级资料逐页扫描索引应独立暴露为 MathCampGrade2ReferenceScanIndex");
 assert(referenceSeeds, "二年级资料派生题源应独立暴露为 MathCampGrade2ReferenceQuestionSeeds");
@@ -53,6 +61,10 @@ assert(grade3ReferenceMeta, "三年级资料来源清单应独立暴露为 MathC
 assert(grade3ScanIndex, "三年级资料逐页扫描索引应独立暴露为 MathCampGrade3ReferenceScanIndex");
 assert(grade3ReferenceSeeds, "三年级资料派生题源应独立暴露为 MathCampGrade3ReferenceQuestionSeeds");
 assert(grade3OriginalSeeds, "三年级原创扩展题源应独立暴露为 MathCampGrade3OriginalQuestionSeeds");
+assert(grade4ReferenceMeta, "四年级资料来源清单应独立暴露为 MathCampGrade4ReferenceSourceMeta");
+assert(grade4ScanIndex, "四年级资料逐页扫描索引应独立暴露为 MathCampGrade4ReferenceScanIndex");
+assert(grade4ReferenceSeeds, "四年级资料派生题源应独立暴露为 MathCampGrade4ReferenceQuestionSeeds");
+assert(grade4OriginalSeeds, "四年级原创扩展题源应独立暴露为 MathCampGrade4OriginalQuestionSeeds");
 
 const banks = {
   math: context.window.MathCampQuestionBank,
@@ -203,6 +215,8 @@ const referenceSeedItems = flattenBank(referenceSeeds.BANK);
 const originalSeedItems = flattenBank(originalSeeds.BANK);
 const grade3ReferenceSeedItems = flattenBank(grade3ReferenceSeeds.BANK);
 const grade3OriginalSeedItems = flattenBank(grade3OriginalSeeds.BANK);
+const grade4ReferenceSeedItems = flattenBank(grade4ReferenceSeeds.BANK);
+const grade4OriginalSeedItems = flattenBank(grade4OriginalSeeds.BANK);
 assert(Array.isArray(referenceMeta.files) && referenceMeta.files.length >= 8, "资料来源清单应记录 Reference/grade2 下的资料文件");
 assert(referenceMeta.files.every((item) => item.grade === 2 && item.path.includes("Reference/grade2")), "资料来源清单应限定为二年级资料");
 assert(scanIndex.pages.length >= 182, "二年级资料逐页扫描索引应覆盖全部 PDF 页");
@@ -273,6 +287,45 @@ grade3ReferenceImageItems.forEach((item) => {
   assert(item.sourceImage.sourceFile && item.sourceImage.cropNote, "三年级 PDF 截图题应记录截图来源和裁剪说明");
 });
 
+assert(Array.isArray(grade4ReferenceMeta.files) && grade4ReferenceMeta.files.length >= 9, "资料来源清单应记录 Reference/grade4 下的全部资料文件");
+assert(grade4ReferenceMeta.files.every((item) => item.grade === 4 && item.path.includes("Reference/grade4")), "四年级资料来源清单应限定为四年级资料");
+assert(grade4ReferenceMeta.files.some((item) => item.fileName.includes("我来啦英语") && item.subject === "english"), "四年级资料来源清单应包含英语入门 PDF");
+assert(grade4ReferenceMeta.files.some((item) => item.fileType === "docx" && item.subject === "math"), "四年级资料来源清单应包含数学 DOCX 期中卷");
+const grade4PdfPageTotal = (grade4ScanIndex.pdfSources || []).reduce((sum, source) => sum + Number(source.pages || 0), 0);
+assert.strictEqual(grade4ScanIndex.pages.length, grade4PdfPageTotal, "四年级逐页扫描索引应与 PDF 页数合计一致");
+assert(grade4ScanIndex.pages.length >= 364, "四年级资料逐页扫描索引应覆盖全部 PDF 页");
+assert(grade4ScanIndex.pages.every((page) => page.grade === 4 && page.sourceId && Number.isInteger(page.page) && page.page >= 1), "四年级逐页扫描索引应记录年级、来源和页码");
+assert(grade4ScanIndex.pages.some((page) => page.extractStatus === "text-extractable"), "四年级逐页扫描索引应标注可抽文字页");
+assert(grade4ScanIndex.pages.some((page) => page.extractStatus === "scan-image"), "四年级逐页扫描索引应标注扫描图片页");
+["math", "chinese", "english"].forEach((subject) => {
+  assert(grade4ScanIndex.pages.some((page) => page.subject === subject), `四年级逐页扫描索引应覆盖 ${subject}`);
+});
+assert(grade4ReferenceSeedItems.length >= 2200, "四年级资料派生题源完整扫描后应至少 2200 道");
+assert(grade4OriginalSeedItems.length >= 50, "四年级原创扩展题源第一批应至少 50 道");
+assert(grade4ReferenceSeedItems.every((item) => item.id.startsWith("ref-g4-") && item.sourceMeta?.kind === "referenceDerived"), "四年级资料派生题应使用 ref-g4-* id 且标记 referenceDerived");
+assert(grade4OriginalSeedItems.every((item) => item.id.startsWith("orig-g4-") && item.sourceMeta?.kind === "codexOriginal"), "四年级原创扩展题应使用 orig-g4-* id 且标记 codexOriginal");
+assert(grade4ReferenceSeedItems.every((item) => item.sourceMeta?.sourceFile && item.sourceMeta?.sourceNote), "四年级资料派生题应保留资料文件与维护注释");
+assert(grade4OriginalSeedItems.every((item) => item.sourceMeta?.maintainerNote), "四年级原创扩展题应保留原创维护注释");
+assert(grade4ReferenceSeedItems.every((item) => !item.sourceMeta?.maintainerNote && item.sourceMeta?.sourcePath?.includes("Reference/grade4")), "四年级资料派生题不得混入原创维护字段，且必须指向 Reference/grade4");
+assert(grade4OriginalSeedItems.every((item) => !item.sourceMeta?.sourceFile && !item.sourceMeta?.sourcePage), "四年级原创扩展题不得伪装成参考资料页码题");
+
+const grade4ReferenceDiagramItems = grade4ReferenceSeedItems.filter((item) => item.diagram);
+const grade4ReferenceDiagramTypes = new Set(grade4ReferenceDiagramItems.map((item) => item.diagram.type));
+assert(grade4ReferenceDiagramItems.length >= 120, "四年级资料派生题应包含一批自绘图形题");
+["angle-measure", "polygon-shape", "polygon-area", "grid-shape", "block-view", "shape-count"].forEach((type) => {
+  assert(grade4ReferenceDiagramTypes.has(type), `四年级资料派生图形题应覆盖 ${type}`);
+});
+assert(grade4ReferenceDiagramItems.every((item) => item.sourceMeta?.visualPolicy === "self-drawn-diagram"), "四年级资料派生图形题应标注自绘示意图策略");
+
+const grade4ReferenceImageItems = grade4ReferenceSeedItems.filter((item) => item.sourceImage);
+assert(grade4ReferenceImageItems.length >= 8, "四年级资料派生题应包含 PDF 清晰页截图题");
+assert(grade4ReferenceImageItems.every((item) => item.sourceMeta?.visualPolicy === "pdf-crop-image"), "四年级 PDF 截图题应标注 pdf-crop-image 策略");
+assert(grade4ReferenceImageItems.every((item) => /^assets\/reference\/grade4\/.+\.png$/.test(item.sourceImage?.src || "")), "四年级 PDF 截图题应引用应用内四年级参考图片资产");
+grade4ReferenceImageItems.forEach((item) => {
+  assert(fs.existsSync(path.join(root, item.sourceImage.src)), `四年级 PDF 截图资产应存在：${item.sourceImage.src}`);
+  assert(item.sourceImage.sourceFile && item.sourceImage.cropNote, "四年级 PDF 截图题应记录截图来源和裁剪说明");
+});
+
 const grade3MathSeedPoints = banks.math.points
   .filter((point) => point.grade === 3 && seeds.forPoint(point).some((seed) => /^ref-g3-|^orig-g3-/.test(seed.id)))
   .map((point) => point.id);
@@ -293,6 +346,28 @@ assert(new Set(grade3EnglishSeedPoints).size >= 5, "三年级英语扩展题源�
 });
 ["e3-vocabulary-school", "e3-phonics-short-vowels", "e3-pattern-greetings", "e3-grammar-basic-be", "e3-reading-dialogue"].forEach((pointId) => {
   assert(grade3EnglishSeedPoints.includes(pointId), `三年级英语资料扩充应覆盖 ${pointId}`);
+});
+
+const grade4MathSeedPoints = banks.math.points
+  .filter((point) => point.grade === 4 && seeds.forPoint(point).some((seed) => /^ref-g4-|^orig-g4-/.test(seed.id)))
+  .map((point) => point.id);
+const grade4ChineseSeedPoints = banks.chinese.points
+  .filter((point) => point.grade === 4 && seeds.forPoint(point).some((seed) => /^ref-g4-|^orig-g4-/.test(seed.id)))
+  .map((point) => point.id);
+const grade4EnglishSeedPoints = banks.english.points
+  .filter((point) => point.grade === 4 && seeds.forPoint(point).some((seed) => /^ref-g4-|^orig-g4-/.test(seed.id)))
+  .map((point) => point.id);
+assert(new Set(grade4MathSeedPoints).size >= 12, "四年级数学扩展题源应覆盖全部现有四年级数学知识点");
+assert(new Set(grade4ChineseSeedPoints).size >= 8, "四年级语文扩展题源应覆盖全部现有四年级语文知识点");
+assert(new Set(grade4EnglishSeedPoints).size >= 5, "四年级英语扩展题源应覆盖词汇、拼读、句型、语法和阅读");
+["g4-mixed", "g4-vertical", "g4-large", "g4-area", "g4-angle-triangle", "g4-statistics", "g4-word", "g4-appendix"].forEach((pointId) => {
+  assert(grade4MathSeedPoints.includes(pointId), `四年级数学资料扩充应覆盖 ${pointId}`);
+});
+["c4-word-sentence", "c4-sick-sentence", "c4-modern-reading", "c4-poem-classic", "c4-info-reading", "c4-usage"].forEach((pointId) => {
+  assert(grade4ChineseSeedPoints.includes(pointId), `四年级语文资料扩充应覆盖 ${pointId}`);
+});
+["e4-vocabulary-home-school", "e4-phonics-silent-e", "e4-pattern-location-time", "e4-grammar-plural-pronoun", "e4-reading-notice"].forEach((pointId) => {
+  assert(grade4EnglishSeedPoints.includes(pointId), `四年级英语资料扩充应覆盖 ${pointId}`);
 });
 
 const grade2MathSeedPoints = banks.math.points
@@ -324,6 +399,13 @@ assert(new Set(grade2ChineseSeedPoints).size >= 12, "二年级语文扩展题源
   assertQuestionShape(question, point, `${subject}:${pointId} 三年级扩展题`);
 });
 
+["g4-area", "g4-angle-triangle", "c4-modern-reading", "e4-pattern-location-time"].forEach((pointId) => {
+  const subject = pointId.startsWith("c") ? "chinese" : pointId.startsWith("e") ? "english" : "math";
+  const point = banks[subject].pointMap[pointId];
+  const question = seeds.makeQuestion(depsFor(subject), point, { preferExternal: true });
+  assertQuestionShape(question, point, `${subject}:${pointId} 四年级扩展题`);
+});
+
 const diagramQuestion = seeds.makeQuestion({
   ...depsFor("math"),
   pick: (items) => items.find((seed) => seed.diagram?.type === "angle-set") || items.find((seed) => seed.diagram) || items[0]
@@ -337,6 +419,20 @@ const imageQuestion = seeds.makeQuestion({
 }, banks.math.pointMap["g2-length-measure"], { preferExternal: true });
 assert(imageQuestion.sourceImage && imageQuestion.sourceImage.src.includes("assets/reference/grade2/"), "扩展题源生成题应保留 PDF 截图 sourceImage 数据");
 assert.strictEqual(imageQuestion.sourceMeta.visualPolicy, "pdf-crop-image", "生成后的截图题应保留 PDF 截图策略");
+
+const grade4DiagramQuestion = seeds.makeQuestion({
+  ...depsFor("math"),
+  pick: (items) => items.find((seed) => seed.diagram?.type === "polygon-area") || items.find((seed) => seed.diagram) || items[0]
+}, banks.math.pointMap["g4-area"], { preferExternal: true });
+assert(grade4DiagramQuestion.diagram && grade4DiagramQuestion.diagram.type === "polygon-area", "四年级扩展题源生成题应保留可渲染 diagram 数据");
+assert.strictEqual(grade4DiagramQuestion.sourceMeta.visualPolicy, "self-drawn-diagram", "四年级生成后的图形题应保留自绘图策略");
+
+const grade4ImageQuestion = seeds.makeQuestion({
+  ...depsFor("math"),
+  pick: (items) => items.find((seed) => seed.sourceImage) || items[0]
+}, banks.math.pointMap["g4-statistics"], { preferExternal: true });
+assert(grade4ImageQuestion.sourceImage && grade4ImageQuestion.sourceImage.src.includes("assets/reference/grade4/"), "四年级扩展题源生成题应保留 PDF 截图 sourceImage 数据");
+assert.strictEqual(grade4ImageQuestion.sourceMeta.visualPolicy, "pdf-crop-image", "四年级生成后的截图题应保留 PDF 截图策略");
 
 const shuffled = seeds.makeQuestion({
   ...depsFor("english"),
