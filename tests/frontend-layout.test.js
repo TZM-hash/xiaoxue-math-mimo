@@ -113,6 +113,8 @@ assertNotContains(html, 'id="handwritingCanvas"', "page should not include a han
 assertNotContains(html, 'value="handwriting"', "answer mode selector should remove handwriting");
 assertContains(html, 'class="home-mode-grid"', "mobile home should include mode cards");
 assertContains(html, 'id="homeStartPracticeBtn"', "mobile home practice card should start a round");
+assertContains(html, '<span>今日练习</span>', "首页主练习入口应保持轻量的一键今日练习");
+assertContains(html, '<strong>开始今日练习</strong>', "首页主练习入口应让用户一键开始");
 assertContains(html, 'id="closeTypeSettingsBtn"', "type settings page should include a home return button");
 assertNotContains(html, 'id="systemProfileGradeInput"', "system settings should not expose a separate grade selector");
 assertContains(html, 'src="js/home-route.js"', "页面应加载今日学习路线模块");
@@ -142,6 +144,7 @@ assertNotContains(html, 'report-more-card', "学习报告应直接删除低频�
 assertContains(html, 'id="reportWeakList"', "学习报告应保留薄弱点优先级摘要");
 assertContains(html, 'id="reportCauseSummary"', "学习报告应保留错因摘要");
 assertContains(html, 'id="reportTrendSummary"', "学习报告应保留趋势摘要");
+assertContains(html, 'id="reportParentCoach"', "学习报告应包含家长诊断卡");
 assertContains(html, 'report-visual-card', "学习报告应包含图形概览卡填充桌面空间");
 assertContains(html, 'id="reportAccuracyDonut"', "学习报告图形概览应包含正确率圆环");
 assertContains(html, 'id="reportTopicBars"', "学习报告图形概览应包含题型构成条形图");
@@ -255,7 +258,12 @@ assertContains(app, 'document.body.classList.toggle("practice-return-visible", l
 assertContains(app, 'state.view === "practice" && window.matchMedia("(max-width: 1180px)").matches', "mobile/tablet practice rounds should default to focus layout");
 assertContains(app, 'els.startSetBtn.addEventListener("click", () => startNewSet({ focus: true }))', "primary generated practice should enter focused layout on desktop");
 assertContains(app, 'els.desktopOverviewStartBtn?.addEventListener("click", () => startNewSet({ focus: true }))', "desktop overview generated practice should enter focused layout");
-assertContains(app, 'els.homeStartPracticeBtn?.addEventListener("click", () => startNewSet({ focus: true }))', "home practice card should enter focused layout");
+assertContains(app, 'els.homeStartPracticeBtn?.addEventListener("click", () => startSmartDailyPractice({ focus: true }))', "home practice card should start the smart daily practice without extra choices");
+assertContains(app, "function startSmartDailyPractice", "app should expose a lightweight smart daily practice entry");
+assertContains(app, "function buildSmartDailyQuestionSet", "app should build a mixed one-click daily set");
+assertContains(app, "function recordReviewSourceAttempt", "daily review variants should update the source wrong item automatically");
+assertContains(app, "function buildParentWeeklyPrompt", "report should include one short parent-facing weekly prompt");
+assertContains(app, "function roundPetSummary", "round completion should include a one-sentence pet coach summary");
 assertContains(app, 'isCompactPracticeViewport() && mode === "step"', "tablet practice should hide step answering like mobile");
 assertContains(app, "stepOption.hidden = compact", "custom answer mode picker should omit step answering on compact viewports");
 assertContains(app, 'const nonMath = activeSubjectId() !== "math";', "非数学学科都应隐藏分步作答");
@@ -321,6 +329,10 @@ assertContains(cloudSync, "loading-sdk", "cloud sync should expose SDK loading s
 assertContains(questionBankCoverage, "buildCoverageReport", "question coverage module should export a coverage report builder");
 assertContains(learningInsights, "buildWeakPointInsights", "learning insight module should export weak-point recommendations");
 assertContains(app, "LearningInsights", "app should consume the learning insight module");
+assertContains(app, "function recommendCauseForQuestion", "app should infer a recommended mistake cause after a wrong answer");
+assertContains(app, "function petCoachForCause", "app should turn 招财 into a subject-aware study assistant");
+assertContains(app, "function buildParentDiagnosis", "app should build a parent-facing diagnosis from mistakes");
+assertContains(app, "renderParentDiagnosis", "app should render the parent diagnosis card in the report");
 assertContains(app, "buildQuestionBankCoverage", "app debug API should expose the question-bank coverage report");
 assertContains(questionBank, 'reading: ["读题理解", "不会做", "计算粗心"]', "question bank should define reading cause tags");
 assertContains(questionBank, 'thinking: ["读题理解", "概念单位", "不会做"]', "question bank should define thinking cause tags");
@@ -393,6 +405,8 @@ assertContains(css, "body.pet-modal-open #petspaceView.view.active", "pet modals
 assertContains(css, ".pet-achievement-board", "CSS should style the achievement board");
 assertContains(css, "#petspaceView.active #petGrowthPanelModal .pet-stage-card", "mobile growth modal should reveal the moved pet stage card");
 assertNotContains(css, ".word-relation-panel", "CSS should not keep removed word relation panel styles");
+assertContains(css, ".cause-chip.recommended", "错因标签应突出招财推荐项");
+assertContains(css, 'content: "建议";', "推荐错因标签应显示建议标记");
 assertContains(css, "body.practice-view-active:not(.practice-focus-mode):not(.type-settings-open) .home-settings-card", "mobile home should show the summary card only on the home state");
 assertContains(css, ".home-route-step", "CSS 应包含首页路线步骤卡片");
 assertContains(css, "grid-template-columns: repeat(4, minmax(0, 1fr));", "desktop/tablet home route should show four steps in one row");
@@ -491,6 +505,8 @@ assertContains(css, "#petBagModal .pet-bag-card", "移动端背包弹窗应有�
 assertContains(css, ".pet-bag-card .pet-bag-list", "背包滚动区应有布局约束");
 assertContains(css, "min-height: 0;", "滚动区应允许底部详情显示");
 assertContains(css, ".cloud-sync-detail", "CSS 应包含云同步详情样式");
+assertContains(css, ".parent-diagnosis-card", "CSS 应包含家长诊断卡样式");
+assertContains(css, ".parent-diagnosis-actions", "家长诊断卡应包含可行动按钮区域样式");
 assertContains(css, "#reportView .report-grid {\n        grid-template-columns: repeat(3, minmax(0, 1fr));", "桌面学习报告顶部应只展示三个核心指标");
 assertContains(css, "#reportView .report-card:nth-of-type(1) {\n        grid-column: 1 / 8;", "桌面学习报告行动卡应占据左侧大区");
 assertContains(css, "#reportView .report-card:nth-of-type(4) {\n        grid-column: 7 / -1;", "桌面学习报告趋势摘要应占据右侧大区");

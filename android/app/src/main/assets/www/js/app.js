@@ -435,6 +435,7 @@
       reportStreak: document.getElementById("reportStreak"),
       reportWeakCount: document.getElementById("reportWeakCount"),
       trendReportList: document.getElementById("trendReportList"),
+      reportParentCoach: document.getElementById("reportParentCoach"),
       reportWeakList: document.getElementById("reportWeakList"),
       reportCauseSummary: document.getElementById("reportCauseSummary"),
       reportTrendSummary: document.getElementById("reportTrendSummary"),
@@ -753,6 +754,76 @@
     }
     function causeOptionsForQuestion(question) {
       return causeOptionsForSubject(subjectIdFromQuestion(question));
+    }
+    function pointForCauseDiagnosis(question) {
+      const subject = subjectIdFromQuestion(question);
+      const bank = bankForSubject(subject);
+      return bank?.pointMap?.[question?.pointId] || pointMap[question?.pointId] || {
+        id: question?.pointId || "",
+        grade: question?.grade || 1,
+        subject,
+        topic: question?.topic || "",
+        label: question?.kind || question?.pointId || "当前知识点",
+        short: question?.kind || ""
+      };
+    }
+    function topicDiagnosisText(question, point) {
+      return [
+        question?.topic,
+        point?.topic,
+        point?.id,
+        point?.label,
+        point?.short,
+        point?.helper,
+        question?.text,
+        question?.explanation
+      ].map((item) => String(item || "")).join(" ");
+    }
+    function recommendCauseForQuestion(question, answer = "", options = {}) {
+      const subject = subjectIdFromQuestion(question);
+      const causesForSubject = causeOptionsForQuestion(question);
+      const point = options.point || pointForCauseDiagnosis(question);
+      const insightCause = LearningInsights.diagnoseCause?.({
+        cause: "",
+        text: question?.text,
+        answer,
+        question,
+        explanation: question?.explanation
+      }, point);
+      if (causesForSubject.includes(insightCause)) return insightCause;
+      const text = topicDiagnosisText(question, point);
+      const match = (pattern) => pattern.test(text);
+      let fallback = "不会做";
+      if (subject === "chinese") {
+        if (match(/拼音|声调|字音|字形|词|偏旁|量词|多音|形近|近义|反义|搭配|word|pinyin|character/)) fallback = "字词基础";
+        else if (match(/阅读|短文|概括|诗|文言|信息|中心|人物|情节|资料|观点|原文|reading|poem/)) fallback = "阅读理解";
+        else if (match(/句|标点|表达|习作|写话|病句|应用文|口语|修辞|sentence|writing|punctuation/)) fallback = "表达规范";
+      } else if (subject === "english") {
+        if (match(/单词|词汇|拼写|字母|phonics|发音|读音|元音|组合|word|vocabulary|spelling/)) fallback = "单词不熟";
+        else if (match(/句型|语法|时态|be 动词|过去式|比较级|复数|代词|pattern|grammar|tense/)) fallback = "句型语法";
+        else if (match(/阅读|短文|定位|疑问词|where|when|who|what|why|信息|细节|reading/)) fallback = "阅读定位";
+      } else if (subject === "science") {
+        if (match(/观察|实验|记录|变量|控制|公平|测量|现象|测试|inquiry/)) fallback = "观察实验";
+        else if (match(/证据|结论|推理|支持|数据|模型|解释|可靠|evidence|data/)) fallback = "证据推理";
+        else if (match(/概念|混淆|结构|性质|溶解|岩石|土壤|电路|能量|太阳系|生命周期|life|matter/)) fallback = "概念不清";
+      } else {
+        if (match(/读题|理解|条件|关系|先求|问什么|必要|干扰|无关|多余|只问|实际|word|reading/)) fallback = "读题理解";
+        else if (match(/单位|概念|公式|周长|面积|体积|比例|百分|分数|角|圆|图形|geometry|unit|ratio|percent|fraction/)) fallback = "概念单位";
+        else if (match(/计算|粗心|口算|竖式|进位|退位|小数点|口诀|addsub|muldiv|decimal|vertical|mixed|twostep/)) fallback = "计算粗心";
+      }
+      return causesForSubject.includes(fallback) ? fallback : (causesForSubject[0] || "不会做");
+    }
+    function petCoachForCause(question, cause) {
+      const point = pointForCauseDiagnosis(question);
+      const advice = LearningInsights.adviceForCause?.(cause, point) || "先看一步提示，再做同类小练习。";
+      const subject = subjectIdFromQuestion(question);
+      const prefix = {
+        math: "招财：我来当计算小教练。",
+        chinese: "招财：我来当阅读小搭档。",
+        english: "招财：我来当英语小领读。",
+        science: "招财：我来当实验观察员。"
+      }[subject] || "招财：我来陪你拆这题。";
+      return `${prefix}${advice}`;
     }
     function allCauseOptions() {
       return cleanCauseOptions([
@@ -1521,7 +1592,7 @@
         grade,
         correct: Boolean(item.correct),
         cause: normalizeCause(item.cause),
-        mode: ["practice", "wrongbook", "due-review", "similar", "weak", "timed", "appendix", "hard-word", "logic-reading", "challenge"].includes(item.mode) ? item.mode : "practice",
+        mode: ["practice", "daily-smart", "wrongbook", "due-review", "similar", "weak", "timed", "appendix", "hard-word", "logic-reading", "challenge"].includes(item.mode) ? item.mode : "practice",
         text: String(item.text || "").slice(0, 160)
       };
     }
@@ -1960,13 +2031,14 @@
     function renderChallengePanel(profile = activeProfile()) {
       const progress = challengeProgress(profile, profile.grade || state.grade);
       const nextCount = clamp(6 + Math.floor((progress.level - 1) / 2), 6, 14);
+      const passRate = challengePassRateForLevel(progress.level || 1);
       const draft = progress.draft;
       const todayBest = progress.todayBestLevel ? `第 ${progress.todayBestLevel} 关` : "还未开始";
       [els.challengePanel, els.homeChallengePanel].filter(Boolean).forEach((panel) => {
         panel.querySelector("strong").textContent = `闯关模式 · 第 ${progress.level} 关`;
         panel.querySelector("span").textContent = draft
-          ? `已保存到第 ${draft.index + 1}/${draft.count} 题，今天可继续；本关 ${nextCount} 题，80% 以上过关。`
-          : `本关 ${nextCount} 题，80% 以上过关；通过后自动进入下一关。`;
+          ? `已保存到第 ${draft.index + 1}/${draft.count} 题，今天可继续；本关 ${nextCount} 题，${passRate}% 以上过关。`
+          : `本关 ${nextCount} 题，${passRate}% 以上过关；通过后自动进入下一关。`;
         let stats = panel.querySelector(".challenge-stats");
         if (!stats) {
           stats = document.createElement("div");
@@ -3174,6 +3246,31 @@
         weakestPoints
       }, count, preferred);
     }
+    function buildSmartDailyQuestionSet(count = state.setSize, preferred = state.answerMode) {
+      return window.MathCampPracticeEngine.buildAdaptiveQuestionSet({
+        activeProfile,
+        applyQuestionInteraction,
+        availablePoints,
+        choosePoint,
+        clamp,
+        dueWrongbook,
+        makeQuestion,
+        makeDistinctQuestionForPoint,
+        makeStrictQuestionForPoint,
+        pointMap: bankPointMap(),
+        avoidRepeatKeys: recentQuestionRepeatKeys(activeProfile(), state.grade),
+        recentPointIds: recentQuestionPointIds(activeProfile(), state.grade),
+        createRoundQuestionPicker,
+        shuffle,
+        signature,
+        state,
+        weakestPoints
+      }, count, preferred).map((question) => ({
+        ...question,
+        dailySmart: true,
+        reviewSource: question.reviewSource || "fresh"
+      }));
+    }
     function masteryFor(profile, pointId) {
       if (!profile.mastery[pointId]) profile.mastery[pointId] = { attempts: 0, correct: 0, level: 1, streak: 0 };
       return profile.mastery[pointId];
@@ -4322,7 +4419,7 @@
     function enterPracticeFocus() {
       setPracticeLayer("focus");
       rememberPracticeViewState();
-      window.scrollTo(0, 0);
+      if (typeof window.scrollTo === "function") window.scrollTo(0, 0);
       const stack = els.practiceWorkspace?.querySelector(".main-stack");
       if (stack) stack.scrollTop = 0;
     }
@@ -4332,7 +4429,7 @@
       setTypeSettingsOpen(false);
       setPracticeLayer("setup");
       rememberPracticeViewState();
-      window.scrollTo(0, 0);
+      if (typeof window.scrollTo === "function") window.scrollTo(0, 0);
     }
 
     function formatDuration(ms = 0) {
@@ -5966,10 +6063,58 @@
       });
     }
 
+    function resetPracticeStateForSubjectSwitch() {
+      if (state.mode === "challenge" && state.challengeMeta) {
+        clearChallengeDraft(activeProfile(), state.challengeMeta.grade || state.grade);
+      }
+      clearAutoNext();
+      stopRoundTimer();
+      restoreCausePanelPlacement();
+      state.mode = "normal";
+      state.challengeMeta = null;
+      state.timedMeta = null;
+      state.currentSet = [];
+      state.index = 0;
+      state.checked = false;
+      state.correct = 0;
+      state.streak = 0;
+      state.records = [];
+      state.roundCoins = 0;
+      state.lastWrongRecordId = "";
+      state.setFinished = false;
+      state.stepHintOpen = false;
+      delete state._lastFinishResult;
+      if (els.answerInput) {
+        els.answerInput.value = "";
+        els.answerInput.disabled = false;
+        els.answerInput.readOnly = false;
+      }
+      if (els.checkBtn) els.checkBtn.disabled = false;
+      if (els.showAnswerBtn) els.showAnswerBtn.disabled = true;
+      if (els.summaryPanel) els.summaryPanel.hidden = true;
+      if (els.reviewPanel) els.reviewPanel.hidden = true;
+      if (els.challengeResultOverlay) els.challengeResultOverlay.hidden = true;
+      if (els.mobileChallengeResult) els.mobileChallengeResult.hidden = true;
+      if (els.causePanel) els.causePanel.classList.remove("active", "inline-cause");
+      if (els.answerModePanel) {
+        els.answerModePanel.hidden = true;
+        els.answerModePanel.innerHTML = "";
+        els.answerModePanel.classList.remove("wrong-inline-cause");
+      }
+      if (els.feedback) {
+        els.feedback.className = "feedback";
+        els.feedback.textContent = "";
+      }
+      setPracticeLayer("setup");
+      setTypeSettingsOpen(false);
+    }
+
     function selectSubject(subjectId) {
-      const currentProfile = activeProfile();
-      if (currentProfile && SubjectRegistry.syncBoundSubject) SubjectRegistry.syncBoundSubject(currentProfile, activeSubjectId());
       const next = safeSubjectId(subjectId);
+      const changed = next !== activeSubjectId();
+      const currentProfile = activeProfile();
+      if (changed) resetPracticeStateForSubjectSwitch();
+      if (currentProfile && SubjectRegistry.syncBoundSubject) SubjectRegistry.syncBoundSubject(currentProfile, activeSubjectId());
       state.subject = next;
       storageSet(STORE.subject, next);
       applySubjectTheme(next);
@@ -6468,25 +6613,35 @@
         els.answerControlSlot.appendChild(els.causePanel);
       }
     }
-    function renderCauseQuickTags(question) {
+    function renderCauseQuickTags(question, options = {}) {
       if (!els.causeQuickTags || !els.causeSelect) return;
       const tags = causeOptionsForQuestion(question);
-      const selected = els.causeSelect.value || "未标记";
+      const recommended = recommendCauseForQuestion(question);
+      if (options.forceRecommendation || !tags.includes(els.causeSelect.value)) {
+        els.causeSelect.value = recommended;
+      }
+      const selected = tags.includes(els.causeSelect.value) ? els.causeSelect.value : recommended;
       els.causeQuickTags.innerHTML = "";
+      if (Array.isArray(els.causeQuickTags.children)) els.causeQuickTags.children = [];
       tags.forEach((cause) => {
         const btn = document.createElement("button");
         btn.type = "button";
-        btn.className = `cause-chip${cause === selected ? " active" : ""}`;
+        btn.className = `cause-chip${cause === selected ? " active" : ""}${cause === recommended ? " recommended" : ""}`;
         btn.dataset.causeChip = cause;
         btn.dataset.shortLabel = cause;
-        btn.setAttribute("aria-label", `保存错因：${cause}`);
+        if (cause === recommended) btn.dataset.recommendedCause = "true";
+        btn.setAttribute("aria-label", cause === recommended ? `招财建议保存错因：${cause}` : `保存错因：${cause}`);
         btn.innerHTML = `<span class="cause-label-full">${escapeHTML(cause)}</span><span class="cause-label-mobile">${escapeHTML(cause)}</span>`;
         els.causeQuickTags.appendChild(btn);
       });
     }
     function showCausePanelForWrong(question) {
       restoreCausePanelPlacement();
-      renderCauseQuickTags(question);
+      const recommended = recommendCauseForQuestion(question, els.answerInput?.value || "", { forceRecommendation: true });
+      els.causeSelect.value = recommended;
+      renderCauseQuickTags(question, { forceRecommendation: true });
+      const title = els.causePanel?.querySelector(".cause-panel-title");
+      if (title) title.textContent = `招财建议先标记为“${recommended}”。点它确认保存，也可以改选。`;
       els.causePanel.classList.add("active");
       const mode = question?.interaction?.mode || "input";
       const inlineMode = isMobilePracticeViewport() && (mode === "choice" || mode === "judge");
@@ -6594,6 +6749,54 @@
       state.currentSet = selectedPoint
         ? buildQuestionSetForPoint(selectedPoint, state.setSize, state.answerMode)
         : buildAdaptiveQuestionSet(state.setSize, state.answerMode);
+      rememberRecentQuestionSet(state.currentSet);
+      state.index = 0;
+      state.checked = false;
+      state.correct = 0;
+      state.streak = 0;
+      state.records = [];
+      state.roundCoins = 0;
+      state.lastWrongRecordId = "";
+      state.setFinished = false;
+      delete state._lastFinishResult;
+      els.summaryPanel.hidden = true;
+      els.challengeResultOverlay.hidden = true;
+      els.mobileChallengeResult.hidden = true;
+      els.reviewPanel.hidden = true;
+      resetRoundRuntime();
+      renderPracticeQuestion();
+      const shouldFocus = options.focus || (options.autoFocus !== false && state.view === "practice" && window.matchMedia("(max-width: 1180px)").matches);
+      if (shouldFocus) {
+        enterPracticeFocus();
+        startRoundTimer();
+      }
+    }
+    function startSmartDailyPractice(options = {}) {
+      const profile = activeProfile();
+      state.mode = "daily-smart";
+      state.challengeMeta = null;
+      state.setSize = clamp(Number(els.setSizeInput.value) || 10, 3, 40);
+      state.adaptive = true;
+      syncAnswerModeAvailability();
+      state.answerMode = normalizeAnswerModeForViewport(els.answerModeSelect.value || "auto");
+      els.answerModeSelect.value = state.answerMode;
+      state.pointId = "auto";
+      els.pointSelect.value = "auto";
+      profile.grade = state.grade;
+      profile.settings = {
+        ...(profile.settings || {}),
+        pointId: state.pointId,
+        setSize: state.setSize,
+        adaptive: true,
+        dailyGoal: clamp(Number(els.dailyGoalInput.value) || 20, 5, 200),
+        answerSpace: els.answerSpaceSelect.value || "auto",
+        answerMode: state.answerMode,
+        printTemplate: els.printTemplateSelect?.value || profile.settings?.printTemplate || "practice",
+        printOutputMode: els.printExportMode?.value || profile.settings?.printOutputMode || "answers"
+      };
+      saveProfiles();
+      syncCustomSelects();
+      state.currentSet = buildSmartDailyQuestionSet(state.setSize, state.answerMode);
       rememberRecentQuestionSet(state.currentSet);
       state.index = 0;
       state.checked = false;
@@ -6775,6 +6978,18 @@
       startRoundTimer(draft.elapsedMs);
       UI.notify(`继续第 ${draft.level} 关：已保存到第 ${draft.index + 1}/${draft.count} 题。`, { duration: 3200 });
     }
+    function challengeDifficultyForLevel(level = 1) {
+      return clamp(1 + Math.floor((Number(level) - 1) / 2), 1, 8);
+    }
+    function challengePassRateForLevel(level = 1) {
+      return clamp(80 + Math.floor((Number(level) - 1) / 4) * 2, 80, 90);
+    }
+    function challengeInteractionMode(index, level = 1) {
+      const difficulty = challengeDifficultyForLevel(level);
+      if (difficulty >= 3) return index % 6 === 5 ? "choice" : "input";
+      if (difficulty >= 2) return index % 5 === 4 ? "judge" : index % 4 === 2 ? "choice" : "input";
+      return index % 5 === 4 ? "judge" : index % 3 === 2 ? "choice" : state.answerMode;
+    }
     function startChallengeSet() {
       const profile = activeProfile();
       const progress = challengeProgress(profile, profile.grade || state.grade);
@@ -6792,16 +7007,23 @@
       };
       saveProfiles();
       const count = state.setSize;
+      const difficultyLevel = challengeDifficultyForLevel(level);
+      const passRate = challengePassRateForLevel(level);
       const pointsForGrade = availablePoints(grade);
       const weak = weakestPoints(4).filter((point) => point.grade === grade);
       const challengePool = [...weak, ...pointsForGrade].filter((point, index, list) => list.findIndex((item) => item.id === point.id) === index);
       state.grade = grade;
       state.mode = "challenge";
-      state.challengeMeta = { grade, level, count, passRate: 80 };
+      state.challengeMeta = { grade, level, count, passRate, difficultyLevel };
       state.currentSet = Array.from({ length: count }, (_, index) => {
         const point = challengePool[index % challengePool.length] || chooseAutoPoint(pointsForGrade, false);
-        const mode = index % 5 === 4 ? "judge" : index % 3 === 2 ? "choice" : state.answerMode;
-        return makeStrictQuestionForPoint(point, normalizeAnswerModeForViewport(mode));
+        const mode = challengeInteractionMode(index, level);
+        const question = makeStrictQuestionForPoint(point, normalizeAnswerModeForViewport(mode), { difficultyLevel, challengeLevel: level, challengeIndex: index });
+        return {
+          ...question,
+          subject: activeSubjectId(),
+          challengeDifficulty: { level: difficultyLevel, challengeLevel: level, passRate }
+        };
       });
       rememberRecentQuestionSet(state.currentSet);
       state.index = 0;
@@ -6823,7 +7045,7 @@
       enterPracticeFocus();
       startRoundTimer();
       saveChallengeDraft({ persist: true });
-      UI.notify(`开始第 ${level} 关：完成 ${count} 题，正确率 80% 以上过关。`, { duration: 3200 });
+      UI.notify(`开始第 ${level} 关：完成 ${count} 题，正确率 ${passRate}% 以上过关。`, { duration: 3200 });
     }
     function startTimedQuizSet() {
       const profile = activeProfile();
@@ -7066,12 +7288,13 @@
       };
       profile.masteredWrong = [mastered, ...(profile.masteredWrong || []).filter((entry) => entry.signature !== item.signature)].slice(0, 500);
     }
-    function updateWrongbookAttempt(id, correct) {
-      const profile = activeProfile();
-      const item = profile.wrongbook.find((entry) => entry.id === id);
-      if (!item) return;
+    function updateWrongbookAttemptForProfile(profile, id, correct) {
+      if (!profile || !Array.isArray(profile.wrongbook)) return false;
+      const itemIndex = profile.wrongbook.findIndex((entry) => entry.id === id);
+      const item = itemIndex >= 0 ? profile.wrongbook[itemIndex] : null;
+      if (!item) return false;
       if (correct) {
-        item.correctStreak += 1;
+        item.correctStreak = clamp((Number(item.correctStreak) || 0) + 1, 0, 3);
         item.reviewStage = clamp((Number(item.reviewStage) || 0) + 1, 0, 4);
         item.dueDate = nextReviewDueDate(item.reviewStage);
         item.lastReviewedAt = Date.now();
@@ -7084,7 +7307,8 @@
         pet.mood = clamp(pet.mood + 1, 0, 100);
         if (item.correctStreak >= 3) {
           markWrongAsMastered(profile, item);
-          profile.wrongbook = profile.wrongbook.filter((entry) => entry.id !== id);
+          profile.wrongbook.splice(itemIndex, 1);
+          if (!profile.rewards) profile.rewards = {};
           profile.rewards.clearedWrong = (profile.rewards.clearedWrong || 0) + 1;
           awardCoins(8, "掌握错题");
           pet.bond = clamp(pet.bond + 3, 0, 100);
@@ -7100,6 +7324,27 @@
         item.lastResult = "wrong";
         item.updatedAt = Date.now();
       }
+      return true;
+    }
+    function updateWrongbookAttempt(id, correct) {
+      return updateWrongbookAttemptForProfile(activeProfile(), id, correct);
+    }
+    function recordReviewSourceAttempt(question, correct) {
+      const sourceId = question?.reviewSourceWrongId || "";
+      if (!sourceId) return false;
+      let updated = updateWrongbookAttempt(sourceId, correct);
+      const candidates = [];
+      state.profiles.forEach((profile) => {
+        candidates.push(profile);
+        Object.values(profile.subjects || {}).forEach((subjectProfile) => candidates.push(subjectProfile));
+      });
+      const seen = new Set();
+      for (const profile of candidates) {
+        if (!profile || seen.has(profile)) continue;
+        seen.add(profile);
+        updated = updateWrongbookAttemptForProfile(profile, sourceId, correct) || updated;
+      }
+      return updated;
     }
     function settleChallengeResult(total, correct, rate) {
       if (state.mode !== "challenge" || !state.challengeMeta) return null;
@@ -7226,11 +7471,12 @@
         playSound("correct");
       } else {
         state.streak = 0;
+        const recommendedCause = recommendCauseForQuestion(current, parsed.raw || parsed.text || parsed.value || "");
         const firstHint = current.word
           ? `先看"已知什么、要求什么"，再检查数量关系：${methodHintFor(current)}`
           : methodHintFor(current);
-        setFeedback("bad", `招财：这题先不急着看答案。第一步提示：${firstHint} 点"查看答案"可以看完整答案和步骤。`, "😢");
-        updatePetStatus("招财：我先给你读题和方法提示，这题也会进入错题复习日程。", "看方法");
+        setFeedback("bad", `招财：这题先不急着看答案。我先判断可能是“${recommendedCause}”。第一步提示：${firstHint} 点"查看答案"可以看完整答案和步骤。`, "😢");
+        updatePetStatus(petCoachForCause(current, recommendedCause), "学习建议");
         triggerAnswerAnimation("wrong");
         playSound("wrong");
         els.numberPad.hidden = shouldHideAnswerControlsForWrong(current);
@@ -7238,8 +7484,9 @@
         if (els.showAnswerBtn) els.showAnswerBtn.disabled = false;
       }
       updateMastery(current.pointId, correct);
+      const updatedReviewSource = recordReviewSourceAttempt(current, correct);
       if (state.mode === "wrongbook") updateWrongbookAttempt(current.wrongId, correct);
-      else if (!correct) upsertWrong(current);
+      else if (!correct && !updatedReviewSource) upsertWrong(current);
       addHistory({ date: record.date, time: record.time, pointId: current.pointId, grade: current.grade, correct, cause: record.cause, text: current.text, mode: state.mode || "practice" });
       state.records[state.index] = record;
       state.lastWrongRecordId = correct ? "" : record.id;
@@ -7284,7 +7531,7 @@
         return;
       }
       setFeedback("saved", `已保存错因：${cause}。做完本轮后可以在错题回顾里看讲解。`, "📝");
-      updatePetStatus(`招财：我记住了，这题的错因是"${cause}"。回顾时我们就从这里重新拆。`, "记住了");
+      updatePetStatus(petCoachForCause(record.question, cause), "复习建议");
       els.saveCauseBtn.textContent = "✅ 已保存";
       els.saveCauseBtn.disabled = true;
       const current = state.currentSet[state.index];
@@ -7579,15 +7826,17 @@
       const rate = total ? Math.round(state.correct / total * 100) : 0;
       const challenge = settleChallengeResult(total, state.correct, rate);
       const reward = awardRoundRewards(total, state.correct, rate);
+      const petSummary = roundPetSummary(wrong, rate);
       setPetAction(wrong.length ? "hint" : "finish", wrong.length ? "复盘" : "完成");
       const finishedTitle = state.mode === "due-review" ? "到期错题复习结束"
         : state.mode === "wrongbook" ? "错题复练结束"
+        : state.mode === "daily-smart" ? "今日练习完成"
         : state.mode === "challenge" ? (challenge?.passed ? "闯关成功" : "闯关复盘")
         : state.mode === "timed" ? (state.timedMeta?.expired ? "限时小测时间到" : "限时小测完成")
         : "本轮练习完成";
       const finishedCopy = state.mode === "timed"
         ? (state.timedMeta?.expired ? "时间到了，先看本次错题和薄弱点；下次可以少量多次练。" : "限时小测完成了，下面先看错题和用时节奏。")
-        : challenge ? challenge.copy : "招财陪你完成这一轮了。下面可以回顾本轮错题，也可以直接按薄弱知识点继续练。";
+        : challenge ? challenge.copy : petSummary;
       els.challengeResultOverlay.hidden = true;
       // 统一 summary panel（桌面端和移动端共用）
       els.summaryPanel.innerHTML = petCopy(`
@@ -7624,7 +7873,7 @@
       });
       els.summaryPanel.querySelector("[data-jump]").addEventListener("click", () => showView("wrongbook"));
       setFeedback(wrong.length ? "bad" : "good", wrong.length ? '招财：本轮有错题，点"回顾本轮错题"可以看通俗讲解。' : "招财：本轮没有错题，完成得很稳。", wrong.length ? "📒" : "🏆");
-      updatePetStatus(wrong.length ? "招财：错题不用怕，我们把每一步拆开看。" : "招财：这一轮很稳，我的信心也涨起来了。", wrong.length ? "复盘" : "完成");
+      updatePetStatus(petSummary, wrong.length ? "复盘建议" : "完成");
       // 缓存本轮结果，供弹窗关闭后重新打开使用
       state._lastFinishResult = { total, correct: state.correct, rate, wrongCount: wrong.length, reward, challenge, elapsedMs };
       // 移动端闯关：弹窗模式显示闯关结果
@@ -7945,6 +8194,83 @@
     function learningDays() {
       return learningDaysFor(activeProfile());
     }
+    function buildParentWeeklyPrompt(profile = activeProfile()) {
+      const subjectLabel = subjectThemeMeta(activeSubjectId()).label || "当前学科";
+      const week = currentWeekItems(profile);
+      const mastered = currentWeekMasteredWrong(profile).length;
+      if (!week.length) return `本周${subjectLabel}样本还少，先保持一键练习，不需要额外加题。`;
+      const rows = LearningInsights.causeBreakdown?.(profile, bankPointMap(), { limit: 80, causes: bankCauses() }) || [];
+      const cause = rows[0]?.cause || "基础巩固";
+      const rate = accuracyOf(week);
+      if (mastered > 0) return `本周${subjectLabel}主要看“${cause}”，已掌握 ${mastered} 道错题，下次轻练 6 题即可。`;
+      return `本周${subjectLabel}正确率 ${rate}%，主要看“${cause}”，建议继续一键练习少量巩固。`;
+    }
+    function roundPetSummary(wrong = [], rate = 0) {
+      if (!wrong.length) return "招财：这轮很稳，今天不用加量，保持这个节奏就很好。";
+      const causeCounts = {};
+      wrong.forEach((record) => {
+        const cause = normalizeCause(record?.cause) || recommendCauseForQuestion(record?.question);
+        causeCounts[cause] = (causeCounts[cause] || 0) + 1;
+      });
+      const mainCause = Object.entries(causeCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "不会做";
+      if (wrong.length >= 3 || rate < 60) return `招财：今天先不加量，主要处理“${mainCause}”，下一轮我会带你少量巩固。`;
+      return `招财：这轮只要盯住“${mainCause}”，做 2-3 道同类题就够了。`;
+    }
+    function buildParentDiagnosis(profile = activeProfile(), weakPoints = [], rows = []) {
+      const subjectLabel = subjectThemeMeta(activeSubjectId()).label || "当前学科";
+      const pointMapForSubject = bankPointMap();
+      const causeRows = LearningInsights.causeBreakdown?.(profile, pointMapForSubject, { limit: 120, causes: bankCauses() }) || [];
+      const rowPoint = rows.find((row) => row?.pointId);
+      const weakPoint = (weakPoints || []).filter(Boolean)[0]
+        || (rowPoint ? pointMapForSubject[rowPoint.pointId] : null)
+        || availablePoints(profile.grade)[0];
+      const mainCause = causeRows[0]?.cause || "暂无明显错因";
+      const weeklyItems = currentWeekItems(profile);
+      const weeklyAccuracy = weeklyItems.length ? accuracyOf(weeklyItems) : 0;
+      const mastered = currentWeekMasteredWrong(profile).length;
+      const actionPoint = weakPoint?.id ? weakPoint : null;
+      const actionLabel = actionPoint ? pointLabel(actionPoint.id) : "按年级混合练习";
+      const advice = mainCause === "暂无明显错因"
+        ? "先完成一轮 6-10 题，积累样本后再看趋势。"
+        : (LearningInsights.adviceForCause?.(mainCause, actionPoint) || "下一轮先做少量同类题，观察是否连续稳定。");
+      const summary = weeklyItems.length
+        ? `${subjectLabel}本周完成 ${weeklyItems.length} 题，正确率 ${weeklyAccuracy}%。主要错因是“${mainCause}”，下一轮建议围绕“${actionLabel}”做 6-8 题。`
+        : `${subjectLabel}还缺少本周样本，建议先做一轮 6-8 题，再看错因是否集中。`;
+      return {
+        title: "本周家长提示 · 家长诊断",
+        subjectLabel,
+        mainCause,
+        weeklyPrompt: buildParentWeeklyPrompt(profile),
+        summary,
+        advice,
+        actionPoint,
+        actionLabel,
+        weeklyCount: weeklyItems.length,
+        weeklyAccuracy,
+        mastered
+      };
+    }
+    function renderParentDiagnosis(profile = activeProfile(), weakPoints = [], rows = []) {
+      if (!els.reportParentCoach) return;
+      const diagnosis = buildParentDiagnosis(profile, weakPoints, rows);
+      els.reportParentCoach.innerHTML = `
+        <div class="parent-diagnosis-head">
+          <div><span class="eyebrow">${escapeHTML(diagnosis.subjectLabel)}</span><h3>${escapeHTML(diagnosis.title)}</h3></div>
+          <span class="tag">${escapeHTML(diagnosis.mainCause)}</span>
+        </div>
+        <p>${escapeHTML(diagnosis.weeklyPrompt)}</p>
+        <div class="mini-meta">
+          <span>本周：${diagnosis.weeklyCount || 0} 题</span>
+          <span>正确率：${diagnosis.weeklyCount ? diagnosis.weeklyAccuracy + "%" : "--"}</span>
+          <span>已掌握错题：${diagnosis.mastered}</span>
+        </div>
+        <p>${escapeHTML(diagnosis.summary)}</p>
+        <p class="parent-diagnosis-advice">${escapeHTML(diagnosis.advice)}</p>
+        ${diagnosis.actionPoint ? `<div class="parent-diagnosis-actions"><button class="secondary compact-btn" type="button" data-parent-diagnosis-point="${escapeAttr(diagnosis.actionPoint.id)}">按诊断练一轮</button></div>` : ""}`;
+      els.reportParentCoach.querySelectorAll("[data-parent-diagnosis-point]").forEach((btn) => {
+        btn.addEventListener("click", () => startPointSet(btn.dataset.parentDiagnosisPoint, Math.min(8, state.setSize), "weak"));
+      });
+    }
     function renderReport() {
       const profile = activeProfile();
       const mobileReport = isMobilePracticeViewport();
@@ -7998,6 +8324,7 @@
       renderReportWeakSummary(profile, weakPoints, rows);
       renderReportCauseSummary(profile);
       renderReportTrendSummary(last7, prev7, lastRate, prevRate, delta, accuracy);
+      renderParentDiagnosis(profile, weakPoints, rows);
     }
 
     function renderReportWeakSummary(profile, weakPoints, rows = []) {
@@ -8615,7 +8942,7 @@
     });
     els.startSetBtn.addEventListener("click", () => startNewSet({ focus: true }));
     els.desktopOverviewStartBtn?.addEventListener("click", () => startNewSet({ focus: true }));
-    els.homeStartPracticeBtn?.addEventListener("click", () => startNewSet({ focus: true }));
+    els.homeStartPracticeBtn?.addEventListener("click", () => startSmartDailyPractice({ focus: true }));
     els.challengePanel?.addEventListener("click", (event) => {
       const startButton = event.target.closest("#startChallengeBtn");
       const desktopPanelClick = window.matchMedia("(min-width: 981px)").matches && !event.target.closest("#startTimedQuizBtn");
@@ -9247,12 +9574,17 @@
         themeRegistry: THEME_REGISTRY,
         causeOptionsForSubject,
         causeOptionsForQuestion,
+        recommendCauseForQuestion,
+        petCoachForCause,
+        buildParentDiagnosis,
+        renderParentDiagnosis,
         renderCauseQuickTags,
         currentWeekItems,
         learningInsights: LearningInsights,
         questionBankCoverage: QuestionBankCoverage,
         buildQuestionBankCoverage: () => QuestionBankCoverage.buildCoverageReport?.(window.MathCampQuestionBank),
         buildWeakPointInsights: (profile, options = {}) => LearningInsights.buildWeakPointInsights?.({ points, pointMap }, profile || activeProfile(), { pointMap, ...options }),
+        activeProfile,
         renderChrome,
         renderPetSpace,
         renderWrongbook,
@@ -9265,7 +9597,14 @@
         makeStrictQuestionForPoint,
         buildQuestionSetForPoint,
         buildAdaptiveQuestionSet,
+        buildSmartDailyQuestionSet,
         startNewSet,
+        startSmartDailyPractice,
+        startChallengeSet,
+        challengeDifficultyForLevel,
+        recordReviewSourceAttempt,
+        buildParentWeeklyPrompt,
+        roundPetSummary,
         hasAudioPrompt,
         speakQuestionPrompt,
         renderQuestionTitle,

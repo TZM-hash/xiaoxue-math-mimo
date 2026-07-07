@@ -862,8 +862,10 @@
     .cause-panel {
       padding: 12px;
       border-radius: 14px;
-      background: color-mix(in oklch, var(--coral), white 86%);
-      border: 1px solid color-mix(in oklch, var(--coral), white 42%);
+      background:
+        linear-gradient(135deg, color-mix(in oklch, var(--subject-soft), white 18%), rgba(255,255,255,.82));
+      border: 1px solid color-mix(in oklch, var(--subject-accent), white 48%);
+      box-shadow: 0 12px 28px color-mix(in oklch, var(--subject-shadow), transparent 36%);
       display: none;
       gap: 10px;
       grid-template-columns: minmax(0, 1fr);

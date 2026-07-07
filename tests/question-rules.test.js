@@ -1414,6 +1414,149 @@ function runSubjectCauseOptionTests() {
   assert(!englishTags.includes("计算粗心") && !englishTags.includes("概念单位"), "英语错因不能混入数学错因");
 }
 
+function runRecommendedCauseAndParentDiagnosisTests() {
+  const debug = context.mathCampDebug;
+  const cases = [
+    [{ subject: "english", pointId: "e3-vocabulary-school", topic: "vocabulary", text: "Choose the word for 教室.", explanation: "classroom 是教室。" }, "单词不熟"],
+    [{ subject: "english", pointId: "e4-reading-daily", topic: "reading", text: "Read the short passage. Where does Tom go after school?", explanation: "回到短文中定位地点。" }, "阅读定位"],
+    [{ subject: "chinese", pointId: "c3-paragraph-reading", topic: "reading", text: "阅读短文，概括第 2 自然段的意思。", explanation: "需要回到原文定位。" }, "阅读理解"],
+    [{ subject: "science", pointId: "s3-inquiry-fair-test", topic: "inquiry", text: "哪一组实验只改变了水量这个变量？", explanation: "公平实验要控制变量。" }, "观察实验"],
+    [{ subject: "math", pointId: "g3-vertical-addition", topic: "vertical", text: "列竖式计算 368 + 257。", explanation: "注意进位。" }, "计算粗心"]
+  ];
+  cases.forEach(([question, cause]) => {
+    assert.strictEqual(debug.recommendCauseForQuestion(question), cause, `${question.subject} 题应推荐本学科错因：${cause}`);
+    assert(debug.causeOptionsForQuestion(question).includes(cause), "推荐错因必须存在于当前学科四个选项内");
+  });
+
+  debug.els.causeSelect.value = "未标记";
+  debug.els.causeQuickTags.children = [];
+  debug.renderCauseQuickTags(cases[0][0]);
+  assert.strictEqual(debug.els.causeSelect.value, "单词不熟", "渲染错因标签时应默认选中招财推荐错因");
+  const recommendedChip = debug.els.causeQuickTags.children.find((child) => child.dataset.causeChip === "单词不熟");
+  assert(recommendedChip, "应渲染推荐错因标签");
+  assert(String(recommendedChip.className).includes("recommended"), "推荐错因标签应带 recommended 样式类");
+  assert.strictEqual(recommendedChip.dataset.recommendedCause, "true", "推荐错因标签应有可测试标记");
+
+  const parentProfile = debug.normalizeProfile({
+    id: "parent-diagnosis",
+    name: "家长诊断",
+    grade: 3,
+    wrongbook: [{
+      id: "pd-wrong",
+      question: { id: "pd-q", grade: 3, subject: "english", pointId: "e3-reading-dialogue", topic: "reading", text: "Where is the library?", answer: "A" },
+      cause: "阅读定位",
+      wrongCount: 1
+    }],
+    history: [
+      { grade: 3, pointId: "e3-reading-dialogue", correct: false, cause: "阅读定位", text: "where 定位错误", mode: "practice" },
+      { grade: 3, pointId: "e3-reading-dialogue", correct: true, cause: "", text: "阅读题", mode: "practice" }
+    ]
+  });
+  debug.selectSubject("english");
+  const diagnosis = debug.buildParentDiagnosis(parentProfile, [debug.activeBank().pointMap["e3-reading-dialogue"]], []);
+  assert(diagnosis.title.includes("家长诊断"), "家长诊断应提供标题");
+  assert(diagnosis.mainCause === "阅读定位", "家长诊断应识别主要错因");
+  assert(diagnosis.summary.includes("阅读定位"), "家长诊断摘要应包含主要错因");
+  assert(diagnosis.actionPoint, "家长诊断应给出下一轮练习知识点");
+  assert(debug.petCoachForCause(cases[1][0], "阅读定位").includes("招财"), "招财建议应以学习助手语气出现");
+}
+
+function runLightSmartExperienceTests() {
+  const debug = context.mathCampDebug;
+  const profile = debug.normalizeProfile({
+    id: "light-smart",
+    name: "轻量智能",
+    grade: 3,
+    wrongbook: [{
+      id: "smart-due",
+      signature: "smart-due-sig",
+      question: { id: "smart-q", grade: 3, subject: "math", pointId: "g3-mul-div", topic: "muldiv", text: "7 × 8 = ?", answer: 56 },
+      cause: "计算粗心",
+      wrongCount: 2,
+      correctStreak: 2,
+      reviewStage: 2,
+      dueDate: debug.todayKey(),
+      updatedAt: Date.now()
+    }],
+    history: [
+      { grade: 3, pointId: "g3-mul-div", correct: false, cause: "计算粗心", text: "乘法口诀", mode: "practice" },
+      { grade: 3, pointId: "g3-word", correct: false, cause: "读题理解", text: "应用题", mode: "practice" }
+    ]
+  });
+  debug.state.profiles = [profile];
+  debug.state.activeId = profile.id;
+  debug.selectSubject("math");
+  debug.state.grade = 3;
+  debug.state.pointId = "auto";
+  debug.state.setSize = 8;
+  debug.els.setSizeInput.value = "8";
+
+  const smartSet = debug.buildSmartDailyQuestionSet(8, "auto");
+  assert.strictEqual(smartSet.length, 8, "今日一键练应保持用户设置的题量");
+  assert(smartSet.some((question) => question.reviewSource === "due" && question.reviewSourceWrongId === "smart-due"), "今日一键练应自动混入到期错题变式");
+  assert(smartSet.some((question) => question.reviewSource === "weak"), "今日一键练应自动混入薄弱点练习");
+
+  debug.recordReviewSourceAttempt({ reviewSourceWrongId: "smart-due" }, true);
+  const activeSmartProfile = debug.activeProfile();
+  assert(!activeSmartProfile.wrongbook.some((item) => item.id === "smart-due"), "到期错题变式做对后应自动推进原错题并可移入已掌握");
+  assert(activeSmartProfile.masteredWrong.some((item) => item.signature === "smart-due-sig"), "连续达标的原错题应自动进入已掌握记录");
+
+  const prompt = debug.buildParentWeeklyPrompt(activeSmartProfile);
+  assert(prompt.includes("本周") && prompt.length <= 90, "家长提示应是一句短提示，而不是复杂报告");
+  assert(debug.roundPetSummary([{ cause: "计算粗心", question: { subject: "math", pointId: "g3-mul-div" } }], 70).includes("招财"), "本轮总结应由招财给一句轻提示");
+}
+
+function runChallengeSubjectIsolationAndResetTests() {
+  const debug = context.mathCampDebug;
+  const subjects = ["math", "chinese", "english", "science"];
+  subjects.forEach((subject) => {
+    const profile = debug.normalizeProfile({ id: `challenge-${subject}`, name: `闯关${subject}`, grade: 3 });
+    debug.state.profiles = [profile];
+    debug.state.activeId = profile.id;
+    debug.selectSubject(subject);
+    debug.state.grade = 3;
+    debug.els.setSizeInput.value = "8";
+    debug.state.setSize = 8;
+
+    const progress = debug.challengeProgress(debug.activeProfile(), 3);
+    progress.level = 1;
+    progress.draft = null;
+    debug.startChallengeSet();
+    const level1Set = debug.state.currentSet.slice();
+    assert(level1Set.length >= 3, `${subject} 第 1 关应生成题目`);
+    assert(level1Set.every((question) => debug.activeSubjectId() === (question.subject || debug.activeSubjectId())), `${subject} 闯关题必须来自当前学科`);
+    assert(level1Set.every((question) => debug.causeOptionsForQuestion(question).length === 4), `${subject} 闯关题应使用当前学科错因体系`);
+    const level1Difficulty = Math.max(...level1Set.map((question) => Number(question.challengeDifficulty?.level || 0)));
+    const level1InputCount = level1Set.filter((question) => (question.interaction?.mode || "input") === "input").length;
+
+    progress.level = 5;
+    progress.draft = null;
+    debug.startChallengeSet();
+    const level5Set = debug.state.currentSet.slice();
+    const level5Difficulty = Math.min(...level5Set.map((question) => Number(question.challengeDifficulty?.level || 0)));
+    const level5InputCount = level5Set.filter((question) => (question.interaction?.mode || "input") === "input").length;
+    assert(level5Difficulty > level1Difficulty, `${subject} 下一轮闯关题应带更高难度层级`);
+    assert(level5InputCount >= level1InputCount, `${subject} 高关卡不应比低关卡更依赖选择/判断题`);
+  });
+
+  const profile = debug.normalizeProfile({ id: "subject-reset", name: "切换初始化", grade: 3 });
+  debug.state.profiles = [profile];
+  debug.state.activeId = profile.id;
+  debug.selectSubject("math");
+  debug.state.grade = 3;
+  debug.els.setSizeInput.value = "6";
+  debug.state.setSize = 6;
+  debug.startChallengeSet();
+  assert(debug.state.currentSet.length > 0 && debug.state.challengeMeta, "切换前应处于闯关做题状态");
+  debug.selectSubject("english");
+  assert.strictEqual(debug.state.currentSet.length, 0, "切换科目后应清空当前做题题组");
+  assert.strictEqual(debug.state.records.length, 0, "切换科目后应清空当前作答记录");
+  assert.strictEqual(debug.state.index, 0, "切换科目后题号应归零");
+  assert.strictEqual(debug.state.checked, false, "切换科目后不应保留已判题状态");
+  assert.strictEqual(debug.state.challengeMeta, null, "切换科目后不应保留闯关上下文");
+  assert.strictEqual(debug.state.mode, "normal", "切换科目后应回到普通初始化状态");
+}
+
 function runUtf8EncodingTests() {
   const files = ["js/app.js", "js/cloud-sync.js", "js/runtime-config.js", "js/question-bank-coverage.js", "js/learning-insights.js", "js/pet-economy.js", "js/question-spec-utils.js", "js/external-question-seeds.js", "js/question-rules-engine.js", "js/question-interaction.js", "js/subject-registry.js", "js/chinese-question-bank.js", "js/chinese-question-generator.js", "js/english-question-bank.js", "js/english-question-generator.js", "js/science-curriculum-data.js", "js/science-question-bank.js", "js/science-question-generator.js", "js/handwriting-input.js", "index.html", "tests/question-rules.test.js", "tests/frontend-layout.test.js", "tests/english-question-bank.test.js", "tests/science-question-bank.test.js", "tests/external-question-seeds.test.js"];
   const mojibakeTokens = ["\u93c1", "\u93b7", "\u7edb", "\u95bf", "\u9983", "\u8133", "\u923f", "\u9241", "\u9286", "\u4fd9", "\u6992", "\u5744", "\u6624", "\ufffd"];
@@ -1760,6 +1903,9 @@ runQuestionSetDedupeTests();
 runArchiveVersionTests();
 runCoverageAndInsightTests();
 runSubjectCauseOptionTests();
+runRecommendedCauseAndParentDiagnosisTests();
+runLightSmartExperienceTests();
+runChallengeSubjectIsolationAndResetTests();
 runUtf8EncodingTests();
 runInteractionBoundaryTests();
 runTwoStepMulDivTests();
@@ -1785,6 +1931,9 @@ console.log("Type settings persistence tests passed.");
 console.log("Archive and cloud coverage tests passed.");
 console.log("Question coverage and insight tests passed.");
 console.log("Subject cause option tests passed.");
+console.log("Recommended cause and parent diagnosis tests passed.");
+console.log("Light smart experience tests passed.");
+console.log("Challenge subject isolation and reset tests passed.");
 console.log("Interaction boundary tests passed.");
 console.log("Two-step multiplication/division tests passed.");
 console.log("Vertical calculation tests passed.");

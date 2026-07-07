@@ -21,7 +21,9 @@
       return window.MathCampScienceQuestionGenerator.makeQuestion(deps || {}, point, options || {});
     }
     var profile = deps.activeProfile();
-    var level = deps.state.adaptive ? deps.masteryFor(profile, point.id).level : 2;
+    var level = options && options.difficultyLevel
+      ? Math.max(1, Number(options.difficultyLevel) || 1)
+      : deps.state.adaptive ? deps.masteryFor(profile, point.id).level : 2;
     var makers = deps.makers;
     var allowTopicVariation = point.id !== "g2-100-add";
 
