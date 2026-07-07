@@ -6,7 +6,7 @@ const assert = require("assert");
 const root = path.resolve(__dirname, "..");
 
 function read(relativePath) {
-  return fs.readFileSync(path.join(root, relativePath), "utf8");
+  return fs.readFileSync(path.join(root, relativePath), "utf8").replace(/\r\n/g, "\n");
 }
 
 function hash(relativePath) {
@@ -30,8 +30,20 @@ function functionBody(source, name) {
 
 const html = read("index.html");
 const manifest = read("manifest.webmanifest");
-const css = read("css/themes.css");
-const app = read("js/app.js");
+const cssFiles = [
+  "css/theme-tokens.css",
+  "css/app-shell.css",
+  "css/practice.css",
+  "css/pet-space.css",
+  "css/reports-print.css",
+  "css/responsive-overrides.css",
+  "css/animations.css",
+  "css/animations-enhanced.css",
+  "css/effects-settings.css"
+];
+const css = cssFiles.map(read).join("\n");
+const mathQuestionMakers = read("js/math-question-makers.js");
+const app = [read("js/app.js"), mathQuestionMakers].join("\n");
 const runtimeConfig = read("js/runtime-config.js");
 const cloudSync = read("js/cloud-sync.js");
 const homeRoute = read("js/home-route.js");
@@ -496,7 +508,9 @@ assertContains(css, "#reportView .report-visual-panel:first-child {\n        gri
 [
   "index.html",
   "css/themes.css",
+  ...cssFiles,
   "js/app.js",
+  "js/math-question-makers.js",
   "js/cloud-sync.js",
   "js/runtime-config.js",
   "js/question-bank-coverage.js",
@@ -530,7 +544,9 @@ assertContains(css, "#reportView .report-visual-panel:first-child {\n        gri
   "index.html",
   "manifest.webmanifest",
   "css/themes.css",
+  ...cssFiles,
   "js/app.js",
+  "js/math-question-makers.js",
   "js/runtime-config.js",
   "js/cloud-sync.js",
   "js/cursor-effects.js",

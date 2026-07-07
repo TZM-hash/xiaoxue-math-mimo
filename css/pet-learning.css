@@ -1,0 +1,4 @@
+﻿/* Compatibility entrypoint for pet, report, print, and responsive styles. */
+@import url("./pet-space.css");
+@import url("./reports-print.css");
+@import url("./responsive-overrides.css");

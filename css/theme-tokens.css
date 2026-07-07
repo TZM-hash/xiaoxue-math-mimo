@@ -1,0 +1,272 @@
+﻿/* Theme tokens and color palettes. Split from themes.css. */
+
+:root {
+      --bg: oklch(98% 0.008 225);
+      --surface: oklch(100% 0 0);
+      --soft: oklch(96% 0.02 210);
+      --fg: oklch(20% 0.022 240);
+      --muted: oklch(49% 0.018 240);
+      --border: oklch(89% 0.012 235);
+      --accent: oklch(55% 0.13 162);
+      --accent-2: oklch(64% 0.15 225);
+      --sun: oklch(84% 0.15 82);
+      --coral: oklch(66% 0.17 32);
+      --berry: oklch(60% 0.15 335);
+      --success: oklch(57% 0.14 150);
+      --danger: oklch(58% 0.18 28);
+      --warning: oklch(78% 0.16 82);
+      --shadow: 0 18px 44px rgba(41, 76, 97, .12);
+      --cat-white: oklch(99% 0.004 98);
+      --cat-cream: oklch(95% 0.01 100);
+      --cat-shadow: oklch(82% 0.018 245);
+      --cat-gold: oklch(73% 0.16 78);
+      --cat-pink: oklch(78% 0.10 22);
+      --cat-photo: url("../assets/cat-states-app/cat_idle.png");
+      --font-display: "Avenir Next", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      --font-body: "PingFang SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    :root[data-theme="classic"] {
+      --bg: oklch(98% 0.008 225);
+      --surface: oklch(100% 0 0);
+      --soft: oklch(96% 0.02 210);
+      --fg: oklch(20% 0.022 240);
+      --muted: oklch(49% 0.018 240);
+      --border: oklch(89% 0.012 235);
+      --accent: oklch(55% 0.13 162);
+      --accent-2: oklch(64% 0.15 225);
+      --sun: oklch(84% 0.15 82);
+      --coral: oklch(66% 0.17 32);
+      --berry: oklch(60% 0.15 335);
+      --success: oklch(57% 0.14 150);
+      --danger: oklch(58% 0.18 28);
+      --warning: oklch(78% 0.16 82);
+      --shadow: 0 18px 44px rgba(41, 76, 97, .12);
+      --cat-white: oklch(99% 0.004 98);
+      --cat-cream: oklch(95% 0.01 100);
+      --cat-shadow: oklch(82% 0.018 245);
+      --cat-gold: oklch(73% 0.16 78);
+      --cat-pink: oklch(78% 0.10 22);
+    }
+    :root[data-theme="eye-care"] {
+      --bg: oklch(96% 0.026 142);
+      --surface: oklch(99% 0.014 132);
+      --soft: oklch(93% 0.034 136);
+      --fg: oklch(23% 0.035 145);
+      --muted: oklch(45% 0.035 142);
+      --border: oklch(84% 0.025 136);
+      --accent: oklch(50% 0.105 145);
+      --accent-2: oklch(56% 0.09 188);
+      --sun: oklch(78% 0.13 96);
+      --coral: oklch(61% 0.13 38);
+      --berry: oklch(55% 0.11 315);
+      --success: oklch(51% 0.12 150);
+      --danger: oklch(55% 0.16 32);
+      --warning: oklch(74% 0.14 86);
+      --shadow: 0 18px 42px rgba(42, 74, 54, .12);
+      --cat-white: oklch(98% 0.014 132);
+      --cat-cream: oklch(92% 0.032 112);
+      --cat-shadow: oklch(76% 0.035 142);
+      --cat-gold: oklch(70% 0.13 92);
+      --cat-pink: oklch(74% 0.08 28);
+    }
+    :root[data-theme="anime"] {
+      --bg: oklch(98% 0.022 305);
+      --surface: oklch(100% 0.006 305);
+      --soft: oklch(95% 0.04 290);
+      --fg: oklch(21% 0.035 274);
+      --muted: oklch(48% 0.038 280);
+      --border: oklch(88% 0.032 288);
+      --accent: oklch(62% 0.19 330);
+      --accent-2: oklch(64% 0.15 242);
+      --sun: oklch(83% 0.15 88);
+      --coral: oklch(68% 0.18 20);
+      --berry: oklch(58% 0.21 315);
+      --success: oklch(60% 0.14 162);
+      --danger: oklch(57% 0.20 26);
+      --warning: oklch(80% 0.16 86);
+      --shadow: 0 20px 48px rgba(95, 57, 135, .14);
+      --cat-white: oklch(100% 0.006 305);
+      --cat-cream: oklch(95% 0.024 78);
+      --cat-shadow: oklch(82% 0.045 284);
+      --cat-gold: oklch(78% 0.17 84);
+      --cat-pink: oklch(75% 0.13 342);
+    }
+    :root[data-theme="purple"] {
+      --bg: oklch(97% 0.02 286);
+      --surface: oklch(100% 0.004 286);
+      --soft: oklch(94% 0.045 285);
+      --fg: oklch(22% 0.035 278);
+      --muted: oklch(48% 0.035 278);
+      --border: oklch(87% 0.03 284);
+      --accent: oklch(56% 0.18 282);
+      --accent-2: oklch(62% 0.14 225);
+      --sun: oklch(84% 0.14 92);
+      --coral: oklch(66% 0.17 28);
+      --berry: oklch(60% 0.20 315);
+      --success: oklch(58% 0.14 154);
+      --danger: oklch(58% 0.18 25);
+      --warning: oklch(79% 0.15 84);
+      --shadow: 0 20px 48px rgba(75, 52, 135, .15);
+      --cat-white: oklch(100% 0.006 286);
+      --cat-cream: oklch(95% 0.026 90);
+      --cat-shadow: oklch(78% 0.055 284);
+      --cat-gold: oklch(78% 0.16 84);
+      --cat-pink: oklch(76% 0.12 326);
+    }
+    :root[data-theme="rainbow"] {
+      --bg: oklch(98% 0.018 58);
+      --surface: oklch(100% 0.006 70);
+      --soft: oklch(95% 0.04 78);
+      --fg: oklch(22% 0.034 250);
+      --muted: oklch(47% 0.035 242);
+      --border: oklch(88% 0.032 70);
+      --accent: oklch(61% 0.16 28);
+      --accent-2: oklch(62% 0.14 205);
+      --sun: oklch(86% 0.15 86);
+      --coral: oklch(67% 0.17 18);
+      --berry: oklch(62% 0.17 335);
+      --success: oklch(56% 0.13 150);
+      --danger: oklch(57% 0.18 25);
+      --warning: oklch(80% 0.16 82);
+      --shadow: 0 20px 46px rgba(151, 83, 42, .12);
+      --cat-white: oklch(100% 0.005 70);
+      --cat-cream: oklch(95% 0.026 92);
+      --cat-shadow: oklch(82% 0.032 250);
+      --cat-gold: oklch(79% 0.16 82);
+      --cat-pink: oklch(78% 0.12 350);
+    }
+    :root[data-theme="star"] {
+      --bg: oklch(96% 0.018 255);
+      --surface: oklch(100% 0.004 255);
+      --soft: oklch(93% 0.035 252);
+      --fg: oklch(21% 0.035 258);
+      --muted: oklch(48% 0.03 252);
+      --border: oklch(86% 0.028 250);
+      --accent: oklch(56% 0.16 252);
+      --accent-2: oklch(64% 0.13 220);
+      --sun: oklch(86% 0.13 88);
+      --coral: oklch(67% 0.15 28);
+      --berry: oklch(61% 0.18 305);
+      --success: oklch(58% 0.13 154);
+      --danger: oklch(58% 0.18 24);
+      --warning: oklch(80% 0.15 84);
+      --shadow: 0 20px 48px rgba(43, 58, 134, .14);
+      --cat-white: oklch(100% 0.006 250);
+      --cat-cream: oklch(95% 0.02 88);
+      --cat-shadow: oklch(80% 0.04 252);
+      --cat-gold: oklch(80% 0.16 86);
+      --cat-pink: oklch(76% 0.1 328);
+    }
+    :root[data-theme="ocean"] {
+      --bg: oklch(97% 0.018 205);
+      --surface: oklch(100% 0.006 205);
+      --soft: oklch(94% 0.035 198);
+      --fg: oklch(21% 0.035 225);
+      --muted: oklch(45% 0.035 215);
+      --border: oklch(86% 0.03 202);
+      --accent: oklch(54% 0.13 205);
+      --accent-2: oklch(61% 0.12 168);
+      --sun: oklch(84% 0.14 92);
+      --coral: oklch(66% 0.15 28);
+      --berry: oklch(58% 0.14 318);
+      --success: oklch(54% 0.13 155);
+      --danger: oklch(56% 0.17 24);
+      --warning: oklch(78% 0.15 84);
+      --shadow: 0 18px 44px rgba(32, 104, 132, .13);
+      --cat-white: oklch(100% 0.006 205);
+      --cat-cream: oklch(94% 0.022 96);
+      --cat-shadow: oklch(79% 0.038 206);
+      --cat-gold: oklch(78% 0.15 86);
+      --cat-pink: oklch(75% 0.09 335);
+    }
+    :root[data-theme="forest"] {
+      --bg: oklch(96% 0.02 150);
+      --surface: oklch(99% 0.01 142);
+      --soft: oklch(93% 0.035 145);
+      --fg: oklch(22% 0.035 150);
+      --muted: oklch(45% 0.035 148);
+      --border: oklch(84% 0.03 145);
+      --accent: oklch(49% 0.12 150);
+      --accent-2: oklch(59% 0.10 185);
+      --sun: oklch(82% 0.14 95);
+      --coral: oklch(64% 0.14 35);
+      --berry: oklch(56% 0.13 320);
+      --success: oklch(51% 0.13 152);
+      --danger: oklch(56% 0.16 30);
+      --warning: oklch(77% 0.14 88);
+      --shadow: 0 18px 44px rgba(35, 84, 57, .13);
+      --cat-white: oklch(99% 0.01 140);
+      --cat-cream: oklch(93% 0.028 110);
+      --cat-shadow: oklch(76% 0.035 150);
+      --cat-gold: oklch(75% 0.14 92);
+      --cat-pink: oklch(74% 0.08 30);
+    }
+    :root[data-theme="candy"] {
+      --bg: oklch(97% 0.018 345);
+      --surface: oklch(100% 0.004 345);
+      --soft: oklch(95% 0.035 350);
+      --fg: oklch(22% 0.034 330);
+      --muted: oklch(48% 0.032 330);
+      --border: oklch(88% 0.028 350);
+      --accent: oklch(62% 0.17 348);
+      --accent-2: oklch(68% 0.13 205);
+      --sun: oklch(86% 0.15 86);
+      --coral: oklch(68% 0.17 25);
+      --berry: oklch(62% 0.18 322);
+      --success: oklch(60% 0.13 155);
+      --danger: oklch(58% 0.18 24);
+      --warning: oklch(80% 0.16 82);
+      --shadow: 0 20px 46px rgba(139, 62, 109, .13);
+      --cat-white: oklch(100% 0.004 345);
+      --cat-cream: oklch(96% 0.02 92);
+      --cat-shadow: oklch(82% 0.035 340);
+      --cat-gold: oklch(80% 0.16 82);
+      --cat-pink: oklch(78% 0.12 350);
+    }
+    :root[data-theme="storybook"] {
+      --bg: oklch(97% 0.022 72);
+      --surface: oklch(100% 0.008 80);
+      --soft: oklch(94% 0.035 76);
+      --fg: oklch(23% 0.035 62);
+      --muted: oklch(47% 0.035 70);
+      --border: oklch(86% 0.03 78);
+      --accent: oklch(55% 0.13 54);
+      --accent-2: oklch(58% 0.11 182);
+      --sun: oklch(83% 0.15 86);
+      --coral: oklch(64% 0.16 26);
+      --berry: oklch(58% 0.14 324);
+      --success: oklch(53% 0.13 142);
+      --danger: oklch(56% 0.17 24);
+      --warning: oklch(78% 0.15 82);
+      --shadow: 0 18px 44px rgba(120, 78, 38, .13);
+      --cat-white: oklch(100% 0.006 80);
+      --cat-cream: oklch(94% 0.026 82);
+      --cat-shadow: oklch(80% 0.034 76);
+      --cat-gold: oklch(77% 0.15 82);
+      --cat-pink: oklch(75% 0.09 24);
+    }
+    :root[data-theme="playground"] {
+      --bg: oklch(98% 0.018 20);
+      --surface: oklch(100% 0.006 20);
+      --soft: oklch(95% 0.035 28);
+      --fg: oklch(22% 0.034 250);
+      --muted: oklch(47% 0.035 245);
+      --border: oklch(88% 0.032 28);
+      --accent: oklch(61% 0.16 18);
+      --accent-2: oklch(58% 0.13 205);
+      --sun: oklch(86% 0.16 88);
+      --coral: oklch(67% 0.17 22);
+      --berry: oklch(60% 0.15 330);
+      --success: oklch(55% 0.13 150);
+      --danger: oklch(57% 0.18 24);
+      --warning: oklch(80% 0.16 84);
+      --shadow: 0 20px 46px rgba(142, 63, 62, .12);
+      --cat-white: oklch(100% 0.006 20);
+      --cat-cream: oklch(95% 0.024 88);
+      --cat-shadow: oklch(82% 0.034 246);
+      --cat-gold: oklch(80% 0.16 84);
+      --cat-pink: oklch(78% 0.12 350);
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--bg); color: var(--fg); scroll-behavior: smooth; }

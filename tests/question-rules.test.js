@@ -177,6 +177,7 @@ vm.createContext(context);
   "js/practice-engine.js",
   "js/question-rules-engine.js",
   "js/question-interaction.js",
+  "js/math-question-makers.js",
   "js/report.js",
   "js/pet.js",
   "js/import-export.js",
