@@ -546,6 +546,18 @@
     ]
   };
 
+  function mergeSeedBank(extensionBank) {
+    Object.entries(extensionBank || {}).forEach(([pointId, items]) => {
+      if (!Array.isArray(items) || !items.length) return;
+      BANK[pointId] = (BANK[pointId] || []).concat(items);
+    });
+  }
+
+  [
+    window.MathCampGrade2ReferenceQuestionSeeds,
+    window.MathCampGrade2OriginalQuestionSeeds
+  ].forEach((module) => mergeSeedBank(module && module.BANK));
+
   function subjectForPoint(point) {
     const id = String(point?.id || "");
     if (point?.subject) return point.subject;
@@ -579,12 +591,12 @@
   }
 
   function cloneMeta(meta) {
-    return {
-      kind: meta.kind,
-      name: meta.name,
-      url: meta.url,
-      license: meta.license
-    };
+    return { ...(meta || {}) };
+  }
+
+  function cloneSourceImage(image) {
+    if (!image || typeof image !== "object" || Array.isArray(image)) return null;
+    return { ...image };
   }
 
   function normalizeSeed(deps, point, seed) {
@@ -605,6 +617,8 @@
       sourceType: point.sourceType || "external",
       sourceLabel: point.sourceLabel || "扩展题源",
       sourceMeta: cloneMeta(seed.sourceMeta || SOURCE.inspired),
+      diagram: seed.diagram ? { ...seed.diagram } : null,
+      sourceImage: cloneSourceImage(seed.sourceImage),
       enrichment: true
     };
     if (subject !== "math") common.subject = subject;

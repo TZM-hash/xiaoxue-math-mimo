@@ -485,7 +485,10 @@
       importPreview: document.getElementById("importPreview"),
       saveStatus: document.getElementById("saveStatus"),
       ruleCheckBtn: document.getElementById("ruleCheckBtn"),
-      ruleCheckResult: document.getElementById("ruleCheckResult")
+      ruleCheckResult: document.getElementById("ruleCheckResult"),
+      sourceFilterBtns: [...document.querySelectorAll("[data-source-filter]")],
+      sourceAuditSummary: document.getElementById("sourceAuditSummary"),
+      sourceAuditResult: document.getElementById("sourceAuditResult")
     };
 
     function uid(prefix = "id") {
@@ -731,6 +734,20 @@
         });
       }
       return clean;
+    }
+    function normalizeQuestionSourceImage(image) {
+      if (!isPlainObject(image)) return null;
+      const src = String(image.src || "").trim();
+      if (!/^assets\/reference\/grade2\/[A-Za-z0-9._-]+\.png$/.test(src)) return null;
+      return {
+        src,
+        alt: String(image.alt || "参考资料题图").slice(0, 80),
+        sourceId: String(image.sourceId || "").slice(0, 60),
+        sourceFile: String(image.sourceFile || "").slice(0, 120),
+        sourcePath: String(image.sourcePath || "").slice(0, 180),
+        sourcePage: Number.isFinite(Number(image.sourcePage)) ? Number(image.sourcePage) : null,
+        cropNote: String(image.cropNote || "").slice(0, 140)
+      };
     }
     function safeRecordId(value, prefix = "id") {
       const text = String(value || "");
@@ -1528,13 +1545,24 @@
     function normalizeStoredQuestion(question) {
       if (!isPlainObject(question)) return null;
       const text = String(question.text || "").trim();
-      const answer = Number(question.answer);
-      if (!text || !Number.isFinite(answer)) return null;
+      if (!text) return null;
+      const answerType = String(question.answerType || "").trim();
+      const keepsTextAnswer = ["choice", "text", "judge", "longText", "selfReview"].includes(answerType)
+        || Array.isArray(question.acceptedAnswers)
+        || question.answerLabel;
+      const numericAnswer = Number(question.answer);
+      if (!keepsTextAnswer && !Number.isFinite(numericAnswer)) return null;
+      const rawAnswer = question.answer ?? question.answerLabel ?? "";
+      const answer = keepsTextAnswer ? String(rawAnswer).trim() : numericAnswer;
+      if (keepsTextAnswer && !answer && !question.answerLabel) return null;
       const point = pointForQuestion(question);
       const kp = knowledgeProfileFor(point);
       const steps = Array.isArray(question.steps)
         ? question.steps.map((step) => String(step || "").trim()).filter(Boolean).slice(0, 5)
         : [];
+      const acceptedAnswers = [...new Set((Array.isArray(question.acceptedAnswers) ? question.acceptedAnswers : (keepsTextAnswer && answer ? [answer] : []))
+        .map((item) => String(item || "").trim())
+        .filter(Boolean))];
       return {
         ...question,
         id: safeRecordId(question.id, "q"),
@@ -1544,9 +1572,13 @@
         kind: String(question.kind || point.label),
         text,
         answer,
+        answerType: answerType || (keepsTextAnswer ? "text" : question.answerType),
         answerLabel: String(question.answerLabel || ""),
+        acceptedAnswers,
         word: Boolean(question.word),
         diagram: normalizeQuestionDiagram(question.diagram),
+        sourceImage: normalizeQuestionSourceImage(question.sourceImage),
+        sourceMeta: isPlainObject(question.sourceMeta) ? { ...question.sourceMeta } : question.sourceMeta,
         explanation: String(question.explanation || point.helper || "先看清题意，再按步骤计算。"),
         steps: steps.length ? steps : [String(question.explanation || point.helper || "先看清题意，再按步骤计算。")],
         subskills: Array.isArray(question.subskills) && question.subskills.length ? question.subskills.slice(0, 4) : kp.subskills.slice(0, 3),
@@ -2966,6 +2998,7 @@
     function renderQuestionDiagram(question) {
       if (!els.questionDiagram) return;
       const diagram = normalizeQuestionDiagram(question?.diagram);
+      const sourceImage = normalizeQuestionSourceImage(question?.sourceImage);
       const renderers = {
         "shape-count": renderDiagramShapeCount,
         "position-row": renderDiagramPositionRow,
@@ -2991,7 +3024,11 @@
         "cylinder-cone": renderDiagramCylinderCone,
         "sector-shape": renderDiagramSectorShape
       };
-      const html = diagram && renderers[diagram.type] ? renderers[diagram.type](diagram) : "";
+      const imageHtml = sourceImage
+        ? `<figure class="question-source-image"><img src="${escapeAttr(sourceImage.src)}" alt="${escapeAttr(sourceImage.alt)}" loading="lazy" decoding="async"/>${sourceImage.cropNote ? `<figcaption>${escapeHTML(sourceImage.cropNote)}</figcaption>` : ""}</figure>`
+        : "";
+      const diagramHtml = diagram && renderers[diagram.type] ? renderers[diagram.type](diagram) : "";
+      const html = [imageHtml, diagramHtml].filter(Boolean).join("");
       els.questionDiagram.hidden = !html;
       els.questionDiagram.innerHTML = html;
     }
@@ -3539,6 +3576,99 @@
     }
     function runQuestionQualityAudit(sampleSize = 48) {
       return runQuestionRuleSelfTest(sampleSize);
+    }
+    function flattenGrade2SeedModule(module, bucketLabel) {
+      return Object.entries(module?.BANK || {}).flatMap(([pointId, items]) => (items || []).map((item) => ({
+        pointId,
+        bucketLabel,
+        id: item.id,
+        answerType: item.answerType || "text",
+        templateType: item.templateType || item.questionType || "",
+        sourceMeta: item.sourceMeta || {},
+        hasDiagram: Boolean(item.diagram),
+        hasSourceImage: Boolean(item.sourceImage),
+        sourceImage: item.sourceImage || null
+      })));
+    }
+    function grade2SourceAuditItems() {
+      return [
+        ...flattenGrade2SeedModule(window.MathCampGrade2ReferenceQuestionSeeds, "参考资料派生"),
+        ...flattenGrade2SeedModule(window.MathCampGrade2OriginalQuestionSeeds, "原创扩展")
+      ];
+    }
+    function matchesSourceFilter(item, filter) {
+      const meta = item.sourceMeta || {};
+      if (filter === "reference") return meta.kind === "referenceDerived";
+      if (filter === "original") return meta.kind === "codexOriginal";
+      if (filter === "self-drawn") return meta.visualPolicy === "self-drawn-diagram" || item.hasDiagram;
+      if (filter === "scan") return meta.scanStatus === "scan-image" || meta.quality === "scan-page-rewrite";
+      if (filter === "pdf-image") return item.hasSourceImage || meta.visualPolicy === "pdf-crop-image";
+      return true;
+    }
+    function runQuestionSourceAudit(filter = "all") {
+      const normalizedFilter = ["all", "reference", "original", "self-drawn", "scan", "pdf-image"].includes(filter) ? filter : "all";
+      const items = grade2SourceAuditItems();
+      const filtered = items.filter((item) => matchesSourceFilter(item, normalizedFilter));
+      const countBy = (predicate) => items.filter(predicate).length;
+      return {
+        filter: normalizedFilter,
+        total: filtered.length,
+        counts: {
+          all: items.length,
+          reference: countBy((item) => item.sourceMeta?.kind === "referenceDerived"),
+          original: countBy((item) => item.sourceMeta?.kind === "codexOriginal"),
+          selfDrawn: countBy((item) => item.sourceMeta?.visualPolicy === "self-drawn-diagram" || item.hasDiagram),
+          scan: countBy((item) => item.sourceMeta?.scanStatus === "scan-image" || item.sourceMeta?.quality === "scan-page-rewrite"),
+          pdfImage: countBy((item) => item.hasSourceImage || item.sourceMeta?.visualPolicy === "pdf-crop-image")
+        },
+        items: filtered.slice(0, 36).map((item) => ({
+          id: item.id,
+          pointId: item.pointId,
+          bucketLabel: item.bucketLabel,
+          answerType: item.answerType,
+          templateType: item.templateType,
+          sourceFile: item.sourceMeta?.sourceFile || "",
+          sourcePage: item.sourceMeta?.sourcePage || null,
+          quality: item.sourceMeta?.quality || "",
+          scanStatus: item.sourceMeta?.scanStatus || "",
+          visualPolicy: item.sourceMeta?.visualPolicy || "",
+          imageSrc: item.sourceImage?.src || ""
+        }))
+      };
+    }
+    function renderQuestionSourceAudit(filter = "all") {
+      if (!els.sourceAuditResult || !els.sourceAuditSummary) return;
+      const result = runQuestionSourceAudit(filter);
+      els.sourceFilterBtns.forEach((btn) => {
+        const active = btn.dataset.sourceFilter === result.filter;
+        btn.classList.toggle("active", active);
+        btn.setAttribute("aria-pressed", active ? "true" : "false");
+      });
+      els.sourceAuditSummary.innerHTML = [
+        `全部 ${result.counts.all}`,
+        `参考资料派生 ${result.counts.reference}`,
+        `原创扩展 ${result.counts.original}`,
+        `自绘图形 ${result.counts.selfDrawn}`,
+        `扫描页改写 ${result.counts.scan}`,
+        `PDF截图 ${result.counts.pdfImage}`
+      ].map((text) => `<span>${escapeHTML(text)}</span>`).join("");
+      const rows = result.items.map((item) => {
+        const source = [item.sourceFile, item.sourcePage ? `第 ${item.sourcePage} 页` : ""].filter(Boolean).join(" · ") || item.bucketLabel;
+        const badges = [
+          item.quality,
+          item.scanStatus,
+          item.visualPolicy,
+          item.imageSrc ? "sourceImage" : ""
+        ].filter(Boolean).map((value) => `<em>${escapeHTML(value)}</em>`).join("");
+        return `<li>
+          <strong>${escapeHTML(item.pointId)} / ${escapeHTML(item.id)}</strong>
+          <span>${escapeHTML(source)}</span>
+          <small>${escapeHTML(item.templateType || item.answerType)}</small>
+          <span class="source-audit-badges">${badges}</span>
+        </li>`;
+      }).join("");
+      els.sourceAuditResult.className = "rule-check-panel source-audit-panel good";
+      els.sourceAuditResult.innerHTML = `<strong>题源筛选：${result.total} 道</strong>${rows ? `<ul>${rows}</ul>` : `<p class="muted">没有匹配当前筛选的题目。</p>`}`;
     }
     function renderRuleCheckResult(result) {
       if (!els.ruleCheckResult) return;
@@ -9646,6 +9776,9 @@
     els.importBtn.addEventListener("click", importData);
     els.importText.addEventListener("input", resetImportPreview);
     els.ruleCheckBtn?.addEventListener("click", runRuleCheckFromUI);
+    els.sourceFilterBtns.forEach((btn) => {
+      btn.addEventListener("click", () => renderQuestionSourceAudit(btn.dataset.sourceFilter || "all"));
+    });
     els.clearAllBtn.addEventListener("click", async () => {
       const confirmed = await UI.confirm("确定清空所有学生档案、错题和学习记录吗？", {
         title: "清空全部数据",
@@ -9767,6 +9900,7 @@
     initFloatingPetAssistant();
     if (!isAndroidWebView()) generatePrintSheet();
     initCloudSync();
+    renderQuestionSourceAudit("all");
     if (state.musicOn) {
       startBackgroundMusic();
     }
@@ -9785,6 +9919,7 @@
     });
     window.mathCampSelfTest = runQuestionRuleSelfTest;
     window.mathCampQualityAudit = runQuestionQualityAudit;
+    window.mathCampQuestionSourceAudit = runQuestionSourceAudit;
     if (window.__MATHCAMP_TEST__) {
       window.mathCampDebug = {
         normalizeProfile,
@@ -9885,6 +10020,10 @@
         questionRuleIssues,
         interactionRuleIssues,
         runQuestionQualityAudit,
+        runQuestionSourceAudit,
+        renderQuestionSourceAudit,
+        renderQuestionDiagram,
+        normalizeQuestionSourceImage,
         parseNumericAnswer,
         todayKey,
         availablePoints,

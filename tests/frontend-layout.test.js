@@ -96,6 +96,13 @@ assertContains(html, 'data-open-learning-map', "learning modal should open knowl
 assertContains(html, 'data-start-logic-reading', "learning modal should include the logic reading training entry");
 assertContains(html, '<strong>思维阅读训练</strong>', "learning modal should label the logic reading entry");
 assertContains(html, '题库质量巡检', "data page should expose question bank quality audit");
+assertContains(html, 'id="sourceAuditSummary"', "data page should expose question source audit summary");
+assertContains(html, 'id="sourceAuditResult"', "data page should expose question source audit results");
+assertContains(html, 'data-source-filter="reference"', "question source audit should filter reference-derived questions");
+assertContains(html, 'data-source-filter="original"', "question source audit should filter original extension questions");
+assertContains(html, 'data-source-filter="self-drawn"', "question source audit should filter self-drawn diagram questions");
+assertContains(html, 'data-source-filter="scan"', "question source audit should filter scan-page rewrites");
+assertContains(html, 'data-source-filter="pdf-image"', "question source audit should filter PDF screenshot questions");
 assertNotContains(html, 'id="wordRelationPanel"', "word relation training panel should be removed from the practice screen");
 assertContains(html, 'id="heroTitle">今日学习路线</h1>', "home hero title should be today's route");
 assertContains(html, 'data-top-mode-action', "mobile top action should use the type setting entry");
@@ -136,6 +143,10 @@ assertContains(html, 'src="js/science-question-bank.js"', "页面应加载科学
 assertContains(html, 'src="js/subject-registry.js"', "页面应加载学科注册表");
 assertContains(html, 'src="js/chinese-question-generator.js"', "页面应加载语文题目生成器");
 assertContains(html, 'src="js/question-spec-utils.js"', "页面应加载选择题规格工具");
+assertContains(html, 'src="js/grade2-reference-source-meta.js"', "页面应加载二年级资料来源清单");
+assertContains(html, 'src="js/grade2-reference-scan-index.js"', "页面应加载二年级资料逐页扫描索引");
+assertContains(html, 'src="js/grade2-reference-question-seeds.js"', "页面应加载二年级资料派生题源");
+assertContains(html, 'src="js/grade2-original-question-seeds.js"', "页面应加载二年级原创扩展题源");
 assertContains(html, 'src="js/external-question-seeds.js"', "页面应加载扩展题源模块");
 assertContains(html, 'src="js/english-question-generator.js"', "页面应加载英语题目生成器");
 assertContains(html, 'src="js/science-question-generator.js"', "页面应加载科学题目生成器");
@@ -185,6 +196,8 @@ assertContains(app, "data-audio-prompt-play", "practice question rendering shoul
 assertNotContains(app, "renderWordRelationPanel", "app should not render the removed word relation training panel");
 assertContains(app, "runQuestionQualityAudit", "app should expose a question bank quality audit");
 assertContains(app, "window.mathCampQualityAudit", "quality audit should be available from the browser console");
+assertContains(app, "function runQuestionSourceAudit", "app should expose a question source audit");
+assertContains(app, "window.mathCampQuestionSourceAudit", "question source audit should be available from the browser console");
 assertContains(app, "renderLearningKnowledgeMap", "app should render the learning knowledge map");
 assertContains(app, 'knowledgeMap: document.getElementById("knowledgeMapView")', "app should bind the standalone knowledge map view");
 assertContains(app, "petLearningQuality", "app should bind pet growth to learning quality");
@@ -202,7 +215,9 @@ assertContains(app, "function startLogicReadingTraining", "app should start logi
 assertContains(app, "data-start-logic-reading", "app should wire the logic reading training entry");
 assertContains(app, "makeReading", "app should generate dedicated logic reading questions");
 assertContains(app, "function normalizeQuestionDiagram", "app should sanitize generated geometry diagrams");
+assertContains(app, "function normalizeQuestionSourceImage", "app should sanitize PDF screenshot question images");
 assertContains(app, "function renderQuestionDiagram", "app should render generated geometry diagrams");
+assertContains(app, "question-source-image", "practice rendering should mount PDF screenshot question images");
 assertContains(app, '"grid-shape"', "app should allow grid-shape geometry diagrams");
 assertContains(app, '"block-view"', "app should allow block-view geometry diagrams");
 assertContains(app, '"motion-grid"', "app should allow motion-grid geometry diagrams");
@@ -389,6 +404,8 @@ assertContains(css, ".home-cockpit-meter", "CSS should style the home task cockp
 assertContains(css, ".timer-progress-ring", "CSS should explicitly suppress the old timer ring overlay");
 assertContains(css, ".home-settings-card", "CSS should style the mobile home summary card");
 assertContains(css, ".question-diagram", "CSS should style generated geometry diagrams");
+assertContains(css, ".question-source-image", "CSS should style PDF screenshot question images");
+assertContains(css, ".source-audit-toolbar", "CSS should style question source filter controls");
 assertContains(css, ".custom-select--wrongPointFilter .custom-select-option", "wrongbook knowledge filter should use compact option typography");
 assertContains(css, ".custom-select--printPoint .custom-select-option", "print knowledge selector should use compact option typography");
 assertContains(css, ".learning-map-panel", "CSS should style the learning knowledge map");
@@ -569,6 +586,10 @@ assertContains(css, "#reportView .report-visual-panel:first-child {\n        gri
   "js/learning-insights.js",
   "js/pet-economy.js",
   "js/question-spec-utils.js",
+  "js/grade2-reference-source-meta.js",
+  "js/grade2-reference-scan-index.js",
+  "js/grade2-reference-question-seeds.js",
+  "js/grade2-original-question-seeds.js",
   "js/external-question-seeds.js",
   "js/subject-registry.js",
   "js/chinese-question-bank.js",
@@ -619,6 +640,10 @@ assertContains(css, "#reportView .report-visual-panel:first-child {\n        gri
   "js/pet-dressup-meta.js",
   "js/pet-economy.js",
   "js/question-spec-utils.js",
+  "js/grade2-reference-source-meta.js",
+  "js/grade2-reference-scan-index.js",
+  "js/grade2-reference-question-seeds.js",
+  "js/grade2-original-question-seeds.js",
   "js/external-question-seeds.js",
   "js/question-generator.js",
   "js/practice-engine.js",

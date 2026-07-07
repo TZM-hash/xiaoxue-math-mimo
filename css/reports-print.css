@@ -481,6 +481,48 @@
     }
     .rule-check-panel ul { margin: 10px 0 0; padding-left: 20px; }
     .rule-check-panel li { margin-top: 6px; }
+    .source-audit-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .source-audit-toolbar .secondary.active,
+    .source-audit-toolbar .secondary[aria-pressed="true"] {
+      color: color-mix(in oklch, var(--accent), black 28%);
+      background: color-mix(in oklch, var(--accent), white 82%);
+      border-color: color-mix(in oklch, var(--accent), white 28%);
+    }
+    .source-audit-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 10px 0 0;
+      color: var(--muted);
+      font: 850 12px/1.35 var(--font);
+    }
+    .source-audit-summary span,
+    .source-audit-badges em {
+      border-radius: 999px;
+      padding: 4px 8px;
+      background: color-mix(in oklch, var(--surface), white 28%);
+      border: 1px solid color-mix(in oklch, var(--border), white 16%);
+      font-style: normal;
+    }
+    .source-audit-panel li {
+      display: grid;
+      gap: 3px;
+    }
+    .source-audit-panel small {
+      color: var(--muted);
+      font-weight: 800;
+    }
+    .source-audit-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 2px;
+    }
     .save-status, .import-preview {
       margin-top: 12px;
       padding: 12px 14px;

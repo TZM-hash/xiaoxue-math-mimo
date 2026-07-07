@@ -6506,6 +6506,9 @@
       body.practice-view-active.practice-focus-mode .question-diagram svg {
         max-height: 180px;
       }
+      body.practice-view-active.practice-focus-mode .question-source-image img {
+        max-height: 180px;
+      }
       body.practice-view-active.practice-focus-mode .answer-panel > * {
         flex: 0 0 auto;
       }

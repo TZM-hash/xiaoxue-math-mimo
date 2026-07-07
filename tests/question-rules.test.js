@@ -796,6 +796,77 @@ function runInteractionBoundaryTests() {
   assert.strictEqual(debug.answerMatches(formulaQuestion, { raw: "23+15=39", value: NaN }), false, "列算式题最终答案错误不能判对");
 }
 
+function runArchivedObjectiveAnswerModeTests() {
+  const debug = context.mathCampDebug;
+  const profile = debug.normalizeProfile({
+    id: "archive-objective-answer-modes",
+    name: "二年级题源归档",
+    grade: 2,
+    wrongbook: [
+      {
+        id: "wrong-cn-text",
+        signature: "wrong-cn-text-sig",
+        cause: "字词基础",
+        question: {
+          id: "q-cn-text",
+          subject: "chinese",
+          grade: 2,
+          pointId: "c2-textbook-word-collocation",
+          topic: "word",
+          kind: "词语搭配",
+          text: "照样子写 AABB 式词语：干净。",
+          answerType: "text",
+          answer: "干干净净",
+          acceptedAnswers: ["干干净净"],
+          explanation: "AABB 式要把两个字分别重叠。",
+          steps: ["看清词语结构。", "把“干净”写成“干干净净”。"],
+          sourceMeta: {
+            kind: "referenceDerived",
+            url: "local-reference:Reference/grade2/二年级语文上册常考重点知识点汇总.pdf",
+            sourceFile: "二年级语文上册常考重点知识点汇总.pdf",
+            sourceNote: "归档兼容测试"
+          }
+        }
+      },
+      {
+        id: "wrong-math-judge",
+        signature: "wrong-math-judge-sig",
+        cause: "概念单位",
+        question: {
+          id: "q-math-judge",
+          grade: 2,
+          pointId: "g2-length-measure",
+          topic: "unit",
+          kind: "长度单位与测量",
+          text: "判断：1 米 = 100 厘米。",
+          answerType: "judge",
+          answer: "对",
+          acceptedAnswers: ["对", "正确", "是"],
+          explanation: "1 米等于 100 厘米。",
+          steps: ["回忆米和厘米的关系。", "判断说法正确。"],
+          sourceMeta: {
+            kind: "codexOriginal",
+            url: "codex-original:grade2-question-expansion",
+            maintainerNote: "归档兼容测试"
+          }
+        }
+      }
+    ]
+  });
+  assert.strictEqual(profile.wrongbook.length, 2, "文本题和判断题错题归一化后都应保留");
+  const textQuestion = profile.wrongbook.find((item) => item.id === "wrong-cn-text")?.question;
+  assert(textQuestion, "语文文本错题应保留");
+  assert.strictEqual(textQuestion.answerType, "text", "语文文本错题应保留 answerType");
+  assert.strictEqual(textQuestion.answer, "干干净净", "语文文本错题应保留文字答案");
+  assert.strictEqual(JSON.stringify(textQuestion.acceptedAnswers), JSON.stringify(["干干净净"]), "语文文本错题应保留可接受答案");
+  assert.strictEqual(textQuestion.sourceMeta.sourceFile, "二年级语文上册常考重点知识点汇总.pdf", "资料派生错题应保留来源文件");
+  const judgeQuestion = profile.wrongbook.find((item) => item.id === "wrong-math-judge")?.question;
+  assert(judgeQuestion, "数学判断错题应保留");
+  assert.strictEqual(judgeQuestion.answerType, "judge", "数学判断错题应保留 answerType");
+  assert(judgeQuestion.acceptedAnswers.includes("正确"), "判断题应保留多个可接受答案");
+  assert.strictEqual(judgeQuestion.sourceMeta.kind, "codexOriginal", "原创错题应保留来源类型");
+}
+
 function runTwoStepMulDivTests() {
   const debug = context.mathCampDebug;
   assert(!debug.pointMap["g1-two-step-muldiv"], "grade 1 should not include two-step multiplication/division");
@@ -1955,6 +2026,7 @@ runChallengeSubjectIsolationAndResetTests();
 runFloatingPetAssistantTests();
 runUtf8EncodingTests();
 runInteractionBoundaryTests();
+runArchivedObjectiveAnswerModeTests();
 runTwoStepMulDivTests();
 runVerticalQuestionTests();
 runSpecialSetPurityTests();
