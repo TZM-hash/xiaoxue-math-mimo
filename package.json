@@ -1,7 +1,7 @@
 {
   "name": "miaomiao-math-opus",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "scripts": {
     "test": "npm run test:questions && npm run test:rules && npm run test:layout && npm run test:browser",
     "test:questions": "node tests/chinese-question-bank.test.js && node tests/english-question-bank.test.js && node tests/science-question-bank.test.js && node tests/external-question-seeds.test.js && node tests/answer-modes.test.js && node tests/subject-isolation.test.js && node tests/handwriting-input.test.js && node tests/question-bank-excel.test.js && node tests/custom-bank-import.test.js && node scripts/question-bank-coverage.js",
