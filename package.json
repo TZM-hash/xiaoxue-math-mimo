@@ -13,6 +13,7 @@
     "docs:generate": "node scripts/generate-readable-docs.js",
     "reference:inventory": "node scripts/reference-inventory.js",
     "assets:report": "node scripts/asset-size-report.js",
-    "sync:android:check": "node scripts/check-android-assets.js"
+    "sync:android:check": "node scripts/check-android-assets.js",
+    "release:apk": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/release-apk.ps1"
   }
 }
