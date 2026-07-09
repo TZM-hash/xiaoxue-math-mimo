@@ -1092,6 +1092,12 @@
       gap: 18px;
       align-items: start;
     }
+    .data-layout .data-column {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      min-width: 0;
+    }
     .practice-workspace { grid-template-columns: 300px minmax(0, 1fr); align-items: start; }
     .panel, .card, .summary-panel, .review-panel, .wrongbook-card, .report-card, .data-card, .print-controls {
       border-radius: 16px;

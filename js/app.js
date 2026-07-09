@@ -197,7 +197,7 @@
         report: document.getElementById("reportView"),
         knowledgeMap: document.getElementById("knowledgeMapView"),
         print: document.getElementById("printView"),
-        data: document.getElementById("dataView")
+        bank: document.getElementById("bankView")
       },
       wrongCountPill: document.getElementById("wrongCountPill"),
       todayPill: document.getElementById("todayPill"),
@@ -493,7 +493,19 @@
       sourceAuditResult: document.getElementById("sourceAuditResult"),
       questionBankSubjectFilter: document.getElementById("questionBankSubjectFilter"),
       questionBankGradeFilter: document.getElementById("questionBankGradeFilter"),
-      questionBankPointFilter: document.getElementById("questionBankPointFilter")
+      questionBankPointFilter: document.getElementById("questionBankPointFilter"),
+      exportBankExcelBtn: document.getElementById("exportBankExcelBtn"),
+      exportBankExcelStatus: document.getElementById("exportBankExcelStatus"),
+      customBankNameInput: document.getElementById("customBankNameInput"),
+      customBankFileInput: document.getElementById("customBankFileInput"),
+      customBankChooseBtn: document.getElementById("customBankChooseBtn"),
+      customBankFileName: document.getElementById("customBankFileName"),
+      importCustomBankBtn: document.getElementById("importCustomBankBtn"),
+      customBankImportStatus: document.getElementById("customBankImportStatus"),
+      customBankList: document.getElementById("customBankList"),
+      bankDetailTitle: document.getElementById("bankDetailTitle"),
+      bankDetailMeta: document.getElementById("bankDetailMeta"),
+      bankDetailBody: document.getElementById("bankDetailBody")
     };
 
     function uid(prefix = "id") {
@@ -3737,7 +3749,7 @@
       const options = [`<option value="all">全部知识点</option>`].concat(
         Array.from(pointsForSelect.values())
           .sort((a, b) => Number(a.grade) - Number(b.grade) || String(a.pointId).localeCompare(String(b.pointId)))
-          .map((item) => `<option value="${escapeHTML(item.pointId)}">${escapeHTML(item.pointLabel)}（${escapeHTML(item.pointId)}）</option>`)
+          .map((item) => `<option value="${escapeHTML(item.pointId)}">${escapeHTML(item.pointLabel)}</option>`)
       );
       els.questionBankPointFilter.innerHTML = options.join("");
       els.questionBankPointFilter.value = pointsForSelect.has(current) ? current : "all";
@@ -3760,25 +3772,12 @@
         `PDF截图 ${result.counts.pdfImage}`,
         `当前筛选 ${result.counts.scopedAll}`
       ].map((text) => `<span>${escapeHTML(text)}</span>`).join("");
-      const rows = result.items.map((item) => {
-        const source = [item.sourceFile, item.sourcePage ? `第 ${item.sourcePage} 页` : ""].filter(Boolean).join(" · ") || item.bucketLabel;
-        const badges = [
-          SUBJECTS[item.subject]?.label || item.subject,
-          item.grade ? `${item.grade}年级` : "",
-          item.quality,
-          item.scanStatus,
-          item.visualPolicy,
-          item.imageSrc ? "sourceImage" : ""
-        ].filter(Boolean).map((value) => `<em>${escapeHTML(value)}</em>`).join("");
-        return `<li>
-          <strong>${escapeHTML(item.pointId)} / ${escapeHTML(item.id)}</strong>
-          <span>${escapeHTML(item.pointLabel || item.pointId)} · ${escapeHTML(source)}</span>
-          <small>${escapeHTML(item.templateType || item.answerType)}</small>
-          <span class="source-audit-badges">${badges}</span>
-        </li>`;
-      }).join("");
-      els.sourceAuditResult.className = "rule-check-panel source-audit-panel good";
-      els.sourceAuditResult.innerHTML = `<strong>题源筛选：${result.total} 道</strong>${rows ? `<ul>${rows}</ul>` : `<p class="muted">没有匹配当前筛选的题目。</p>`}`;
+      // 题源详细列表不在页面展示（数量庞大且非家长所需），仅保留上方统计与筛选。
+      // 详细数据仍可通过「导出题库 Excel」获取。
+      if (els.sourceAuditResult) {
+        els.sourceAuditResult.hidden = true;
+        els.sourceAuditResult.innerHTML = "";
+      }
     }
     function renderRuleCheckResult(result) {
       if (!els.ruleCheckResult) return;
@@ -4625,8 +4624,9 @@
 
     function renderChrome() {
       const profile = activeProfile();
-      const profileOptions = state.profiles.map((item) => `<option value="${escapeAttr(item.id)}" ${item.id === profile.id ? "selected" : ""}>${escapeHTML(item.name)}</option>`).join("");
-      els.profileSelect.innerHTML = profileOptions;
+      if (els.profileSelect) {
+        els.profileSelect.innerHTML = state.profiles.map((item) => `<option value="${escapeAttr(item.id)}" ${item.id === profile.id ? "selected" : ""}>${escapeHTML(item.name)}</option>`).join("");
+      }
       const today = profile.history.filter((item) => item.date === todayKey());
       els.wrongCountPill.textContent = `错题本 ${profile.wrongbook.length} 题`;
       els.todayPill.textContent = `今日 ${today.length} 题`;
@@ -4817,7 +4817,11 @@
       if (view === "report") renderReport();
       if (view === "knowledgeMap") renderLearningKnowledgeMap();
       if (view === "print") syncPrintControls();
-      if (view === "data") renderProfilePanel();
+      if (view === "bank") {
+        syncQuestionBankPointFilter();
+        renderQuestionSourceAudit(questionBankAuditFilterFromUI());
+        if (window.MathCampCustomBank) renderCustomBankList();
+      }
     }
     function setTypeSettingsOpen(open) {
       document.body.classList.toggle("type-settings-open", Boolean(open));
@@ -7062,7 +7066,7 @@
       els.streakStat.textContent = state.streak;
       els.gradeTag.textContent = gradeNames[state.grade - 1];
       els.pointTag.textContent = current ? pointLabel(current.pointId) : pointLabel(state.pointId);
-      els.modeTag.textContent = state.mode === "due-review" ? "到期错题复习" : state.mode === "wrongbook" ? "错题复练" : state.mode === "similar" ? "同类巩固" : state.mode === "weak" ? "薄弱点练习" : state.mode === "timed" ? "限时小测" : state.mode === "appendix" ? "附加题挑战" : state.mode === "hard-word" ? "应用题强化" : state.mode === "logic-reading" ? "思维阅读训练" : state.mode === "challenge" ? `闯关第 ${state.challengeMeta?.level || 1} 关` : "普通练习";
+      els.modeTag.textContent = state.mode === "due-review" ? "到期错题复习" : state.mode === "wrongbook" ? "错题复练" : state.mode === "similar" ? "同类巩固" : state.mode === "weak" ? "薄弱点练习" : state.mode === "timed" ? "限时小测" : state.mode === "appendix" ? "附加题挑战" : state.mode === "hard-word" ? "应用题强化" : state.mode === "logic-reading" ? "思维阅读训练" : state.mode === "custom-bank" ? `校内题库：${state.customBankMeta?.name || "练习"}` : state.mode === "challenge" ? `闯关第 ${state.challengeMeta?.level || 1} 关` : "普通练习";
       els.progressDots.innerHTML = "";
       for (let i = 0; i < total; i += 1) {
         const dot = document.createElement("span");
@@ -7357,6 +7361,193 @@
         return;
       }
       startWrongbookPractice();
+    }
+    function renderCustomBankList() {
+      const CustomBank = window.MathCampCustomBank;
+      if (!els.customBankList || !CustomBank) return;
+      const banks = CustomBank.listBanks();
+      if (!banks.length) {
+        els.customBankList.innerHTML = `<p class="muted">还没有导入校内题库。选择一个 .xlsx 或 .csv 文件后点「导入题库」。</p>`;
+        state.selectedBankId = "";
+        renderBankDetail("");
+        return;
+      }
+      if (state.selectedBankId && !banks.some((bank) => bank.id === state.selectedBankId)) {
+        state.selectedBankId = "";
+      }
+      els.customBankList.innerHTML = banks.map((bank) => {
+        const when = bank.importedAt ? String(bank.importedAt).slice(0, 10) : "";
+        const fmt = bank.sourceFormat ? bank.sourceFormat.toUpperCase() : "";
+        const active = bank.id === state.selectedBankId;
+        return `<div class="report-item ${active ? "report-item-active" : ""}" data-custom-bank-id="${escapeAttr(bank.id)}">
+          <div>
+            <strong>${escapeHTML(bank.name)}</strong>
+            <div class="muted">${bank.count} 题${fmt ? ` · ${fmt}` : ""}${when ? ` · ${when}` : ""}</div>
+          </div>
+          <div class="row-actions">
+            <button class="${active ? "primary" : "secondary"}" type="button" data-custom-bank-view="${escapeAttr(bank.id)}">查看题目</button>
+            <button class="primary" type="button" data-custom-bank-practice="${escapeAttr(bank.id)}">整批练习</button>
+            <button class="secondary" type="button" data-custom-bank-rename="${escapeAttr(bank.id)}">重命名</button>
+            <button class="danger" type="button" data-custom-bank-delete="${escapeAttr(bank.id)}">删除</button>
+          </div>
+        </div>`;
+      }).join("");
+      renderBankDetail(state.selectedBankId);
+    }
+    function bankAnswerTypeLabel(type) {
+      return type === "choice" ? "选择题" : type === "judge" ? "判断题" : "填空 / 应用";
+    }
+    function renderBankDetail(bankId) {
+      if (!els.bankDetailBody) return;
+      const CustomBank = window.MathCampCustomBank;
+      const bank = bankId && CustomBank ? CustomBank.getBank(bankId) : null;
+      if (!bank) {
+        if (els.bankDetailTitle) els.bankDetailTitle.textContent = "题目详情";
+        if (els.bankDetailMeta) els.bankDetailMeta.textContent = "点击左侧「校内题库」中某个批次的「查看题目」，这里会显示该批次的全部题目。";
+        els.bankDetailBody.innerHTML = `<p class="bank-detail-empty muted">还没有选择题库批次。</p>`;
+        return;
+      }
+      const questions = Array.isArray(bank.questions) ? bank.questions : [];
+      const typeCounts = questions.reduce((acc, q) => {
+        const t = q.answerType || "text";
+        acc[t] = (acc[t] || 0) + 1;
+        return acc;
+      }, {});
+      const countSummary = Object.entries(typeCounts)
+        .map(([type, n]) => `${bankAnswerTypeLabel(type)} ${n}`)
+        .join(" · ");
+      if (els.bankDetailTitle) els.bankDetailTitle.textContent = bank.name;
+      if (els.bankDetailMeta) els.bankDetailMeta.textContent = `共 ${questions.length} 题${countSummary ? ` · ${countSummary}` : ""}`;
+      if (!questions.length) {
+        els.bankDetailBody.innerHTML = `<p class="bank-detail-empty muted">这个批次没有题目。</p>`;
+        return;
+      }
+      els.bankDetailBody.innerHTML = questions.map((q, index) => {
+        const type = q.answerType || "text";
+        const pointBadge = q.pointId
+          ? `<span class="bank-q-badge is-point">${escapeHTML(pointLabel(q.pointId))}</span>`
+          : `<span class="bank-q-badge is-loose">未关联知识点</span>`;
+        let stem = "";
+        let answerHtml = "";
+        if (type === "choice") {
+          const options = [q.correct, ...(Array.isArray(q.wrongs) ? q.wrongs : [])].filter((v) => v != null && String(v).trim() !== "");
+          const labels = ["A", "B", "C", "D", "E", "F"];
+          stem = `<div class="bank-q-stem">${escapeHTML(q.prompt || "")}</div>`
+            + `<ol class="bank-q-options">${options.map((opt) => `<li>${escapeHTML(String(opt))}</li>`).join("")}</ol>`;
+          answerHtml = `<span class="bank-q-answer">正确答案：${escapeHTML(String(q.correct || ""))}</span>`;
+        } else if (type === "judge") {
+          stem = `<div class="bank-q-stem">${escapeHTML(q.text || "")}</div>`;
+          answerHtml = `<span class="bank-q-answer">答案：${escapeHTML(String(q.answer || ""))}</span>`;
+        } else {
+          stem = `<div class="bank-q-stem">${escapeHTML(q.text || "")}</div>`;
+          answerHtml = `<span class="bank-q-answer">答案：${escapeHTML(String(q.answer || ""))}</span>`;
+        }
+        const steps = Array.isArray(q.steps) && q.steps.length
+          ? `<div class="bank-q-steps"><span class="bank-q-label">步骤</span>${q.steps.map((s) => `<span>${escapeHTML(String(s))}</span>`).join("")}</div>`
+          : "";
+        const explanation = q.explanation
+          ? `<div class="bank-q-explain"><span class="bank-q-label">解析</span>${escapeHTML(String(q.explanation))}</div>`
+          : "";
+        return `<article class="bank-q-item">
+          <div class="bank-q-top">
+            <span class="bank-q-index">${index + 1}</span>
+            <span class="bank-q-type">${bankAnswerTypeLabel(type)}</span>
+            ${pointBadge}
+          </div>
+          ${stem}
+          <div class="bank-q-foot">${answerHtml}</div>
+          ${steps}
+          ${explanation}
+        </article>`;
+      }).join("");
+      els.bankDetailBody.scrollTop = 0;
+    }
+    function readFileForImport(file) {
+      return new Promise((resolve, reject) => {
+        const name = String(file.name || "").toLowerCase();
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error("文件读取失败"));
+        if (name.endsWith(".xlsx")) {
+          reader.onload = () => resolve({ fileName: file.name, bytes: new Uint8Array(reader.result) });
+          reader.readAsArrayBuffer(file);
+        } else {
+          reader.onload = () => resolve({ fileName: file.name, text: String(reader.result || "") });
+          reader.readAsText(file, "utf-8");
+        }
+      });
+    }
+    async function importCustomBankFromUI() {
+      const Excel = window.MathCampQuestionBankExcel;
+      const CustomBank = window.MathCampCustomBank;
+      const status = els.customBankImportStatus;
+      if (!Excel || !CustomBank) {
+        if (status) status.textContent = "导入模块未加载。";
+        return;
+      }
+      const file = els.customBankFileInput?.files?.[0];
+      if (!file) {
+        if (status) status.textContent = "请先选择一个 .xlsx 或 .csv 文件。";
+        return;
+      }
+      if (status) status.textContent = "正在导入...";
+      try {
+        const input = await readFileForImport(file);
+        const nameFromFile = String(file.name || "").replace(/\.(xlsx|csv)$/i, "");
+        const bankName = (els.customBankNameInput?.value || "").trim() || nameFromFile || "校内题库";
+        const result = Excel.parseImportFile(input, { bankName });
+        if (!result.questions.length) {
+          if (status) status.textContent = `没有导入任何题目（共 ${result.totalRows} 行，跳过 ${result.skipped.length} 行）。请检查文件格式。`;
+          return;
+        }
+        const addedBank = CustomBank.addBank({
+          name: bankName,
+          questions: result.questions,
+          sourceFormat: result.sourceFormat
+        });
+        if (addedBank && addedBank.id) state.selectedBankId = addedBank.id;
+        renderCustomBankList();
+        if (els.customBankFileInput) els.customBankFileInput.value = "";
+        if (els.customBankFileName) els.customBankFileName.textContent = "未选择任何文件";
+        if (els.customBankNameInput) els.customBankNameInput.value = "";
+        const skipNote = result.skipped.length ? `，跳过 ${result.skipped.length} 行（格式不全）` : "";
+        if (status) status.textContent = `已导入「${bankName}」：${result.questions.length} 题${skipNote}。`;
+      } catch (error) {
+        if (status) status.textContent = `导入失败：${error?.message || error}`;
+      }
+    }
+    function startCustomBankPractice(bankId) {
+      const CustomBank = window.MathCampCustomBank;
+      if (!CustomBank) return;
+      const bank = CustomBank.getBank(bankId);
+      if (!bank) return;
+      const questions = CustomBank.practiceQuestionsForBank(bankId, { shuffle, shuffleOptions: shuffle });
+      if (!questions.length) {
+        UI.notify("这个题库没有可练习的题目。", { tone: "bad" });
+        return;
+      }
+      state.mode = "custom-bank";
+      state.challengeMeta = null;
+      state.customBankMeta = { id: bank.id, name: bank.name };
+      state.currentSet = questions.map((question) => applyQuestionInteraction(question, state.answerMode));
+      state.grade = Number(state.currentSet[0].grade) || Number(activeProfile().grade) || state.grade;
+      state.index = 0;
+      state.checked = false;
+      state.correct = 0;
+      state.streak = 0;
+      state.records = [];
+      state.roundCoins = 0;
+      state.lastWrongRecordId = "";
+      state.setFinished = false;
+      delete state._lastFinishResult;
+      els.summaryPanel.hidden = true;
+      els.challengeResultOverlay.hidden = true;
+      els.mobileChallengeResult.hidden = true;
+      els.reviewPanel.hidden = true;
+      showView("practice");
+      resetRoundRuntime();
+      renderPracticeQuestion();
+      enterPracticeFocus();
+      startRoundTimer();
     }
     function challengeDraftPayload() {
       if (state.mode !== "challenge" || !state.challengeMeta || state.setFinished) return null;
@@ -9254,11 +9445,15 @@
       reader.readAsText(file, "utf-8");
     }
     function buildArchiveData() {
-      return window.MathCampImportExport.buildArchiveData({
+      const archive = window.MathCampImportExport.buildArchiveData({
         collectSystemSettings,
         normalizeProfile,
         state
       });
+      if (window.MathCampCustomBank) {
+        archive.customBanks = window.MathCampCustomBank.exportAll();
+      }
+      return archive;
     }
     function buildArchiveText() {
       return JSON.stringify(buildArchiveData(), null, 2);
@@ -9341,6 +9536,15 @@
         syncFromProfile();
         startNewSet();
         resetImportPreview();
+        if (window.MathCampCustomBank) {
+          try {
+            const parsed = JSON.parse(pending.raw);
+            if (Array.isArray(parsed.customBanks)) {
+              window.MathCampCustomBank.replaceAll(parsed.customBanks);
+              renderCustomBankList();
+            }
+          } catch (_) { /* 忽略：旧备份没有 customBanks 字段 */ }
+        }
         UI.notify("导入完成。");
       } catch (error) {
         if (els.importPreview) {
@@ -9389,8 +9593,8 @@
     els.archiveModal?.addEventListener("click", (event) => {
       if (event.target === els.archiveModal) closeArchiveModal();
     });
-    els.profileSelect.addEventListener("change", () => switchProfile(els.profileSelect.value));
-    els.quickAddProfileBtn.addEventListener("click", addProfile);
+    els.profileSelect?.addEventListener("change", () => switchProfile(els.profileSelect.value));
+    els.quickAddProfileBtn?.addEventListener("click", addProfile);
     els.saveSystemProfileBtn?.addEventListener("click", saveSystemProfile);
     els.musicToggles.forEach((button) => button.addEventListener("click", toggleMusic));
     els.soundToggles.forEach((button) => button.addEventListener("click", toggleSound));
@@ -9914,6 +10118,81 @@
       });
     });
     els.questionBankPointFilter?.addEventListener("change", () => renderQuestionSourceAudit(questionBankAuditFilterFromUI()));
+    els.exportBankExcelBtn?.addEventListener("click", () => {
+      const Excel = window.MathCampQuestionBankExcel;
+      if (!Excel) {
+        if (els.exportBankExcelStatus) els.exportBankExcelStatus.textContent = "导出模块未加载。";
+        return;
+      }
+      const ui = questionBankAuditFilterFromUI();
+      // 把题源筛选（reference/original）映射到题库分类
+      const bankMap = { reference: "参考", original: "原创" };
+      const filter = {
+        bank: bankMap[ui.source] || "all",
+        subject: ui.subject || "all",
+        grade: ui.grade || "all"
+      };
+      try {
+        const count = Excel.exportToXlsx(filter);
+        if (els.exportBankExcelStatus) {
+          els.exportBankExcelStatus.textContent = count
+            ? `已导出 ${count} 道题。`
+            : "当前筛选没有可导出的题目。";
+        }
+      } catch (error) {
+        if (els.exportBankExcelStatus) els.exportBankExcelStatus.textContent = `导出失败：${error?.message || error}`;
+      }
+    });
+    els.customBankChooseBtn?.addEventListener("click", () => els.customBankFileInput?.click());
+    els.customBankFileInput?.addEventListener("change", () => {
+      const file = els.customBankFileInput.files?.[0];
+      if (els.customBankFileName) els.customBankFileName.textContent = file ? file.name : "未选择任何文件";
+      if (file && els.customBankNameInput && !els.customBankNameInput.value.trim()) {
+        els.customBankNameInput.value = String(file.name || "").replace(/\.(xlsx|csv)$/i, "");
+      }
+    });
+    els.importCustomBankBtn?.addEventListener("click", importCustomBankFromUI);
+    els.customBankList?.addEventListener("click", async (event) => {
+      const CustomBank = window.MathCampCustomBank;
+      if (!CustomBank) return;
+      const viewBtn = event.target.closest("[data-custom-bank-view]");
+      if (viewBtn) {
+        state.selectedBankId = viewBtn.dataset.customBankView;
+        renderCustomBankList();
+        return;
+      }
+      const practiceBtn = event.target.closest("[data-custom-bank-practice]");
+      if (practiceBtn) {
+        startCustomBankPractice(practiceBtn.dataset.customBankPractice);
+        return;
+      }
+      const renameBtn = event.target.closest("[data-custom-bank-rename]");
+      if (renameBtn) {
+        const id = renameBtn.dataset.customBankRename;
+        const bank = CustomBank.getBank(id);
+        const name = await UI.prompt("请输入新的批次名称：", bank?.name || "", { title: "重命名题库", maxLength: 40 });
+        if (name && name.trim()) {
+          CustomBank.renameBank(id, name.trim());
+          renderCustomBankList();
+        }
+        return;
+      }
+      const deleteBtn = event.target.closest("[data-custom-bank-delete]");
+      if (deleteBtn) {
+        const id = deleteBtn.dataset.customBankDelete;
+        const bank = CustomBank.getBank(id);
+        const confirmed = await UI.confirm(`确定删除「${bank?.name || "该题库"}」吗？此操作不可撤销。`, {
+          title: "删除校内题库",
+          confirmText: "删除",
+          danger: true
+        });
+        if (confirmed) {
+          CustomBank.deleteBank(id);
+          renderCustomBankList();
+          if (els.customBankImportStatus) els.customBankImportStatus.textContent = "已删除该题库。";
+        }
+      }
+    });
     els.clearAllBtn.addEventListener("click", async () => {
       const confirmed = await UI.confirm("确定清空所有学生档案、错题和学习记录吗？", {
         title: "清空全部数据",
@@ -10064,6 +10343,10 @@
     initCloudSync();
     syncQuestionBankPointFilter();
     renderQuestionSourceAudit("all");
+    if (window.MathCampCustomBank) {
+      window.MathCampCustomBank.mergeIntoExternalSeeds();
+      renderCustomBankList();
+    }
     if (state.musicOn) {
       startBackgroundMusic();
     }

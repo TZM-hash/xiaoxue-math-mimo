@@ -57,7 +57,6 @@
         <button class="tab-btn" type="button" data-open-learning aria-selected="false">📚 学习精进</button>
         <button class="tab-btn" type="button" data-open-subject aria-selected="false">📘 学科选择</button>
         <button class="tab-btn" type="button" data-open-system aria-selected="false">⚙️ 系统设置</button>
-        <button class="tab-btn" type="button" data-view="data" aria-selected="false">👧 学生信息</button>
       </nav>
       <div class="quick-stats" aria-live="polite">
         <span class="pill" id="wrongCountPill">错题本 0 题</span>
@@ -852,36 +851,9 @@
       <p class="print-note">排版规则：20 题以内使用较大的书写空间；40-60 题使用紧凑网格；100 题切换为高密度排版。现在支持普通练习卷、考试卷、错题复习卷、带解析讲解版和家长签字版；应用题会自动减少每页密度，避免题干挤在一起。</p>
     </section>
 
-    <section class="view" id="dataView">
-      <div class="data-layout">
-        <article class="data-card">
-          <h2>学生档案</h2>
-          <p class="muted">可以给多个孩子分别保存年级、错题本、掌握度和练习记录。</p>
-          <div class="profile-card">
-            <div class="field">
-              <label for="profileNameInput">学生姓名</label>
-              <input id="profileNameInput" type="text" maxlength="18" />
-            </div>
-            <div class="field">
-              <label for="profileGradeInput">默认年级</label>
-              <select id="profileGradeInput"></select>
-            </div>
-            <div class="row-actions">
-              <button class="primary" type="button" id="saveProfileBtn">保存档案</button>
-              <button class="secondary" type="button" id="addProfileBtn">新增学生</button>
-              <button class="danger" type="button" id="deleteProfileBtn">删除当前学生</button>
-            </div>
-          </div>
-          <div class="report-list" id="profileList"></div>
-        </article>
-        <article class="data-card">
-          <h2>完整存档</h2>
-          <p class="muted">导出后可完整恢复学生信息、学习进度、错题本、学习报告、打印设置，以及宠物空间全部数据：金币、背包、装扮、家具、心愿、照料、成长记录、成就、剧情和随机事件。</p>
-          <div class="row-actions">
-            <button class="primary" type="button" data-open-archive>打开存档管理</button>
-          </div>
-          <div class="save-status" id="saveStatus">数据保存状态：已保存。</div>
-        </article>
+    <section class="view" id="bankView">
+      <div class="bank-layout">
+        <div class="bank-column">
         <article class="data-card">
           <h2>题库质量巡检</h2>
           <p class="muted">家长或维护者可以在改题库后自动巡检 1-6 年级、专项练习、随机练习、选择/判断控件、题干重复和知识点元数据。</p>
@@ -921,8 +893,38 @@
               </select>
             </label>
           </div>
+          <div class="row-actions">
+            <button class="primary" type="button" id="exportBankExcelBtn">导出题库 Excel</button>
+            <span class="muted" id="exportBankExcelStatus"></span>
+          </div>
           <div class="source-audit-summary" id="sourceAuditSummary">题源筛选尚未加载。</div>
-          <div class="rule-check-panel source-audit-panel" id="sourceAuditResult">选择上方筛选项查看二、三年级扩展题源。</div>
+          <div class="rule-check-panel source-audit-panel" id="sourceAuditResult" hidden></div>
+        </article>
+        <article class="data-card">
+          <h2>校内题库</h2>
+          <p class="muted">导入学校发的试卷或练习册（按第一步的题库 Excel/CSV 格式）。每次导入算一批，可整批练习，也可让带知识点的题混入日常练习。仅保存在本机，随完整存档一起备份。</p>
+          <div class="field">
+            <label for="customBankNameInput">批次名称（默认取文件名，可修改）</label>
+            <input id="customBankNameInput" type="text" maxlength="40" placeholder="如：三上数学期中卷" />
+          </div>
+          <div class="row-actions">
+            <input id="customBankFileInput" type="file" accept=".xlsx,.csv" hidden />
+            <button class="secondary" type="button" id="customBankChooseBtn">选择文件</button>
+            <span class="muted" id="customBankFileName">未选择任何文件</span>
+            <button class="primary" type="button" id="importCustomBankBtn">导入题库</button>
+          </div>
+          <div class="save-status" id="customBankImportStatus">尚未导入校内题库。</div>
+          <div class="report-list" id="customBankList"></div>
+        </article>
+        </div>
+        <article class="data-card bank-detail-card">
+          <div class="bank-detail-head">
+            <h2 id="bankDetailTitle">题目详情</h2>
+            <span class="muted" id="bankDetailMeta">点击左侧「校内题库」中某个批次的「查看题目」，这里会显示该批次的全部题目。</span>
+          </div>
+          <div class="bank-detail-body" id="bankDetailBody">
+            <p class="bank-detail-empty muted">还没有选择题库批次。</p>
+          </div>
         </article>
       </div>
     </section>
@@ -961,6 +963,11 @@
             <span>🧠</span>
             <strong>思维阅读训练</strong>
             <small>练习读题、筛条件、判断第一步和逻辑结论。</small>
+          </button>
+          <button class="hub-action-card" type="button" data-jump="bank" data-close-learning>
+            <span>🗂️</span>
+            <strong>题库管理</strong>
+            <small>题库质量巡检、导出题库、导入校内试卷/练习册。</small>
           </button>
         </div>
       </article>
@@ -1039,28 +1046,32 @@
             </div>
           </section>
           <section class="settings-block">
-            <h3>学生资料</h3>
-            <div class="settings-profile-row">
-              <select class="profile-select" id="profileSelect" aria-label="选择学生档案"></select>
-              <button class="secondary icon-btn" type="button" id="quickAddProfileBtn" title="添加学生">＋</button>
-            </div>
-            <div class="settings-profile-form">
-              <div class="field">
-                <label for="systemProfileNameInput">学生姓名</label>
-                <input id="systemProfileNameInput" type="text" maxlength="18" />
-              </div>
-            </div>
-            <div class="row-actions">
-              <button class="primary" type="button" id="saveSystemProfileBtn">保存学生设置</button>
-              <button class="secondary" type="button" data-jump="data" data-close-system>查看完整学生信息</button>
-            </div>
-          </section>
-          <section class="settings-block settings-block-wide">
             <h3>数据存档</h3>
-            <p class="muted">换手机或重装前，先导出完整存档；需要恢复时再导入。</p>
+            <p class="muted">换手机或重装前，先导出完整存档；需要恢复时再导入。可完整恢复学生信息、学习进度、错题本、报告、打印与题型设置及宠物空间全部数据。</p>
             <div class="row-actions">
               <button class="primary" type="button" data-open-archive data-close-system>打开存档管理</button>
             </div>
+            <div class="save-status" id="saveStatus">数据保存状态：已保存。</div>
+          </section>
+          <section class="settings-block settings-block-wide">
+            <h3>学生档案</h3>
+            <p class="muted">可以给多个孩子分别保存年级、错题本、掌握度和练习记录。</p>
+            <div class="settings-profile-form">
+              <div class="field">
+                <label for="profileNameInput">学生姓名</label>
+                <input id="profileNameInput" type="text" maxlength="18" />
+              </div>
+              <div class="field">
+                <label for="profileGradeInput">默认年级</label>
+                <select id="profileGradeInput"></select>
+              </div>
+            </div>
+            <div class="row-actions">
+              <button class="primary" type="button" id="saveProfileBtn">保存档案</button>
+              <button class="secondary" type="button" id="addProfileBtn">新增学生</button>
+              <button class="danger" type="button" id="deleteProfileBtn">删除当前学生</button>
+            </div>
+            <div class="report-list" id="profileList"></div>
           </section>
           <section class="settings-block settings-block-wide">
             <h3>☁️ 云端同步</h3>
@@ -1370,6 +1381,8 @@ CREATE POLICY "allow_all_user_settings" ON user_settings FOR ALL USING (true) WI
   <script src="js/micro-interactions.js"></script>
   <script src="js/effects-control-integrated.js"></script>
   <script src="js/question-source-summary.js"></script>
+  <script src="js/question-bank-excel.js"></script>
+  <script src="js/custom-bank.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

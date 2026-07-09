@@ -656,9 +656,44 @@
     return normalizeSeed(deps || {}, point, seed);
   }
 
+  // 运行时按命名空间注册额外题源（如校内自定义题库）。
+  // 同一命名空间可重复调用以覆盖上一次结果（增删批次后重算）。
+  const extraSeedNamespaces = {};
+  function rebuildExtraSeeds() {
+    // 先移除所有已注册命名空间的旧题，再重新并入。
+    Object.values(extraSeedNamespaces).forEach((byPoint) => {
+      Object.entries(byPoint || {}).forEach(([pointId, items]) => {
+        const list = BANK[pointId];
+        if (!Array.isArray(list) || !Array.isArray(items) || !items.length) return;
+        BANK[pointId] = list.filter((entry) => !items.includes(entry));
+      });
+    });
+    Object.keys(extraSeedNamespaces).forEach((ns) => {
+      mergeSeedBank(extraSeedNamespaces[ns]);
+    });
+  }
+  function registerExtraSeeds(namespace, byPoint) {
+    if (!namespace) return;
+    // 撤销该命名空间旧题
+    const previous = extraSeedNamespaces[namespace];
+    if (previous) {
+      Object.entries(previous).forEach(([pointId, items]) => {
+        const list = BANK[pointId];
+        if (Array.isArray(list) && Array.isArray(items)) {
+          BANK[pointId] = list.filter((entry) => !items.includes(entry));
+        }
+      });
+    }
+    extraSeedNamespaces[namespace] = byPoint && typeof byPoint === "object" ? byPoint : {};
+    mergeSeedBank(extraSeedNamespaces[namespace]);
+  }
+
   window.MathCampExternalQuestionSeeds = {
     sources: SOURCE,
     forPoint,
-    makeQuestion
+    makeQuestion,
+    registerExtraSeeds,
+    rebuildExtraSeeds,
+    BANK
   };
 })();

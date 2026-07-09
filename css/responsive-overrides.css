@@ -1763,7 +1763,8 @@
       }
       .view.active { min-height: 0; overflow: hidden; }
       .app-header, .workspace, .main-stack, .practice-card, .status-strip { max-width: 100%; min-width: 0; }
-      .workspace, .print-layout, .data-layout, .practice-card, .pet-space-layout, .pet-room-stage { grid-template-columns: 1fr; }
+      .workspace, .print-layout, .data-layout, .bank-layout, .practice-card, .pet-space-layout, .pet-room-stage { grid-template-columns: 1fr; }
+      .bank-layout .bank-detail-card { position: static; max-height: none; }
       .task-home {
         max-width: 100%;
         height: 100%;
