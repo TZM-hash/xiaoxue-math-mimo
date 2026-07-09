@@ -911,6 +911,14 @@
             <input id="customBankFileInput" type="file" accept=".xlsx,.csv" hidden />
             <button class="secondary" type="button" id="customBankChooseBtn">选择文件</button>
             <span class="muted" id="customBankFileName">未选择任何文件</span>
+          </div>
+          <div class="row-actions">
+            <input id="customBankImageInput" type="file" accept="image/*" multiple hidden />
+            <button class="secondary" type="button" id="customBankImageBtn">选择图片（可选）</button>
+            <span class="muted" id="customBankImageName">未选择图片</span>
+          </div>
+          <p class="muted mini-hint">图片题：在 Excel/CSV 的 <b>image</b> 列填图片文件名，再在此选择对应图片文件（按文件名自动关联）。有答案的图片题可看图作答判分，无答案的作为展示题。</p>
+          <div class="row-actions">
             <button class="primary" type="button" id="importCustomBankBtn">导入题库</button>
           </div>
           <div class="save-status" id="customBankImportStatus">尚未导入校内题库。</div>
@@ -1382,6 +1390,7 @@ CREATE POLICY "allow_all_user_settings" ON user_settings FOR ALL USING (true) WI
   <script src="js/effects-control-integrated.js"></script>
   <script src="js/question-source-summary.js"></script>
   <script src="js/question-bank-excel.js"></script>
+  <script src="js/bank-images.js"></script>
   <script src="js/custom-bank.js"></script>
   <script src="js/app.js"></script>
 </body>

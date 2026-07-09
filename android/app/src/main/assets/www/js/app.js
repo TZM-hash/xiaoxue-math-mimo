@@ -500,6 +500,9 @@
       customBankFileInput: document.getElementById("customBankFileInput"),
       customBankChooseBtn: document.getElementById("customBankChooseBtn"),
       customBankFileName: document.getElementById("customBankFileName"),
+      customBankImageInput: document.getElementById("customBankImageInput"),
+      customBankImageBtn: document.getElementById("customBankImageBtn"),
+      customBankImageName: document.getElementById("customBankImageName"),
       importCustomBankBtn: document.getElementById("importCustomBankBtn"),
       customBankImportStatus: document.getElementById("customBankImportStatus"),
       customBankList: document.getElementById("customBankList"),
@@ -755,7 +758,10 @@
     function normalizeQuestionSourceImage(image) {
       if (!isPlainObject(image)) return null;
       const src = String(image.src || "").trim();
-      if (!/^assets\/reference\/(?:grade2|grade3|grade4)\/[A-Za-z0-9._-]+\.png$/.test(src)) return null;
+      // 允许两类来源：内置参考资料裁图路径，或校内题库上传的 data URL 图片。
+      const isReferencePath = /^assets\/reference\/(?:grade2|grade3|grade4)\/[A-Za-z0-9._-]+\.png$/.test(src);
+      const isDataUrl = /^data:image\/(?:png|jpe?g|gif|webp|bmp);base64,[A-Za-z0-9+/=]+$/.test(src);
+      if (!isReferencePath && !isDataUrl) return null;
       return {
         src,
         alt: String(image.alt || "参考资料题图").slice(0, 80),
@@ -7397,7 +7403,7 @@
     function bankAnswerTypeLabel(type) {
       return type === "choice" ? "选择题" : type === "judge" ? "判断题" : "填空 / 应用";
     }
-    function renderBankDetail(bankId) {
+    async function renderBankDetail(bankId) {
       if (!els.bankDetailBody) return;
       const CustomBank = window.MathCampCustomBank;
       const bank = bankId && CustomBank ? CustomBank.getBank(bankId) : null;
@@ -7408,6 +7414,12 @@
         return;
       }
       const questions = Array.isArray(bank.questions) ? bank.questions : [];
+      // 有图片则先解析
+      if (bank.hasImages && typeof CustomBank.resolveBankImages === "function") {
+        await CustomBank.resolveBankImages(bankId);
+        // 解析期间用户可能切换了批次，避免错渲染
+        if (state.selectedBankId !== bankId) return;
+      }
       const typeCounts = questions.reduce((acc, q) => {
         const t = q.answerType || "text";
         acc[t] = (acc[t] || 0) + 1;
@@ -7416,8 +7428,9 @@
       const countSummary = Object.entries(typeCounts)
         .map(([type, n]) => `${bankAnswerTypeLabel(type)} ${n}`)
         .join(" · ");
+      const imageCount = questions.filter((q) => q.imageName).length;
       if (els.bankDetailTitle) els.bankDetailTitle.textContent = bank.name;
-      if (els.bankDetailMeta) els.bankDetailMeta.textContent = `共 ${questions.length} 题${countSummary ? ` · ${countSummary}` : ""}`;
+      if (els.bankDetailMeta) els.bankDetailMeta.textContent = `共 ${questions.length} 题${countSummary ? ` · ${countSummary}` : ""}${imageCount ? ` · 含图 ${imageCount}` : ""}`;
       if (!questions.length) {
         els.bankDetailBody.innerHTML = `<p class="bank-detail-empty muted">这个批次没有题目。</p>`;
         return;
@@ -7427,6 +7440,13 @@
         const pointBadge = q.pointId
           ? `<span class="bank-q-badge is-point">${escapeHTML(pointLabel(q.pointId))}</span>`
           : `<span class="bank-q-badge is-loose">未关联知识点</span>`;
+        const imageUrl = q.imageName && CustomBank.bankImageUrl ? CustomBank.bankImageUrl(bankId, q.imageName) : "";
+        const imageBadge = q.imageName
+          ? `<span class="bank-q-badge ${imageUrl ? "is-image" : "is-loose"}">${imageUrl ? "图片题" : "图片缺失"}</span>`
+          : "";
+        const imageHtml = imageUrl
+          ? `<figure class="bank-q-image"><img src="${escapeAttr(imageUrl)}" alt="${escapeAttr(q.imageName || "题目图片")}" loading="lazy" decoding="async"/></figure>`
+          : (q.imageName ? `<div class="bank-q-missing muted">图片「${escapeHTML(q.imageName)}」未关联（导入时未选择该图片文件）。</div>` : "");
         let stem = "";
         let answerHtml = "";
         if (type === "choice") {
@@ -7439,8 +7459,10 @@
           stem = `<div class="bank-q-stem">${escapeHTML(q.text || "")}</div>`;
           answerHtml = `<span class="bank-q-answer">答案：${escapeHTML(String(q.answer || ""))}</span>`;
         } else {
-          stem = `<div class="bank-q-stem">${escapeHTML(q.text || "")}</div>`;
-          answerHtml = `<span class="bank-q-answer">答案：${escapeHTML(String(q.answer || ""))}</span>`;
+          stem = q.text ? `<div class="bank-q-stem">${escapeHTML(q.text)}</div>` : "";
+          answerHtml = q.displayOnly
+            ? `<span class="bank-q-answer bank-q-answer-loose">展示题（不判分）</span>`
+            : `<span class="bank-q-answer">答案：${escapeHTML(String(q.answer || ""))}</span>`;
         }
         const steps = Array.isArray(q.steps) && q.steps.length
           ? `<div class="bank-q-steps"><span class="bank-q-label">步骤</span>${q.steps.map((s) => `<span>${escapeHTML(String(s))}</span>`).join("")}</div>`
@@ -7453,7 +7475,9 @@
             <span class="bank-q-index">${index + 1}</span>
             <span class="bank-q-type">${bankAnswerTypeLabel(type)}</span>
             ${pointBadge}
+            ${imageBadge}
           </div>
+          ${imageHtml}
           ${stem}
           <div class="bank-q-foot">${answerHtml}</div>
           ${steps}
@@ -7499,30 +7523,59 @@
           if (status) status.textContent = `没有导入任何题目（共 ${result.totalRows} 行，跳过 ${result.skipped.length} 行）。请检查文件格式。`;
           return;
         }
+        // 处理关联图片：按文件名匹配用户选择的图片，存入 IndexedDB
+        const Images = window.MathCampBankImages;
+        const neededImages = Array.isArray(result.imageNames) ? result.imageNames : [];
+        const pickedFiles = [...(els.customBankImageInput?.files || [])];
+        const pickedMap = {};
+        pickedFiles.forEach((f) => { pickedMap[f.name] = f; });
+        let matchedImages = 0;
+        let missingImages = 0;
         const addedBank = CustomBank.addBank({
           name: bankName,
           questions: result.questions,
-          sourceFormat: result.sourceFormat
+          sourceFormat: result.sourceFormat,
+          hasImages: neededImages.length > 0
         });
+        if (neededImages.length && Images) {
+          for (const imageName of neededImages) {
+            const f = pickedMap[imageName];
+            if (!f) { missingImages += 1; continue; }
+            try {
+              const dataUrl = await Images.fileToDataUrl(f);
+              await Images.putImage(addedBank.id, imageName, dataUrl);
+              matchedImages += 1;
+            } catch (_) { missingImages += 1; }
+          }
+          await CustomBank.resolveBankImages(addedBank.id);
+        }
         if (addedBank && addedBank.id) state.selectedBankId = addedBank.id;
         renderCustomBankList();
         if (els.customBankFileInput) els.customBankFileInput.value = "";
         if (els.customBankFileName) els.customBankFileName.textContent = "未选择任何文件";
+        if (els.customBankImageInput) els.customBankImageInput.value = "";
+        if (els.customBankImageName) els.customBankImageName.textContent = "未选择图片";
         if (els.customBankNameInput) els.customBankNameInput.value = "";
         const skipNote = result.skipped.length ? `，跳过 ${result.skipped.length} 行（格式不全）` : "";
-        if (status) status.textContent = `已导入「${bankName}」：${result.questions.length} 题${skipNote}。`;
+        const imgNote = neededImages.length
+          ? `，图片 ${matchedImages}/${neededImages.length} 张已关联${missingImages ? `（${missingImages} 张缺文件）` : ""}`
+          : "";
+        if (status) status.textContent = `已导入「${bankName}」：${result.questions.length} 题${skipNote}${imgNote}。`;
       } catch (error) {
         if (status) status.textContent = `导入失败：${error?.message || error}`;
       }
     }
-    function startCustomBankPractice(bankId) {
+    async function startCustomBankPractice(bankId) {
       const CustomBank = window.MathCampCustomBank;
       if (!CustomBank) return;
       const bank = CustomBank.getBank(bankId);
       if (!bank) return;
+      if (bank.hasImages && typeof CustomBank.resolveBankImages === "function") {
+        await CustomBank.resolveBankImages(bankId);
+      }
       const questions = CustomBank.practiceQuestionsForBank(bankId, { shuffle, shuffleOptions: shuffle });
       if (!questions.length) {
-        UI.notify("这个题库没有可练习的题目。", { tone: "bad" });
+        UI.notify("这个题库没有可作答的题目（可能都是纯展示图片题）。", { tone: "bad" });
         return;
       }
       state.mode = "custom-bank";
@@ -9451,15 +9504,23 @@
         state
       });
       if (window.MathCampCustomBank) {
+        // 同步部分：题目 JSON（图片在异步的 buildArchiveText 里补上）
         archive.customBanks = window.MathCampCustomBank.exportAll();
       }
       return archive;
     }
-    function buildArchiveText() {
-      return JSON.stringify(buildArchiveData(), null, 2);
+    async function buildArchiveText() {
+      const archive = buildArchiveData();
+      // 用含图片的完整导出覆盖 customBanks（图片在 IndexedDB）
+      if (window.MathCampCustomBank && typeof window.MathCampCustomBank.exportAllWithImages === "function") {
+        try {
+          archive.customBanks = await window.MathCampCustomBank.exportAllWithImages();
+        } catch (_) { /* 保底：保留同步版 customBanks */ }
+      }
+      return JSON.stringify(archive, null, 2);
     }
-    function exportData() {
-      const text = buildArchiveText();
+    async function exportData() {
+      const text = await buildArchiveText();
       els.importText.value = text;
       resetImportPreview();
       const blob = new Blob([text], { type: "application/json" });
@@ -9539,8 +9600,14 @@
         if (window.MathCampCustomBank) {
           try {
             const parsed = JSON.parse(pending.raw);
-            if (Array.isArray(parsed.customBanks)) {
-              window.MathCampCustomBank.replaceAll(parsed.customBanks);
+            const cb = parsed.customBanks;
+            if (cb && !Array.isArray(cb) && Array.isArray(cb.banks) && typeof window.MathCampCustomBank.replaceAllWithImages === "function") {
+              // 新格式：含图片
+              await window.MathCampCustomBank.replaceAllWithImages(cb);
+              renderCustomBankList();
+            } else if (Array.isArray(cb)) {
+              // 旧格式：仅题目
+              window.MathCampCustomBank.replaceAll(cb);
               renderCustomBankList();
             }
           } catch (_) { /* 忽略：旧备份没有 customBanks 字段 */ }
@@ -10090,7 +10157,7 @@
     els.exportBtn.addEventListener("click", exportData);
     els.copyExportBtn.addEventListener("click", async () => {
       if (!els.importText.value) {
-        els.importText.value = buildArchiveText();
+        els.importText.value = await buildArchiveText();
         resetImportPreview();
       }
       try {
@@ -10152,6 +10219,13 @@
       }
     });
     els.importCustomBankBtn?.addEventListener("click", importCustomBankFromUI);
+    els.customBankImageBtn?.addEventListener("click", () => els.customBankImageInput?.click());
+    els.customBankImageInput?.addEventListener("change", () => {
+      const files = [...(els.customBankImageInput.files || [])];
+      if (els.customBankImageName) {
+        els.customBankImageName.textContent = files.length ? `已选 ${files.length} 张图片` : "未选择图片";
+      }
+    });
     els.customBankList?.addEventListener("click", async (event) => {
       const CustomBank = window.MathCampCustomBank;
       if (!CustomBank) return;

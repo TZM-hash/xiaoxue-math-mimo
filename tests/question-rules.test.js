@@ -198,6 +198,7 @@ vm.createContext(context);
   "js/cloud-sync.js",
   "js/question-source-summary.js",
   "js/question-bank-excel.js",
+  "js/bank-images.js",
   "js/custom-bank.js",
   "js/app.js"
 ].forEach((file) => {

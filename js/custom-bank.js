@@ -62,6 +62,7 @@
       sourceFormat: payload?.sourceFormat || "",
       defaultGrade: payload?.defaultGrade || undefined,
       defaultSubject: payload?.defaultSubject || undefined,
+      hasImages: Boolean(payload?.hasImages),
       questions
     };
     banks.push(bank);
@@ -79,15 +80,42 @@
 
   function deleteBank(id) {
     const before = banks.length;
+    const target = getBank(id);
     banks = banks.filter((bank) => bank.id !== id);
     if (banks.length === before) return false;
     const ok = writeStore(banks);
     mergeIntoExternalSeeds();
+    // 清理该批次的图片（异步，忽略结果）
+    const Images = window.MathCampBankImages;
+    if (target && Images && typeof Images.deleteBankImages === "function") {
+      Images.deleteBankImages(id, imageNamesForBank(target));
+    }
+    delete imageCache[id];
     return ok;
   }
 
   function allQuestions() {
     return banks.flatMap((bank) => (Array.isArray(bank.questions) ? bank.questions : []));
+  }
+
+  // ---- 图片解析缓存：bankId -> { imageName: dataUrl } ----
+  const imageCache = {};
+  function imageNamesForBank(bank) {
+    return [...new Set((bank.questions || []).map((q) => q.imageName).filter(Boolean))];
+  }
+  async function resolveBankImages(id) {
+    const bank = getBank(id);
+    if (!bank) return {};
+    const names = imageNamesForBank(bank);
+    if (!names.length) { imageCache[id] = {}; return {}; }
+    const Images = window.MathCampBankImages;
+    if (!Images) { imageCache[id] = {}; return {}; }
+    const map = await Images.getBankImages(id, names);
+    imageCache[id] = map;
+    return map;
+  }
+  function bankImageUrl(bankId, imageName) {
+    return (imageCache[bankId] && imageCache[bankId][imageName]) || "";
   }
 
   // ---- 把带合法 pointId 的自定义题合并进外部题库，供普通自适应练习抽取 ----
@@ -117,8 +145,12 @@
   }
 
   // ---- 把存储的题目转成练习可直接渲染的题目（选择题嵌入选项）----
-  function toPracticeQuestion(question, deps) {
+  function toPracticeQuestion(question, deps, bankId) {
     const spec = window.MathCampQuestionSpec;
+    const imageUrl = bankId && question.imageName ? bankImageUrl(bankId, question.imageName) : "";
+    const sourceImage = imageUrl
+      ? { src: imageUrl, alt: question.imageName || "题目图片", cropNote: "" }
+      : null;
     const common = {
       id: question.id,
       grade: question.grade,
@@ -129,7 +161,9 @@
       templateType: question.templateType || "校内题",
       questionType: question.templateType || "校内题",
       sourceMeta: question.sourceMeta || { kind: "custom", name: "校内题库" },
-      custom: true
+      custom: true,
+      ...(sourceImage ? { sourceImage } : {}),
+      ...(question.displayOnly ? { displayOnly: true } : {})
     };
     if (question.answerType === "choice" && spec && typeof spec.choiceLayout === "function") {
       const layout = spec.choiceLayout(deps || {}, {
@@ -157,18 +191,20 @@
     return {
       ...common,
       answerType: "text",
-      text: question.text,
+      text: question.text || (sourceImage ? "看图作答" : ""),
       answer: question.answer,
       acceptedAnswers: question.acceptedAnswers && question.acceptedAnswers.length
         ? question.acceptedAnswers
-        : [String(question.answer || "")]
+        : (question.answer ? [String(question.answer)] : [])
     };
   }
 
   function practiceQuestionsForBank(id, deps) {
     const bank = getBank(id);
     if (!bank) return [];
-    return (bank.questions || []).map((question) => toPracticeQuestion(question, deps));
+    return (bank.questions || [])
+      .filter((question) => !question.displayOnly) // 纯展示题不进作答练习
+      .map((question) => toPracticeQuestion(question, deps, id));
   }
 
   window.MathCampCustomBank = {
@@ -181,12 +217,50 @@
     mergeIntoExternalSeeds,
     toPracticeQuestion,
     practiceQuestionsForBank,
+    resolveBankImages,
+    bankImageUrl,
+    imageNamesForBank,
     exportAll() {
       return JSON.parse(JSON.stringify(banks));
     },
     replaceAll(list) {
       banks = Array.isArray(list) ? list.filter((b) => b && Array.isArray(b.questions)) : [];
       writeStore(banks);
+      mergeIntoExternalSeeds();
+      return banks.length;
+    },
+    // 存档备份：连同 IndexedDB 里的图片一起导出 { banks, images:{ "bankId::name": dataUrl } }
+    async exportAllWithImages() {
+      const Images = window.MathCampBankImages;
+      const images = {};
+      if (Images) {
+        for (const bank of banks) {
+          if (!bank.hasImages) continue;
+          const names = imageNamesForBank(bank);
+          const map = await Images.getBankImages(bank.id, names);
+          Object.entries(map).forEach(([name, url]) => { images[`${bank.id}::${name}`] = url; });
+        }
+      }
+      return { banks: JSON.parse(JSON.stringify(banks)), images };
+    },
+    // 从存档恢复：写回 banks 和图片
+    async replaceAllWithImages(payload) {
+      const list = Array.isArray(payload) ? payload : (payload && payload.banks);
+      banks = Array.isArray(list) ? list.filter((b) => b && Array.isArray(b.questions)) : [];
+      writeStore(banks);
+      const Images = window.MathCampBankImages;
+      const images = (payload && payload.images) || {};
+      if (Images && images && typeof images === "object") {
+        for (const [key, url] of Object.entries(images)) {
+          const sep = key.indexOf("::");
+          if (sep < 0) continue;
+          await Images.putImage(key.slice(0, sep), key.slice(sep + 2), url);
+        }
+      }
+      // 重建图片缓存
+      for (const bank of banks) {
+        if (bank.hasImages) await resolveBankImages(bank.id);
+      }
       mergeIntoExternalSeeds();
       return banks.length;
     },

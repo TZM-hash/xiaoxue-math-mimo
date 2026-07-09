@@ -61,10 +61,10 @@
 | 参考 | 3 | math | g3-mul-two | choice | | 12×3 的积是多少？ | 36 | 35\|30\|39 | | |
 | 原创 | 3 | chinese | c3-... | judge | 判断：“鲸”是鱼类。 | | | | 错 | |
 
-## 说明与限制（v1）
+## 说明与限制
 
-- 本格式当前只覆盖**纯文字题**，不含图片题（拍照原题图）。图片题列将在后续版本扩展。
 - 生成器与格式实现见 `js/question-bank-excel.js`，测试见 `tests/question-bank-excel.test.js`。
+- **图片题（v3 已支持）**：新增 `image` 列，见下方「图片题」一节。
 
 ---
 
@@ -97,12 +97,31 @@
 
 ## 存储与备份
 
-- 校内题库**仅保存在本机** localStorage，不进云同步。
-- 会随 **完整存档导出/导入** 一起备份恢复（存档 JSON 里的 `customBanks` 字段）。
+- 校内题库**仅保存在本机**：题目文本存 localStorage，图片存 IndexedDB。
+- 会随 **完整存档导出/导入** 一起备份恢复（存档 JSON 里的 `customBanks` 字段，含图片 base64）。
+
+## 图片题（拍照原题）
+
+用于把拍照/扫描的原题图导入软件。
+
+编写与导入步骤：
+
+1. 在 Excel/CSV 里给图片题的行填写 **`image` 列 = 图片文件名**（如 `q1.png`）。
+2. 题目类型仍用 `answerType`：
+   - **有答案**（填 `answer`）：孩子看图在软件里输入答案，自动判对错，错题进错题本。
+   - **无答案**（`answer` 留空）：作为**纯展示题**，只在题目详情里查看，不进作答练习。
+3. 导入时：先「选择文件」选 Excel/CSV，再点「选择图片（可选）」**多选**这批题引用到的图片文件。系统按文件名自动关联。
+4. 图片缺失（未选到对应文件名）不会报错，详情里会标「图片缺失」，可重新导入补齐。
+
+说明：
+
+- 图片以 base64 存 IndexedDB，避免撑爆 localStorage；随完整存档一起备份。
+- 图片列对内置题库导出同样有效（内置图片题会导出其图片文件名）。
 
 ## 实现与测试
 
 - 存储与练习服务：`js/custom-bank.js`
-- 解析层（CSV/xlsx）：`js/question-bank-excel.js`
+- 图片存储（IndexedDB）：`js/bank-images.js`
+- 解析层（CSV/xlsx，含 image 列）：`js/question-bank-excel.js`
 - 测试：`tests/custom-bank-import.test.js`
 

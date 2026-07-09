@@ -197,6 +197,7 @@
     { key: "explanation", header: "explanation 解析", note: "" },
     { key: "steps", header: "steps 步骤", note: "|| 分隔多步" },
     { key: "templateType", header: "templateType 题型标签", note: "" },
+    { key: "image", header: "image 图片文件名", note: "图片题填图片文件名，导入时选同名图片" },
     { key: "sourceNote", header: "sourceNote 题源说明", note: "" },
     { key: "id", header: "id 题目ID", note: "导入可空，自动生成" }
   ];
@@ -255,6 +256,7 @@
       explanation: item.explanation || "",
       steps: joinSteps(item.steps),
       templateType: item.templateType || item.questionType || "",
+      image: item.imageName || (item.sourceImage && item.sourceImage.name) || "",
       sourceNote: meta.sourceNote || meta.maintainerNote || "",
       id: item.id || ""
     };
@@ -669,6 +671,7 @@
       const grade = Number(row.grade || d.grade) || undefined;
       const subject = String(row.subject || d.subject || "").trim() || undefined;
       const pointId = String(row.pointId || "").trim();
+      const imageName = String(row.image || "").trim();
       const base = {
         id: String(row.id || "").trim() || undefined,
         grade,
@@ -678,6 +681,7 @@
         explanation: String(row.explanation || "").trim(),
         steps: splitSteps(row.steps),
         templateType: String(row.templateType || "").trim() || "校内题",
+        ...(imageName ? { imageName } : {}),
         sourceMeta: {
           kind: "custom",
           name: d.bankName || "校内题库",
@@ -717,18 +721,26 @@
       } else {
         const text = String(row.text || "").trim();
         const answer = String(row.answer || "").trim();
-        if (!text || !answer) {
+        // 图片题：只要有图片，题干和答案都可留空（纯展示题）。
+        if (!text && !answer && !imageName) {
+          skipped.push({ row: index + 1, reason: "填空/应用题缺少 text/answer（且无图片）" });
+          return;
+        }
+        if (!imageName && (!text || !answer)) {
           skipped.push({ row: index + 1, reason: "填空/应用题缺少 text/answer" });
           return;
         }
         const accepted = splitMulti(row.acceptedAnswers);
-        questions.push({
+        const q = {
           ...base,
           answerType: "text",
           text,
           answer,
-          acceptedAnswers: accepted.length ? accepted : [answer]
-        });
+          acceptedAnswers: accepted.length ? accepted : (answer ? [answer] : [])
+        };
+        // 无答案的图片题标记为纯展示
+        if (imageName && !answer) q.displayOnly = true;
+        questions.push(q);
       }
     });
     return { questions, skipped };
@@ -751,7 +763,8 @@
     }
     const rowObjects = matrixToRowObjects(matrix);
     const result = rowsToQuestions(rowObjects, defaults);
-    return { ...result, sourceFormat, totalRows: rowObjects.length };
+    const imageNames = [...new Set(result.questions.map((q) => q.imageName).filter(Boolean))];
+    return { ...result, sourceFormat, totalRows: rowObjects.length, imageNames };
   }
 
   window.MathCampQuestionBankExcel = {

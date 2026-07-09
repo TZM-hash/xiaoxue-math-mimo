@@ -54,6 +54,7 @@ vm.createContext(context);
   "js/grade3-original-question-seeds.js",
   "js/external-question-seeds.js",
   "js/question-bank-excel.js",
+  "js/bank-images.js",
   "js/custom-bank.js"
 ].forEach((file) => {
   vm.runInContext(fs.readFileSync(path.join(root, file), "utf8"), context, { filename: file });
@@ -62,10 +63,20 @@ vm.createContext(context);
 const Excel = context.window.MathCampQuestionBankExcel;
 const CustomBank = context.window.MathCampCustomBank;
 const External = context.window.MathCampExternalQuestionSeeds;
-assert(Excel && CustomBank && External, "模块未全部暴露");
+const Images = context.window.MathCampBankImages;
+assert(Excel && CustomBank && External && Images, "模块未全部暴露");
 
 let passed = 0;
-function test(name, fn) { fn(); passed += 1; console.log(`  ✓ ${name}`); }
+const asyncTests = [];
+function test(name, fn) {
+  const result = fn();
+  if (result && typeof result.then === "function") {
+    asyncTests.push(result.then(() => { passed += 1; console.log(`  ✓ ${name}`); }));
+  } else {
+    passed += 1;
+    console.log(`  ✓ ${name}`);
+  }
+}
 
 // 造一个 Excel 风格 xlsx（deflate + sharedStrings），用于校验真实 Excel 兼容性
 function buildExcelStyleXlsx(matrix) {
@@ -212,6 +223,55 @@ test("exportAll / replaceAll 往返（存档备份）", () => {
   CustomBank.replaceAll(dump);
   assert.strictEqual(CustomBank.listBanks().length, 1);
   assert.strictEqual(CustomBank.listBanks()[0].name, "备份卷");
+  CustomBank.replaceAll([]);
 });
 
-console.log(`\ncustom-bank-import: ${passed} 项测试全部通过。`);
+// ---- 图片题相关 ----
+const imageMatrix = [
+  ["bank", "grade", "subject", "pointId", "answerType", "text", "answer", "image"],
+  ["自定义", "3", "math", "", "text", "看图列式计算", "24", "q1.png"],
+  ["自定义", "3", "math", "", "text", "", "", "q2.png"],
+  ["自定义", "3", "math", "", "text", "普通题不带图", "10", ""]
+];
+
+test("image 列被解析：图片题保留 imageName，无答案的标记 displayOnly", () => {
+  const rows = Excel.matrixToRowObjects(imageMatrix);
+  const { questions, skipped } = Excel.rowsToQuestions(rows, { bankName: "图片卷" });
+  assert.strictEqual(skipped.length, 0, "图片题不应被跳过");
+  assert.strictEqual(questions.length, 3);
+  const withAnswer = questions[0];
+  const displayOnly = questions[1];
+  assert.strictEqual(withAnswer.imageName, "q1.png");
+  assert.strictEqual(withAnswer.answer, "24");
+  assert(!withAnswer.displayOnly, "有答案的图片题不应是展示题");
+  assert.strictEqual(displayOnly.imageName, "q2.png");
+  assert.strictEqual(displayOnly.displayOnly, true, "无答案的图片题应为展示题");
+});
+
+test("parseImportFile 汇总 imageNames", () => {
+  const csv = imageMatrix.map((r) => r.join(",")).join("\n");
+  const result = Excel.parseImportFile({ fileName: "图片卷.csv", text: csv }, { bankName: "图片卷" });
+  assert.strictEqual(result.imageNames.length, 2, "应收集 2 个图片文件名");
+  assert(result.imageNames.includes("q1.png") && result.imageNames.includes("q2.png"));
+});
+
+test("展示题不进作答练习，带图作答题进练习并带 sourceImage", async () => {
+  const rows = Excel.matrixToRowObjects(imageMatrix);
+  const { questions } = Excel.rowsToQuestions(rows, { bankName: "图片卷" });
+  const bank = CustomBank.addBank({ name: "图片卷", questions, sourceFormat: "csv", hasImages: true });
+  // 存两张图（内存降级模式）
+  const dummy = "data:image/png;base64,AAAA";
+  await Images.putImage(bank.id, "q1.png", dummy);
+  await Images.putImage(bank.id, "q2.png", dummy);
+  await CustomBank.resolveBankImages(bank.id);
+  const pq = CustomBank.practiceQuestionsForBank(bank.id, { shuffle: (a) => a });
+  // 3 题里 1 题是展示题，应被过滤掉 -> 2 题
+  assert.strictEqual(pq.length, 2, "展示题不应进作答练习");
+  const imgQ = pq.find((q) => q.sourceImage);
+  assert(imgQ && imgQ.sourceImage.src === dummy, "带图作答题应带 sourceImage");
+  CustomBank.deleteBank(bank.id);
+});
+
+Promise.all(asyncTests).then(() => {
+  console.log(`\ncustom-bank-import: ${passed} 项测试全部通过。`);
+}).catch((err) => { console.error(err); process.exit(1); });
