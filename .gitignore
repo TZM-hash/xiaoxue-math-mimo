@@ -13,3 +13,6 @@ Python/_cache/
 # 大体积参考资料与临时文件（不纳入版本控制）
 Reference/
 tmp/
+
+# 自动生成的巨型逐题文档（用 npm run docs:generate 再生成）
+docs/题库文档.md

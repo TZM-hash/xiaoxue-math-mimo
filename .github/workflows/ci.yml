@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # 项目零依赖、无 lockfile，Node 测试无需 npm install。
+      - name: Question bank tests
+        run: npm run test:questions
+
+      - name: Rule tests
+        run: npm run test:rules
+
+      - name: Layout tests
+        run: npm run test:layout
+
+      - name: Android assets sync check
+        run: npm run sync:android:check
+
+      # 浏览器冒烟测试：CI 上装 Playwright（--no-save 保持 package.json 干净）并强制运行。
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright@1.48.0
+          npx playwright install --with-deps chromium
+
+      - name: Browser smoke test
+        run: npm run test:browser:required
