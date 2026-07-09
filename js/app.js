@@ -297,6 +297,7 @@
       gradeTag: document.getElementById("gradeTag"),
       pointTag: document.getElementById("pointTag"),
       modeTag: document.getElementById("modeTag"),
+      readAloudBtn: document.getElementById("readAloudBtn"),
       questionText: document.getElementById("questionText"),
       questionDiagram: document.getElementById("questionDiagram"),
       answerInput: document.getElementById("answerInput"),
@@ -686,8 +687,58 @@
       synth.speak(utterance);
       return true;
     }
-    function answerMatches(question, parsed) {
-      if (isSelfReviewQuestion(question)) return false;
+    // 把题目整理成适合中文朗读的纯文本（含选择题选项）。
+    function questionReadText(question) {
+      if (!question) return "";
+      let base = "";
+      if (question.answerType === "choice") {
+        // choice 题的 text 形如 "题干\nA. x\nB. y"，直接朗读整段
+        base = String(question.text || question.prompt || "");
+      } else if (question.passage) {
+        base = `${question.passage}。${question.text || ""}`;
+      } else {
+        base = String(question.text || "");
+      }
+      return base
+        .replace(/\s*\n\s*/g, "，")
+        .replace(/_+/g, "几")
+        .replace(/×/g, "乘")
+        .replace(/÷/g, "除以")
+        .replace(/＝|=/g, "等于")
+        .replace(/(\d+(?:\.\d+)?)\s*[％%]/g, "百分之$1")
+        .replace(/[％%]/g, "百分之")
+        .replace(/\s{2,}/g, " ")
+        .trim();
+    }
+    function readQuestionAloud(question = state.currentSet[state.index]) {
+      // 英语听力题优先走原有英文朗读
+      if (hasAudioPrompt(question)) return speakQuestionPrompt(question);
+      const synth = window.speechSynthesis;
+      const Utterance = window.SpeechSynthesisUtterance || globalThis.SpeechSynthesisUtterance;
+      if (!synth || !Utterance) {
+        UI.notify("当前设备不支持语音朗读。", { tone: "bad" });
+        return false;
+      }
+      const text = questionReadText(question);
+      if (!text) {
+        UI.notify("这道题没有可朗读的文字（可能是纯图片题）。", { tone: "warn" });
+        return false;
+      }
+      const utterance = new Utterance(text);
+      const isEnglish = question && (question.subject === "english" || /^e\d-/.test(String(question.pointId || "")));
+      utterance.lang = isEnglish ? "en-US" : "zh-CN";
+      utterance.rate = 0.85;
+      utterance.pitch = 1;
+      const voices = typeof synth.getVoices === "function" ? synth.getVoices() : [];
+      const voice = isEnglish
+        ? voices.find((v) => /^en[-_]/i.test(v.lang || ""))
+        : voices.find((v) => /^zh[-_]/i.test(v.lang || "")) || voices.find((v) => /Chinese|中文|普通话/i.test(v.name || ""));
+      if (voice) utterance.voice = voice;
+      if (typeof synth.cancel === "function") synth.cancel();
+      synth.speak(utterance);
+      return true;
+    }
+    function answerMatches(question, parsed) {      if (isSelfReviewQuestion(question)) return false;
       if (question?.answerType === "choice") return textAnswerMatches(parsed.raw, question) || answerLabelMatches(parsed.raw, question);
       if (question?.answerType === "formula") return formulaAnswerMatches(parsed.raw, question);
       if (question?.answerType === "text" || Array.isArray(question?.acceptedAnswers)) {
@@ -9718,6 +9769,7 @@
     els.backToSetupBtn.addEventListener("click", returnToPracticeSetup);
     els.closeTypeSettingsBtn?.addEventListener("click", closeTypeSettings);
     els.checkBtn.addEventListener("click", checkAnswer);
+    els.readAloudBtn?.addEventListener("click", () => readQuestionAloud());
     els.nextBtn.addEventListener("click", nextQuestion);
     if (els.skipBtn) els.skipBtn.addEventListener("click", skipQuestion);
     if (els.showAnswerBtn) els.showAnswerBtn.addEventListener("click", showAnswerPopover);
