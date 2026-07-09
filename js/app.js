@@ -3069,6 +3069,8 @@
       }
       return diagramSvg(`<path d="M160 92H238A78 78 0 ${large} 0 ${x.toFixed(1)} ${y.toFixed(1)}Z" fill="#fff4d2" stroke="#31424f" stroke-width="3"/><path d="M160 92H238" stroke="#31424f" stroke-width="3"/><circle cx="160" cy="92" r="4" fill="#31424f"/><text x="198" y="84">半径 ${r} cm</text><text x="164" y="122">${angle}°</text>`, diagram.caption || "扇形示意图");
     }
+    // 判断是否应隐藏参考截图：内置参考题中题干含“改写”的，数字被重编、
+    // 与整页扫描图不符，会误导孩子；这类图隐藏。校内题库上传的图片（data URL）始终显示。
     function renderQuestionDiagram(question) {
       if (!els.questionDiagram) return;
       const diagram = normalizeQuestionDiagram(question?.diagram);
@@ -9724,7 +9726,29 @@
         event.preventDefault();
         speakQuestionPrompt(state.currentSet[state.index]);
       }
+      const zoomImg = event.target.closest(".question-source-image img, .bank-q-image img");
+      if (zoomImg && zoomImg.getAttribute("src")) {
+        openImageLightbox(zoomImg.getAttribute("src"), zoomImg.getAttribute("alt") || "题目大图");
+      }
     });
+    var lightbox = document.getElementById("imageLightbox");
+    var lightboxImg = document.getElementById("imageLightboxImg");
+    function openImageLightbox(src, alt) {
+      if (!lightbox || !lightboxImg) return;
+      lightboxImg.src = src;
+      lightboxImg.alt = alt || "题目大图";
+      lightbox.hidden = false;
+      lightbox.setAttribute("aria-hidden", "false");
+    }
+    function closeImageLightbox() {
+      if (!lightbox) return;
+      lightbox.hidden = true;
+      lightbox.setAttribute("aria-hidden", "true");
+      if (lightboxImg) lightboxImg.src = "";
+    }
+    lightbox?.addEventListener("click", closeImageLightbox);
+    document.getElementById("imageLightboxClose")?.addEventListener("click", (e) => { e.stopPropagation(); closeImageLightbox(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && lightbox && !lightbox.hidden) closeImageLightbox(); });
     if (!isAndroidWebView()) {
       document.addEventListener("pointerdown", handleAudioGesture, true);
       document.addEventListener("touchstart", handleAudioGesture, { capture: true, passive: true });
@@ -10581,6 +10605,7 @@
         buildAdaptiveQuestionSet,
         buildSmartDailyQuestionSet,
         startNewSet,
+        renderPracticeQuestion,
         startSmartDailyPractice,
         startChallengeSet,
         challengeDifficultyForLevel,

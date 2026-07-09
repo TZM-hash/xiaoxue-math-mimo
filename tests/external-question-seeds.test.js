@@ -285,7 +285,7 @@ assert(grade3ReferenceDiagramItems.length >= 120, "三年级资料派生题应�
 assert(grade3ReferenceDiagramItems.every((item) => item.sourceMeta?.visualPolicy === "self-drawn-diagram"), "三年级资料派生图形题应标注自绘示意图策略");
 
 const grade3ReferenceImageItems = grade3ReferenceSeedItems.filter((item) => item.sourceImage);
-assert(grade3ReferenceImageItems.length >= 13, "三年级资料派生题应包含 PDF 清晰页截图题和奥数整页截图题");
+assert(grade3ReferenceImageItems.length >= 11, "三年级资料派生题应包含 PDF 清晰页截图题和奥数整页截图题");
 assert(grade3ReferenceImageItems.every((item) => item.sourceMeta?.visualPolicy === "pdf-crop-image"), "三年级 PDF 截图题应标注 pdf-crop-image 策略");
 assert(grade3ReferenceImageItems.every((item) => /^assets\/reference\/grade3\/.+\.png$/.test(item.sourceImage?.src || "")), "三年级 PDF 截图题应引用应用内三年级参考图片资产");
 grade3ReferenceImageItems.forEach((item) => {
@@ -327,7 +327,7 @@ assert(grade4ReferenceDiagramItems.length >= 120, "四年级资料派生题应�
 assert(grade4ReferenceDiagramItems.every((item) => item.sourceMeta?.visualPolicy === "self-drawn-diagram"), "四年级资料派生图形题应标注自绘示意图策略");
 
 const grade4ReferenceImageItems = grade4ReferenceSeedItems.filter((item) => item.sourceImage);
-assert(grade4ReferenceImageItems.length >= 14, "四年级资料派生题应包含 PDF 清晰页截图题和奥数整页截图题");
+assert(grade4ReferenceImageItems.length >= 12, "四年级资料派生题应包含 PDF 清晰页截图题和奥数整页截图题");
 assert(grade4ReferenceImageItems.every((item) => item.sourceMeta?.visualPolicy === "pdf-crop-image"), "四年级 PDF 截图题应标注 pdf-crop-image 策略");
 assert(grade4ReferenceImageItems.every((item) => /^assets\/reference\/grade4\/.+\.png$/.test(item.sourceImage?.src || "")), "四年级 PDF 截图题应引用应用内四年级参考图片资产");
 grade4ReferenceImageItems.forEach((item) => {

@@ -104,7 +104,7 @@
       ["先把长和宽相加。", "再乘 2。", "写出周长。"],
       "长方形周长截图题",
       "从培优扫描页裁图，保留图形题来源，题面重新改写为清晰数据。",
-      pdfCrop("g3-math-peiyou-100", 18, "assets/reference/grade3/g3-math-peiyou-perimeter-p018.png", "三上数学培优图形题截图", "三年级数学培优资料图形题参考截图")
+      null
     );
     imageText(
       "ref-g3-img-math-grid-001",
@@ -117,7 +117,7 @@
       ["定位一班人数。", "定位二班人数。", "相加求合计。"],
       "统计表截图题",
       "从数学专题卷扫描页裁图，按统计读表题型改写。",
-      pdfCrop("g3-math-special-training", 11, "assets/reference/grade3/g3-math-special-grid-p011.png", "三年级数学专题卷统计表截图", "三年级数学专题训练统计读表参考截图")
+      null
     );
     imageChoice(
       "ref-g3-img-cn-poem-001",

@@ -1336,6 +1336,11 @@ CREATE POLICY "allow_all_user_settings" ON user_settings FOR ALL USING (true) WI
     </div>
   </main>
 
+  <div class="image-lightbox" id="imageLightbox" hidden aria-hidden="true">
+    <button class="image-lightbox-close" type="button" id="imageLightboxClose" aria-label="关闭大图">×</button>
+    <img id="imageLightboxImg" alt="题目大图" />
+  </div>
+
   <script src="js/storage.js"></script>
   <script src="js/runtime-config.js"></script>
   <script src="js/cloud-sync.js"></script>

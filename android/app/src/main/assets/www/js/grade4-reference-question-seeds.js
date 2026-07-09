@@ -104,7 +104,7 @@
       ["写出内角和 180°。", "减去已知两个角。", "得到第三个角。"],
       "角与三角形截图题",
       "从培优扫描页裁图，保留图形题来源，题面重新改写为清晰数据。",
-      pdfCrop("g4-math-peiyou-100", 20, "assets/reference/grade4/g4-math-peiyou-angle-p020.png", "四上数学培优角度图形题截图", "四年级培优资料角度题参考截图")
+      null
     );
     imageText(
       "ref-g4-img-math-area-001",
@@ -117,7 +117,7 @@
       ["找到长和宽。", "用长乘宽。", "写出平方米。"],
       "面积截图题",
       "从数学专题卷扫描页裁图，按面积题型改写。",
-      pdfCrop("g4-math-special-training", 10, "assets/reference/grade4/g4-math-special-area-p010.png", "四年级数学专题卷面积题截图", "四年级数学专题训练面积参考截图")
+      null
     );
     imageChoice(
       "ref-g4-img-math-large-001",

@@ -1005,6 +1005,7 @@
       height: auto;
       max-height: 360px;
       object-fit: contain;
+      cursor: zoom-in;
     }
     .bank-q-missing {
       font-size: 12px;

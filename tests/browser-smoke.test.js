@@ -32,6 +32,12 @@ async function runSmoke(createPage) {
         debug.els.setSizeInput.value = "4";
         debug.els.pointSelect.value = point.id;
         debug.startNewSet({ autoFocus: false });
+        // 跳到第一道带图示的题再渲染，避免受抽题顺序影响（部分题为纯文字题）。
+        const diagramIndex = debug.state.currentSet.findIndex((question) => question.diagram);
+        if (diagramIndex >= 0) {
+          debug.state.index = diagramIndex;
+          debug.renderPracticeQuestion();
+        }
         const coverage = window.MathCampQuestionBankCoverage.buildCoverageReport(window.MathCampQuestionBank);
         return {
           setSize: debug.state.currentSet.length,
