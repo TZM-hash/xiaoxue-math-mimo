@@ -10,6 +10,9 @@
     "test:browser": "node tests/browser-smoke.test.js",
     "test:browser:required": "node tests/browser-smoke.test.js --required",
     "coverage:questions": "node scripts/question-bank-coverage.js",
+    "docs:generate": "node scripts/generate-readable-docs.js",
+    "reference:inventory": "node scripts/reference-inventory.js",
+    "assets:report": "node scripts/asset-size-report.js",
     "sync:android:check": "node scripts/check-android-assets.js"
   }
 }

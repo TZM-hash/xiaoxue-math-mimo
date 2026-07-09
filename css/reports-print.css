@@ -487,6 +487,23 @@
       gap: 8px;
       margin-top: 12px;
     }
+    .source-audit-toolbar .mini-field {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 132px;
+      color: var(--muted);
+      font: 850 12px/1.2 var(--font);
+    }
+    .source-audit-toolbar .mini-field select {
+      min-width: 92px;
+      height: 34px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--fg);
+      font: 850 12px/1 var(--font);
+    }
     .source-audit-toolbar .secondary.active,
     .source-audit-toolbar .secondary[aria-pressed="true"] {
       color: color-mix(in oklch, var(--accent), black 28%);
@@ -508,6 +525,13 @@
       background: color-mix(in oklch, var(--surface), white 28%);
       border: 1px solid color-mix(in oklch, var(--border), white 16%);
       font-style: normal;
+    }
+    .round-source-summary {
+      margin: 12px 0;
+    }
+    .round-source-summary strong {
+      color: var(--fg);
+      margin-right: 2px;
     }
     .source-audit-panel li {
       display: grid;

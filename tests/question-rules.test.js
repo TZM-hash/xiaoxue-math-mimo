@@ -196,6 +196,7 @@ vm.createContext(context);
   "js/home-route.js",
   "js/pet-dressup-meta.js",
   "js/cloud-sync.js",
+  "js/question-source-summary.js",
   "js/app.js"
 ].forEach((file) => {
   const source = fs.readFileSync(path.join(root, file), "utf8");
@@ -557,6 +558,111 @@ function runTypeSettingsPersistenceTests() {
   assert.strictEqual(stored.settings.pointId, point.id, "local storage should keep the selected knowledge point for next launch");
   assert.strictEqual(stored.settings.answerMode, "choice", "local storage should keep the selected answer mode for next launch");
   assert.strictEqual(stored.settings.dailyGoal, 35, "local storage should keep the selected daily goal for next launch");
+}
+
+function runSetSizeAndExternalMixTests() {
+  const debug = context.mathCampDebug;
+  const originalRandom = vm.runInContext("Math.random", context);
+  const stateSnapshot = {
+    profiles: debug.state.profiles,
+    activeId: debug.state.activeId,
+    subject: debug.state.subject,
+    grade: debug.state.grade,
+    pointId: debug.state.pointId,
+    setSize: debug.state.setSize,
+    answerMode: debug.state.answerMode,
+    adaptive: debug.state.adaptive
+  };
+  const elementSnapshot = {
+    pointSelect: debug.els.pointSelect.value,
+    setSizeInput: debug.els.setSizeInput.value,
+    adaptiveToggle: debug.els.adaptiveToggle.checked,
+    answerModeSelect: debug.els.answerModeSelect.value
+  };
+  const externalCases = [
+    { subject: "math", grade: 2, pointId: "g2-100-add", label: "数学" },
+    { subject: "chinese", grade: 3, pointId: "c3-paragraph-reading", label: "语文" },
+    { subject: "english", grade: 3, pointId: "e3-vocabulary-school", label: "英语" },
+    { subject: "science", grade: 3, pointId: "s3-inquiry-fair-test", label: "科学" }
+  ];
+
+  try {
+    const ratioPoint = debug.pointMap["g2-100-add"];
+    const externalCount = context.MathCampExternalQuestionSeeds.forPoint(ratioPoint).length;
+    const localCount = debug.localQuestionTemplateCountForPoint(ratioPoint);
+    assert(externalCount > localCount, "二年级 100 以内加法扩展题库存应明显高于基础模板");
+    assert.strictEqual(localCount, 1, "数学严格生成器应按 1 个基础模板参与比例计算");
+    assert.strictEqual(
+      debug.externalQuestionChanceForPoint(ratioPoint),
+      externalCount / (externalCount + localCount),
+      "扩展题抽取概率应等于扩展题库存占总库存的比例"
+    );
+
+    vm.runInContext("Math.random = () => 0.01", context);
+    externalCases.forEach((item) => {
+      const profile = debug.normalizeProfile({
+        id: `external-mix-${item.subject}`,
+        name: `${item.label}扩展题测试`,
+        grade: item.grade,
+        settings: { pointId: item.pointId, setSize: 8, adaptive: false, dailyGoal: 20, answerMode: "input" }
+      });
+      debug.state.profiles = [profile];
+      debug.state.activeId = profile.id;
+      debug.selectSubject(item.subject);
+      debug.state.grade = item.grade;
+      debug.state.pointId = item.pointId;
+      debug.els.pointSelect.value = item.pointId;
+      debug.els.setSizeInput.value = item.subject === "math" ? "100" : "8";
+      debug.els.adaptiveToggle.checked = false;
+      debug.els.answerModeSelect.value = "input";
+
+      debug.startNewSet({ autoFocus: false });
+
+      const expectedCount = item.subject === "math" ? 100 : 8;
+      assert.strictEqual(debug.state.currentSet.length, expectedCount, `${item.label}普通练习应按设置生成 ${expectedCount} 题`);
+      assert(
+        debug.state.currentSet.some((question) => question.enrichment === true),
+        `${item.label}普通专项练习应能随机到新增扩展题源`
+      );
+    });
+
+    vm.runInContext("Math.random = () => 0.6", context);
+    const ratioProfile = debug.normalizeProfile({
+      id: "external-ratio-math",
+      name: "数学比例抽题测试",
+      grade: 2,
+      settings: { pointId: "g2-100-add", setSize: 8, adaptive: false, dailyGoal: 20, answerMode: "input" }
+    });
+    debug.state.profiles = [ratioProfile];
+    debug.state.activeId = ratioProfile.id;
+    debug.selectSubject("math");
+    debug.state.grade = 2;
+    debug.state.pointId = "g2-100-add";
+    debug.els.pointSelect.value = "g2-100-add";
+    debug.els.setSizeInput.value = "8";
+    debug.els.adaptiveToggle.checked = false;
+    debug.els.answerModeSelect.value = "input";
+    debug.startNewSet({ autoFocus: false });
+    assert(
+      debug.state.currentSet.some((question) => question.enrichment === true),
+      "扩展题库存占比超过 60% 时，普通练习应按比例抽到扩展题"
+    );
+  } finally {
+    context.__originalMathRandom = originalRandom;
+    vm.runInContext("Math.random = __originalMathRandom; delete __originalMathRandom;", context);
+    debug.selectSubject(stateSnapshot.subject || "math");
+    debug.state.profiles = stateSnapshot.profiles;
+    debug.state.activeId = stateSnapshot.activeId;
+    debug.state.grade = stateSnapshot.grade;
+    debug.state.pointId = stateSnapshot.pointId;
+    debug.state.setSize = stateSnapshot.setSize;
+    debug.state.answerMode = stateSnapshot.answerMode;
+    debug.state.adaptive = stateSnapshot.adaptive;
+    debug.els.pointSelect.value = elementSnapshot.pointSelect;
+    debug.els.setSizeInput.value = elementSnapshot.setSizeInput;
+    debug.els.adaptiveToggle.checked = elementSnapshot.adaptiveToggle;
+    debug.els.answerModeSelect.value = elementSnapshot.answerModeSelect;
+  }
 }
 
 function runArchiveCloudCoverageTests() {
@@ -2015,6 +2121,26 @@ function runScienceSubjectIntegrationTests() {
   context.matchMedia = originalMatchMedia;
 }
 
+function runQuestionSourceSummaryTests() {
+  const debug = context.mathCampDebug;
+  const summary = debug.roundQuestionSourceSummary([
+    { question: { sourceMeta: { kind: "referenceDerived" } } },
+    { question: { sourceMeta: { kind: "codexOriginal" } } },
+    { question: { diagram: { type: "bar" } } },
+    { question: { text: "本地模板题" } }
+  ]);
+  assert.strictEqual(summary.total, 4, "来源统计应保留本轮题量");
+  assert.strictEqual(summary.counts.reference.count, 1, "来源统计应识别参考资料派生题");
+  assert.strictEqual(summary.counts.original.count, 1, "来源统计应识别原创扩展题");
+  assert.strictEqual(summary.counts.selfDrawn.count, 1, "来源统计应识别自绘图形题");
+  assert.strictEqual(summary.counts.template.count, 1, "来源统计应识别本地模板题");
+
+  const audit = debug.runQuestionSourceAudit({ source: "reference", subject: "math", grade: "2", pointId: "all" });
+  assert.strictEqual(audit.filters.subject, "math", "题源巡检应保留学科筛选");
+  assert.strictEqual(audit.filters.grade, "2", "题源巡检应保留年级筛选");
+  assert(audit.items.every((item) => item.subject === "math" && Number(item.grade) === 2), "题源巡检应按学科和年级过滤");
+}
+
 const result = context.mathCampSelfTest(32);
 if (result.failed) {
   console.error(JSON.stringify(result.failures.slice(0, 10), null, 2));
@@ -2025,6 +2151,7 @@ runUpgradeFeatureTests();
 runPetRewardClaimTests();
 runPetEconomyTests();
 runTypeSettingsPersistenceTests();
+runSetSizeAndExternalMixTests();
 runArchiveCloudCoverageTests();
 runFineGrainedCloudMergeTests();
 runAdaptiveRouteTests();
@@ -2052,6 +2179,7 @@ runHangzhouCurriculumMetadataTests();
 runChineseSubjectIntegrationTests();
 runEnglishSubjectIntegrationTests();
 runScienceSubjectIntegrationTests();
+runQuestionSourceSummaryTests();
 
 console.log(`Question rule self-test passed: ${result.total} samples, 0 failures.`);
 console.log("Data boundary tests passed.");
@@ -2059,6 +2187,7 @@ console.log("Upgrade feature tests passed.");
 console.log("Pet reward claim tests passed.");
 console.log("Pet economy tests passed.");
 console.log("Type settings persistence tests passed.");
+console.log("Set size and external mix tests passed.");
 console.log("Archive and cloud coverage tests passed.");
 console.log("Question coverage and insight tests passed.");
 console.log("Subject cause option tests passed.");
@@ -2080,3 +2209,4 @@ console.log("Hangzhou curriculum metadata tests passed.");
 console.log("Chinese subject integration tests passed.");
 console.log("English subject integration tests passed.");
 console.log("Science subject integration tests passed.");
+console.log("Question source summary tests passed.");

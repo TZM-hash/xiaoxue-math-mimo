@@ -157,7 +157,7 @@
           <div class="setup-step setup-step-secondary">
             <div class="field setup-set-size-field">
               <label for="setSizeInput">每轮题目数量</label>
-              <input id="setSizeInput" type="number" min="3" max="40" step="1" value="10" />
+              <input id="setSizeInput" type="number" min="3" max="100" step="1" value="10" />
             </div>
             <div class="field setup-daily-goal-field">
               <label for="dailyGoalInput">每日目标题数</label>
@@ -897,6 +897,30 @@
             <button class="secondary" type="button" data-source-filter="scan">扫描页改写</button>
             <button class="secondary" type="button" data-source-filter="pdf-image">PDF截图题</button>
           </div>
+          <div class="source-audit-toolbar" aria-label="题库管理筛选">
+            <label class="mini-field" for="questionBankSubjectFilter">学科
+              <select id="questionBankSubjectFilter">
+                <option value="all">全部</option>
+                <option value="math">数学</option>
+                <option value="chinese">语文</option>
+                <option value="english">英语</option>
+                <option value="science">科学</option>
+              </select>
+            </label>
+            <label class="mini-field" for="questionBankGradeFilter">年级
+              <select id="questionBankGradeFilter">
+                <option value="all">全部</option>
+                <option value="2">二年级</option>
+                <option value="3">三年级</option>
+                <option value="4">四年级</option>
+              </select>
+            </label>
+            <label class="mini-field" for="questionBankPointFilter">知识点
+              <select id="questionBankPointFilter">
+                <option value="all">全部知识点</option>
+              </select>
+            </label>
+          </div>
           <div class="source-audit-summary" id="sourceAuditSummary">题源筛选尚未加载。</div>
           <div class="rule-check-panel source-audit-panel" id="sourceAuditResult">选择上方筛选项查看二、三年级扩展题源。</div>
         </article>
@@ -1056,6 +1080,7 @@
               </div>
               <div class="row-actions">
                 <button class="primary" type="button" id="saveSupabaseConfigBtn">保存并启用</button>
+                <button class="secondary" type="button" id="testSupabaseConfigBtn">测试连接</button>
                 <button class="secondary" type="button" id="syncNowBtn">立即同步</button>
               </div>
               <div class="cloud-sync-status" id="cloudSyncStatus">未配置</div>
@@ -1344,6 +1369,7 @@ CREATE POLICY "allow_all_user_settings" ON user_settings FOR ALL USING (true) WI
   <script src="js/question-enhancements.js"></script>
   <script src="js/micro-interactions.js"></script>
   <script src="js/effects-control-integrated.js"></script>
+  <script src="js/question-source-summary.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

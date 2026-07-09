@@ -62,6 +62,8 @@ const practiceEngine = read("js/practice-engine.js");
 const reportModule = read("js/report.js");
 const petModule = read("js/pet.js");
 const importExportModule = read("js/import-export.js");
+const questionSourceSummary = read("js/question-source-summary.js");
+const packageJson = read("package.json");
 const mojibakeTokens = ["\\u93c1", "\\u93b7", "\\u7edb", "\\u95bf", "\\u9983", "\\u8133", "\\u923f", "\\u9241", "\\u9286", "\\u4fd9", "\\u6992", "\\u5744", "\\u6624", "\\ufffd"];
 const mojibake = new RegExp(mojibakeTokens.join("|") + "|\\?\\?\\?");
 
@@ -103,6 +105,10 @@ assertContains(html, 'data-source-filter="original"', "question source audit sho
 assertContains(html, 'data-source-filter="self-drawn"', "question source audit should filter self-drawn diagram questions");
 assertContains(html, 'data-source-filter="scan"', "question source audit should filter scan-page rewrites");
 assertContains(html, 'data-source-filter="pdf-image"', "question source audit should filter PDF screenshot questions");
+assertContains(html, 'id="questionBankSubjectFilter"', "question bank manager should filter by subject");
+assertContains(html, 'id="questionBankGradeFilter"', "question bank manager should filter by grade");
+assertContains(html, 'id="questionBankPointFilter"', "question bank manager should filter by point");
+assertContains(html, 'id="testSupabaseConfigBtn"', "cloud sync settings should include a connection test button");
 assertNotContains(html, 'id="wordRelationPanel"', "word relation training panel should be removed from the practice screen");
 assertContains(html, 'id="heroTitle">今日学习路线</h1>', "home hero title should be today's route");
 assertContains(html, 'data-top-mode-action', "mobile top action should use the type setting entry");
@@ -162,6 +168,7 @@ assertNotContains(html, 'src="js/handwriting-input.js"', "页面不应加载手�
 assertContains(html, 'src="js/learning-insights.js"', "page should load learning insight diagnostics");
 assertNotContains(html, "supabase.min.js", "Supabase SDK should not be loaded during offline-first startup");
 assertContains(html, 'id="cloudSyncDetail"', "云同步设置应包含同步详情页");
+assertContains(html, 'id="setSizeInput" type="number" min="3" max="100"', "每轮题量输入框应允许设置到 100 题");
 assertNotContains(html, 'id="reportGoal"', "学习报告顶部应移除重复的今日目标指标");
 assertNotContains(html, 'id="reportChallenge"', "学习报告顶部应移除重复的关卡指标");
 assertNotContains(html, 'id="reportStreak"', "学习报告顶部应移除连续天数指标");
@@ -178,6 +185,7 @@ assertNotContains(html, 'id="rewardGrid"', "学习报告不应保留奖励徽章
 assertNotContains(html, 'id="weekGrid"', "学习报告不应保留近 7 天柱状图");
 assertNotContains(html, 'id="historyList"', "学习报告不应保留最近记录列表");
 assertContains(html, 'src="js/question-generator.js"', "页面应加载拆分后的题目生成模块");
+assertContains(html, 'src="js/question-source-summary.js"', "页面应加载题目来源统计模块");
 assertContains(html, 'src="js/practice-engine.js"', "页面应加载拆分后的练习引擎模块");
 assertContains(html, 'src="js/question-rules-engine.js"', "页面应加载拆分后的题目规则引擎");
 assertContains(html, 'src="js/question-interaction.js"', "页面应加载拆分后的答题交互模块");
@@ -356,6 +364,13 @@ assertContains(runtimeConfig, "ANDROID_DEFAULT_EFFECTS", "runtime config should 
 assertContains(runtimeConfig, "cursorEffects: false", "Android defaults should disable cursor effects");
 assertContains(cloudSync, "ensureSupabaseSdk", "cloud sync should lazy-load the Supabase SDK");
 assertContains(cloudSync, "loading-sdk", "cloud sync should expose SDK loading status");
+assertContains(cloudSync, "testConnection", "cloud sync should expose a lightweight connection test");
+assertContains(questionSourceSummary, "summarizeQuestionSources", "question source summary module should export source summary helper");
+assertContains(app, "roundQuestionSourceSummary", "finish summary should expose round source statistics");
+assertContains(app, "questionBankAuditFilterFromUI", "question bank audit should combine source, subject, grade and point filters");
+assertContains(packageJson, '"docs:generate"', "package should expose readable docs generation command");
+assertContains(packageJson, '"reference:inventory"', "package should expose reference inventory command");
+assertContains(packageJson, '"assets:report"', "package should expose asset size report command");
 assertContains(questionBankCoverage, "buildCoverageReport", "question coverage module should export a coverage report builder");
 assertContains(learningInsights, "buildWeakPointInsights", "learning insight module should export weak-point recommendations");
 assertContains(app, "LearningInsights", "app should consume the learning insight module");
@@ -620,6 +635,7 @@ assertContains(css, "#reportView .report-visual-panel:first-child {\n        gri
   "js/practice-engine.js",
   "js/question-rules-engine.js",
   "js/question-interaction.js",
+  "js/question-source-summary.js",
   "js/report.js",
   "js/pet.js",
   "js/import-export.js",
@@ -674,6 +690,7 @@ assertContains(css, "#reportView .report-visual-panel:first-child {\n        gri
   "js/practice-engine.js",
   "js/question-rules-engine.js",
   "js/question-interaction.js",
+  "js/question-source-summary.js",
   "js/report.js",
   "js/pet.js",
   "js/import-export.js",

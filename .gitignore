@@ -9,3 +9,7 @@ android/local.properties
 *.keystore.bak
 android/*.log
 Python/_cache/
+
+# 大体积参考资料与临时文件（不纳入版本控制）
+Reference/
+tmp/

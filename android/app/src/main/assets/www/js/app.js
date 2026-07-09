@@ -8,6 +8,7 @@
       floatingPet: "mathcamp-floating-pet-position-v1",
       system: "mathcamp-system-settings-v1"
     };
+    const MAX_SET_SIZE = 100;
     const SubjectRegistry = window.MathCampSubjects || {};
     const SUBJECTS = Object.freeze(SubjectRegistry.SUBJECT_META || {
       chinese: { label: "语文", short: "语", icon: "文", metaColor: "#c66b3d", themeLabel: "纸页阅读", themeCopy: "阅读、写作、古诗文会使用更温暖的纸页色和文字符号。" },
@@ -50,6 +51,7 @@
     const PetDressupMeta = window.MathCampPetDressupMeta || {};
     const LearningInsights = window.MathCampLearningInsights || {};
     const QuestionBankCoverage = window.MathCampQuestionBankCoverage || {};
+    const QuestionSourceSummary = window.MathCampQuestionSourceSummary || {};
     const { grades, gradeNames, causes, causeTagsByTopic, gradeCurriculum, points, pointMap } = window.MathCampQuestionBank;
     const isAndroidWebView = () => document.documentElement.classList.contains("android-webview");
     const isLowMotionMode = () => isAndroidWebView();
@@ -488,7 +490,10 @@
       ruleCheckResult: document.getElementById("ruleCheckResult"),
       sourceFilterBtns: [...document.querySelectorAll("[data-source-filter]")],
       sourceAuditSummary: document.getElementById("sourceAuditSummary"),
-      sourceAuditResult: document.getElementById("sourceAuditResult")
+      sourceAuditResult: document.getElementById("sourceAuditResult"),
+      questionBankSubjectFilter: document.getElementById("questionBankSubjectFilter"),
+      questionBankGradeFilter: document.getElementById("questionBankGradeFilter"),
+      questionBankPointFilter: document.getElementById("questionBankPointFilter")
     };
 
     function uid(prefix = "id") {
@@ -1501,7 +1506,7 @@
         printOutputMode: "answers",
         ...(normalized.settings || {})
       };
-      normalized.settings.setSize = clamp(Number(normalized.settings.setSize) || 10, 3, 40);
+      normalized.settings.setSize = clamp(Number(normalized.settings.setSize) || 10, 3, MAX_SET_SIZE);
       normalized.settings.dailyGoal = clamp(Number(normalized.settings.dailyGoal) || 20, 5, 200);
       normalized.settings.pointId = safePointId(normalized.settings.pointId || "auto", normalized.grade);
       if (normalized.settings.answerMode === "handwriting") normalized.settings.answerMode = "input";
@@ -3204,6 +3209,30 @@
         return candidates[index % candidates.length];
       };
     }
+    function externalQuestionChanceForPoint(point) {
+      const id = String(point?.id || "");
+      if (/^c\d-/.test(id) && /(writing|picture)/.test(id)) return 0;
+      const externalCount = externalQuestionCountForPoint(point);
+      if (!externalCount) return 0;
+      const localCount = localQuestionTemplateCountForPoint(point);
+      return externalCount / Math.max(1, externalCount + localCount);
+    }
+    function externalQuestionCountForPoint(point) {
+      return window.MathCampExternalQuestionSeeds?.forPoint?.(point || {})?.length || 0;
+    }
+    function localQuestionTemplateCountForPoint(point) {
+      const id = String(point?.id || "");
+      if (/^c\d-/.test(id)) {
+        return window.MathCampChineseQuestionGenerator?.questionTemplateCountForPoint?.(point || {}) || 1;
+      }
+      if (/^e\d-/.test(id)) {
+        return window.MathCampEnglishQuestionGenerator?.questionTemplateCountForPoint?.(point || {}) || 1;
+      }
+      if (/^s\d-/.test(id)) {
+        return window.MathCampScienceQuestionGenerator?.questionTemplateCountForPoint?.(point || {}) || 1;
+      }
+      return 1;
+    }
     function makeStrictQuestionForPoint(point, preferred = state.answerMode, generationOptions = {}) {
       const target = bankPointMap()[point?.id] || pointMap[point?.id] || point;
       const fallbackPoint = choosePoint();
@@ -3228,7 +3257,13 @@
       let uniqueRecentFallback = null;
       let last = null;
       for (let attempt = 0; attempt < 32; attempt += 1) {
-        const question = makeStrictQuestionForPoint(target, preferred, { pick: scope.pick });
+        const generationOptions = {
+          pick: scope.pick,
+          ...(scope.preferExternal ? { preferExternal: true } : {}),
+          ...(scope.disableExternal || (attempt > 0 && last?.enrichment) ? { disableExternal: true } : {}),
+          ...(typeof scope.externalChance === "number" ? { externalChance: scope.externalChance } : {})
+        };
+        const question = makeStrictQuestionForPoint(target, preferred, generationOptions);
         const sig = signature(question);
         const repeatKey = questionRepeatKey(question);
         last = question;
@@ -3241,13 +3276,13 @@
     function buildQuestionSetForPoint(point, count, preferred = state.answerMode) {
       const target = bankPointMap()[point?.id] || pointMap[point?.id] || point;
       if (!target) return [];
-      const total = clamp(Number(count) || state.setSize || 10, 1, 80);
+      const total = clamp(Number(count) || state.setSize || 10, 1, MAX_SET_SIZE);
       const usedSignatures = new Set();
       const avoidRepeatKeys = recentQuestionRepeatKeys(activeProfile(), target.grade);
       const pick = createRoundQuestionPicker(preferred);
       let previousSignature = "";
       return Array.from({ length: total }, () => {
-        const question = makeDistinctQuestionForPoint(target, preferred, { usedSignatures, previousSignature, pick, avoidRepeatKeys });
+        const question = makeDistinctQuestionForPoint(target, preferred, { usedSignatures, previousSignature, pick, avoidRepeatKeys, externalChance: externalQuestionChanceForPoint(target) });
         if (!question) return null;
         previousSignature = signature(question);
         usedSignatures.add(previousSignature);
@@ -3255,7 +3290,7 @@
       }).filter(Boolean);
     }
     function buildChineseBalancedQuestionSet(count = state.setSize, preferred = state.answerMode) {
-      const total = clamp(Number(count) || state.setSize || 10, 1, 80);
+      const total = clamp(Number(count) || state.setSize || 10, 1, MAX_SET_SIZE);
       const bank = activeBank();
       const plan = window.MathCampChineseQuestionGenerator?.buildSourcePlan?.(total, bank.autoSourcePolicy)
         || Array.from({ length: total }, () => "inTextbook");
@@ -3272,7 +3307,7 @@
         const offset = sourceOffsets[sourceType] || 0;
         sourceOffsets[sourceType] = offset + 1;
         const point = candidates[offset % candidates.length] || choosePoint();
-        const question = makeDistinctQuestionForPoint(point, preferred, { usedSignatures, previousSignature, pick, avoidRepeatKeys });
+        const question = makeDistinctQuestionForPoint(point, preferred, { usedSignatures, previousSignature, pick, avoidRepeatKeys, externalChance: externalQuestionChanceForPoint(point) });
         if (!question) return null;
         previousSignature = signature(question);
         usedSignatures.add(previousSignature);
@@ -3290,6 +3325,7 @@
         choosePoint,
         clamp,
         dueWrongbook,
+        externalQuestionChanceForPoint,
         makeQuestion,
         makeDistinctQuestionForPoint,
         makeStrictQuestionForPoint,
@@ -3311,6 +3347,7 @@
         choosePoint,
         clamp,
         dueWrongbook,
+        externalQuestionChanceForPoint,
         makeQuestion,
         makeDistinctQuestionForPoint,
         makeStrictQuestionForPoint,
@@ -3577,9 +3614,22 @@
     function runQuestionQualityAudit(sampleSize = 48) {
       return runQuestionRuleSelfTest(sampleSize);
     }
-    function flattenGradeSeedModule(module, bucketLabel, gradeLabel) {
+    function questionBankPointForAudit(pointId) {
+      const subjects = ["math", "chinese", "english", "science"];
+      for (const subject of subjects) {
+        const bank = SubjectRegistry.subjectBank?.(subject);
+        const point = bank?.pointMap?.[pointId] || bank?.points?.find?.((item) => item.id === pointId);
+        if (point) return { ...point, subject };
+      }
+      const point = pointMap[pointId] || {};
+      return { ...point, subject: point.subject || (/^c\d-/.test(pointId) ? "chinese" : /^e\d-/.test(pointId) ? "english" : /^s\d-/.test(pointId) ? "science" : "math") };
+    }
+    function flattenGradeSeedModule(module, bucketLabel, gradeLabel, grade) {
       return Object.entries(module?.BANK || {}).flatMap(([pointId, items]) => (items || []).map((item) => ({
         pointId,
+        grade,
+        subject: questionBankPointForAudit(pointId).subject,
+        pointLabel: questionBankPointForAudit(pointId).label || pointId,
         bucketLabel: gradeLabel ? `${gradeLabel}${bucketLabel}` : bucketLabel,
         id: item.id,
         answerType: item.answerType || "text",
@@ -3592,12 +3642,12 @@
     }
     function questionSourceAuditItems() {
       return [
-        ...flattenGradeSeedModule(window.MathCampGrade2ReferenceQuestionSeeds, "参考资料派生", "二年级"),
-        ...flattenGradeSeedModule(window.MathCampGrade2OriginalQuestionSeeds, "原创扩展", "二年级"),
-        ...flattenGradeSeedModule(window.MathCampGrade3ReferenceQuestionSeeds, "参考资料派生", "三年级"),
-        ...flattenGradeSeedModule(window.MathCampGrade3OriginalQuestionSeeds, "原创扩展", "三年级"),
-        ...flattenGradeSeedModule(window.MathCampGrade4ReferenceQuestionSeeds, "参考资料派生", "四年级"),
-        ...flattenGradeSeedModule(window.MathCampGrade4OriginalQuestionSeeds, "原创扩展", "四年级")
+        ...flattenGradeSeedModule(window.MathCampGrade2ReferenceQuestionSeeds, "参考资料派生", "二年级", 2),
+        ...flattenGradeSeedModule(window.MathCampGrade2OriginalQuestionSeeds, "原创扩展", "二年级", 2),
+        ...flattenGradeSeedModule(window.MathCampGrade3ReferenceQuestionSeeds, "参考资料派生", "三年级", 3),
+        ...flattenGradeSeedModule(window.MathCampGrade3OriginalQuestionSeeds, "原创扩展", "三年级", 3),
+        ...flattenGradeSeedModule(window.MathCampGrade4ReferenceQuestionSeeds, "参考资料派生", "四年级", 4),
+        ...flattenGradeSeedModule(window.MathCampGrade4OriginalQuestionSeeds, "原创扩展", "四年级", 4)
       ];
     }
     function matchesSourceFilter(item, filter) {
@@ -3609,13 +3659,41 @@
       if (filter === "pdf-image") return item.hasSourceImage || meta.visualPolicy === "pdf-crop-image";
       return true;
     }
+    function normalizeQuestionSourceAuditFilter(filter = "all") {
+      if (typeof filter === "string") return { source: filter, subject: "all", grade: "all", pointId: "all" };
+      return {
+        source: filter?.source || "all",
+        subject: filter?.subject || "all",
+        grade: filter?.grade || "all",
+        pointId: filter?.pointId || "all"
+      };
+    }
+    function questionBankAuditFilterFromUI(source = null) {
+      return {
+        source: source || els.sourceFilterBtns.find((btn) => btn.classList.contains("active"))?.dataset.sourceFilter || "all",
+        subject: els.questionBankSubjectFilter?.value || "all",
+        grade: els.questionBankGradeFilter?.value || "all",
+        pointId: els.questionBankPointFilter?.value || "all"
+      };
+    }
+    function itemMatchesQuestionBankFilters(item, filters) {
+      if (filters.subject !== "all" && item.subject !== filters.subject) return false;
+      if (filters.grade !== "all" && Number(item.grade) !== Number(filters.grade)) return false;
+      if (filters.pointId !== "all" && item.pointId !== filters.pointId) return false;
+      return true;
+    }
     function runQuestionSourceAudit(filter = "all") {
-      const normalizedFilter = ["all", "reference", "original", "self-drawn", "scan", "pdf-image"].includes(filter) ? filter : "all";
+      const filters = normalizeQuestionSourceAuditFilter(filter);
+      const normalizedFilter = ["all", "reference", "original", "self-drawn", "scan", "pdf-image"].includes(filters.source) ? filters.source : "all";
+      filters.source = normalizedFilter;
       const items = questionSourceAuditItems();
-      const filtered = items.filter((item) => matchesSourceFilter(item, normalizedFilter));
+      const scopedItems = items.filter((item) => itemMatchesQuestionBankFilters(item, filters));
+      const filtered = scopedItems.filter((item) => matchesSourceFilter(item, normalizedFilter));
       const countBy = (predicate) => items.filter(predicate).length;
+      const scopedCountBy = (predicate) => scopedItems.filter(predicate).length;
       return {
         filter: normalizedFilter,
+        filters,
         total: filtered.length,
         counts: {
           all: items.length,
@@ -3623,11 +3701,17 @@
           original: countBy((item) => item.sourceMeta?.kind === "codexOriginal"),
           selfDrawn: countBy((item) => item.sourceMeta?.visualPolicy === "self-drawn-diagram" || item.hasDiagram),
           scan: countBy((item) => item.sourceMeta?.scanStatus === "scan-image" || item.sourceMeta?.quality === "scan-page-rewrite"),
-          pdfImage: countBy((item) => item.hasSourceImage || item.sourceMeta?.visualPolicy === "pdf-crop-image")
+          pdfImage: countBy((item) => item.hasSourceImage || item.sourceMeta?.visualPolicy === "pdf-crop-image"),
+          scopedAll: scopedItems.length,
+          scopedReference: scopedCountBy((item) => item.sourceMeta?.kind === "referenceDerived"),
+          scopedOriginal: scopedCountBy((item) => item.sourceMeta?.kind === "codexOriginal")
         },
         items: filtered.slice(0, 36).map((item) => ({
           id: item.id,
           pointId: item.pointId,
+          pointLabel: item.pointLabel,
+          grade: item.grade,
+          subject: item.subject,
           bucketLabel: item.bucketLabel,
           answerType: item.answerType,
           templateType: item.templateType,
@@ -3640,9 +3724,28 @@
         }))
       };
     }
+    function syncQuestionBankPointFilter() {
+      if (!els.questionBankPointFilter) return;
+      const current = els.questionBankPointFilter.value || "all";
+      const filters = questionBankAuditFilterFromUI();
+      const pointsForSelect = questionSourceAuditItems()
+        .filter((item) => itemMatchesQuestionBankFilters(item, { ...filters, pointId: "all" }))
+        .reduce((map, item) => {
+          if (!map.has(item.pointId)) map.set(item.pointId, item);
+          return map;
+        }, new Map());
+      const options = [`<option value="all">全部知识点</option>`].concat(
+        Array.from(pointsForSelect.values())
+          .sort((a, b) => Number(a.grade) - Number(b.grade) || String(a.pointId).localeCompare(String(b.pointId)))
+          .map((item) => `<option value="${escapeHTML(item.pointId)}">${escapeHTML(item.pointLabel)}（${escapeHTML(item.pointId)}）</option>`)
+      );
+      els.questionBankPointFilter.innerHTML = options.join("");
+      els.questionBankPointFilter.value = pointsForSelect.has(current) ? current : "all";
+    }
     function renderQuestionSourceAudit(filter = "all") {
       if (!els.sourceAuditResult || !els.sourceAuditSummary) return;
-      const result = runQuestionSourceAudit(filter);
+      const filters = normalizeQuestionSourceAuditFilter(typeof filter === "string" ? questionBankAuditFilterFromUI(filter) : filter);
+      const result = runQuestionSourceAudit(filters);
       els.sourceFilterBtns.forEach((btn) => {
         const active = btn.dataset.sourceFilter === result.filter;
         btn.classList.toggle("active", active);
@@ -3654,11 +3757,14 @@
         `原创扩展 ${result.counts.original}`,
         `自绘图形 ${result.counts.selfDrawn}`,
         `扫描页改写 ${result.counts.scan}`,
-        `PDF截图 ${result.counts.pdfImage}`
+        `PDF截图 ${result.counts.pdfImage}`,
+        `当前筛选 ${result.counts.scopedAll}`
       ].map((text) => `<span>${escapeHTML(text)}</span>`).join("");
       const rows = result.items.map((item) => {
         const source = [item.sourceFile, item.sourcePage ? `第 ${item.sourcePage} 页` : ""].filter(Boolean).join(" · ") || item.bucketLabel;
         const badges = [
+          SUBJECTS[item.subject]?.label || item.subject,
+          item.grade ? `${item.grade}年级` : "",
           item.quality,
           item.scanStatus,
           item.visualPolicy,
@@ -3666,7 +3772,7 @@
         ].filter(Boolean).map((value) => `<em>${escapeHTML(value)}</em>`).join("");
         return `<li>
           <strong>${escapeHTML(item.pointId)} / ${escapeHTML(item.id)}</strong>
-          <span>${escapeHTML(source)}</span>
+          <span>${escapeHTML(item.pointLabel || item.pointId)} · ${escapeHTML(source)}</span>
           <small>${escapeHTML(item.templateType || item.answerType)}</small>
           <span class="source-audit-badges">${badges}</span>
         </li>`;
@@ -7087,7 +7193,7 @@
       const profile = activeProfile();
       state.mode = "normal";
       state.challengeMeta = null;
-      state.setSize = clamp(Number(els.setSizeInput.value) || 10, 3, 40);
+      state.setSize = clamp(Number(els.setSizeInput.value) || 10, 3, MAX_SET_SIZE);
       state.adaptive = els.adaptiveToggle.checked;
       syncAnswerModeAvailability();
       state.answerMode = normalizeAnswerModeForViewport(els.answerModeSelect.value || "auto");
@@ -7140,7 +7246,7 @@
       const profile = activeProfile();
       state.mode = "daily-smart";
       state.challengeMeta = null;
-      state.setSize = clamp(Number(els.setSizeInput.value) || 10, 3, 40);
+      state.setSize = clamp(Number(els.setSizeInput.value) || 10, 3, MAX_SET_SIZE);
       state.adaptive = true;
       syncAnswerModeAvailability();
       state.answerMode = normalizeAnswerModeForViewport(els.answerModeSelect.value || "auto");
@@ -7364,7 +7470,7 @@
         return;
       }
       const level = progress.level || 1;
-      state.setSize = clamp(Number(els.setSizeInput.value) || Number(profile.settings?.setSize) || state.setSize || 10, 3, 40);
+      state.setSize = clamp(Number(els.setSizeInput.value) || Number(profile.settings?.setSize) || state.setSize || 10, 3, MAX_SET_SIZE);
       els.setSizeInput.value = String(state.setSize);
       profile.settings = {
         ...(profile.settings || {}),
@@ -7383,7 +7489,7 @@
       state.currentSet = Array.from({ length: count }, (_, index) => {
         const point = challengePool[index % challengePool.length] || chooseAutoPoint(pointsForGrade, false);
         const mode = challengeInteractionMode(index, level);
-        const question = makeStrictQuestionForPoint(point, normalizeAnswerModeForViewport(mode), { difficultyLevel, challengeLevel: level, challengeIndex: index });
+        const question = makeStrictQuestionForPoint(point, normalizeAnswerModeForViewport(mode), { difficultyLevel, challengeLevel: level, challengeIndex: index, externalChance: externalQuestionChanceForPoint(point) });
         return {
           ...question,
           subject: activeSubjectId(),
@@ -8030,6 +8136,21 @@
       if (rate >= 40) return "\u{2764}\u{FE0F} 别灰心，每次练习都在进步！加油！";
       return "\u{1F431} 慢慢来，认真看题，你可以的！我们一起加油！";
     }
+    function roundQuestionSourceSummary(records = state.records) {
+      if (QuestionSourceSummary.summarizeQuestionSources) {
+        return QuestionSourceSummary.summarizeQuestionSources(records);
+      }
+      return { total: Array.isArray(records) ? records.length : 0, items: [{ id: "template", label: "本地模板/动态题", count: Array.isArray(records) ? records.length : 0 }], counts: {} };
+    }
+    function roundQuestionSourceSummaryHTML(records = state.records, compact = false) {
+      const summary = roundQuestionSourceSummary(records);
+      const items = summary.items.filter((item) => item.count > 0);
+      if (!items.length) return "";
+      const content = items.map((item) => `<span>${escapeHTML(item.label)} ${item.count}</span>`).join("");
+      return compact
+        ? `<span class="source-audit-summary round-source-summary">${content}</span>`
+        : `<div class="source-audit-summary round-source-summary" aria-label="本轮来源统计"><strong>本轮来源统计</strong>${content}</div>`;
+    }
     function mobileResultPopoverHTML({ total, correct, rate, wrongCount, reward, challenge }) {
       const title = challenge
         ? (challenge.passed ? `第 ${challenge.level} 关通过` : `第 ${challenge.level} 关还差一点`)
@@ -8049,6 +8170,7 @@
           <b><em>${rate}%</em><small>正确率</small></b>
           <b><em>+${reward.coins}</em><small>奖励</small></b>
         </span>
+        ${roundQuestionSourceSummaryHTML(state.records, true)}
         <span class="mobile-result-next">${escapeHTML(next)}</span>
         ${challenge ? `
         <div class="result-buttons">
@@ -8079,6 +8201,7 @@
           <div class="crs-stat"><b>+${state.roundCoins}</b><span>本轮金币</span></div>
           <div class="crs-stat"><b>${reward.foundBack ? "已找回" : `+${reward.bond}`}</b><span>${reward.foundBack ? "宠物状态" : "亲密值"}</span></div>
         </div>
+        ${roundQuestionSourceSummaryHTML(state.records)}
         ${wrongCount ? (isPractice ? `<p class="crs-hint">有 ${wrongCount} 道错题，建议先回顾错题再开下一轮。</p>` : `<p class="crs-hint">有 ${wrongCount} 道错题，建议先回顾错题再继续闯关。</p>`) : ""}`;
       const actionsHTML = isPractice
         ? `
@@ -8219,6 +8342,7 @@
           <div class="summary-mini"><strong>+${state.roundCoins}</strong><span>本轮金币</span></div>
           <div class="summary-mini"><strong>${reward.foundBack ? "已找回" : `+${reward.bond}`}</strong><span>${reward.foundBack ? "宠物状态" : "亲密值"}</span></div>
         </div>
+        ${roundQuestionSourceSummaryHTML(state.records)}
         ${roundAdviceHTML(wrong, rate, challenge)}
         ${roundActionCardsHTML(wrong, rate)}
         <div class="row-actions">
@@ -9783,6 +9907,13 @@
     els.sourceFilterBtns.forEach((btn) => {
       btn.addEventListener("click", () => renderQuestionSourceAudit(btn.dataset.sourceFilter || "all"));
     });
+    [els.questionBankSubjectFilter, els.questionBankGradeFilter].forEach((select) => {
+      select?.addEventListener("change", () => {
+        syncQuestionBankPointFilter();
+        renderQuestionSourceAudit(questionBankAuditFilterFromUI());
+      });
+    });
+    els.questionBankPointFilter?.addEventListener("change", () => renderQuestionSourceAudit(questionBankAuditFilterFromUI()));
     els.clearAllBtn.addEventListener("click", async () => {
       const confirmed = await UI.confirm("确定清空所有学生档案、错题和学习记录吗？", {
         title: "清空全部数据",
@@ -9811,6 +9942,7 @@
     var supabaseAnonKeyEl = document.getElementById("supabaseAnonKey");
     var syncCodeInputEl = document.getElementById("syncCodeInput");
     var saveSupabaseConfigBtnEl = document.getElementById("saveSupabaseConfigBtn");
+    var testSupabaseConfigBtnEl = document.getElementById("testSupabaseConfigBtn");
     var syncNowBtnEl = document.getElementById("syncNowBtn");
     if (supabaseUrlEl && window.MathCampCloudSync) {
       window.MathCampCloudSync.onSyncStatus(updateCloudSyncStatus);
@@ -9824,20 +9956,26 @@
         syncCodeInputEl.value = savedSyncCode;
       }
     }
-    saveSupabaseConfigBtnEl?.addEventListener("click", async () => {
+    function readSupabaseConfigFromInputs() {
       var url = supabaseUrlEl?.value?.trim();
       var anonKey = supabaseAnonKeyEl?.value?.trim();
-      var syncCode = syncCodeInputEl?.value?.trim() || "";
       if (!url || !anonKey) {
-        UI.notify("请填写 Supabase URL 和 Anon Key。", { tone: "bad" });
-        return;
+        return { error: "请填写 Supabase URL 和 Anon Key。" };
       }
       if (!url.startsWith("http")) url = "https://" + url;
       if (!url.endsWith(".supabase.co")) {
-        UI.notify("URL 格式应为 https://xxxxx.supabase.co", { tone: "bad" });
+        return { error: "URL 格式应为 https://xxxxx.supabase.co" };
+      }
+      return { config: { url: url, anonKey: anonKey } };
+    }
+    saveSupabaseConfigBtnEl?.addEventListener("click", async () => {
+      var syncCode = syncCodeInputEl?.value?.trim() || "";
+      var cfgResult = readSupabaseConfigFromInputs();
+      if (cfgResult.error) {
+        UI.notify(cfgResult.error, { tone: "bad" });
         return;
       }
-      var config = { url: url, anonKey: anonKey };
+      var config = cfgResult.config;
       window.MathCampCloudSync.saveConfig(config);
       window.MathCampCloudSync.setSyncCode(syncCode);
       saveSystemSettingsSnapshot();
@@ -9860,6 +9998,26 @@
       } else {
         UI.notify("初始化失败，请检查配置并确认已执行建表 SQL。", { tone: "bad" });
       }
+    });
+    testSupabaseConfigBtnEl?.addEventListener("click", async () => {
+      if (!window.MathCampCloudSync?.testConnection) {
+        UI.notify("当前版本不支持连接测试。", { tone: "bad" });
+        return;
+      }
+      var cfgResult = readSupabaseConfigFromInputs();
+      if (cfgResult.error) {
+        UI.notify(cfgResult.error, { tone: "bad" });
+        return;
+      }
+      updateCloudSyncStatus("loading-sdk");
+      var result = await window.MathCampCloudSync.testConnection(cfgResult.config);
+      updateCloudSyncStatus(result.ok ? "ready" : "error");
+      var detailEl = document.getElementById("cloudSyncDetail");
+      if (detailEl) {
+        detailEl.hidden = false;
+        detailEl.textContent = `连接测试：${result.message}`;
+      }
+      UI.notify(result.message, { tone: result.ok ? "good" : "bad", duration: 4200 });
     });
     syncNowBtnEl?.addEventListener("click", async () => {
       if (!window.MathCampCloudSync?.isSyncEnabled()) {
@@ -9904,6 +10062,7 @@
     initFloatingPetAssistant();
     if (!isAndroidWebView()) generatePrintSheet();
     initCloudSync();
+    syncQuestionBankPointFilter();
     renderQuestionSourceAudit("all");
     if (state.musicOn) {
       startBackgroundMusic();
@@ -10006,6 +10165,9 @@
         activeLearning,
         makeQuestion,
         makeStrictQuestionForPoint,
+        externalQuestionChanceForPoint,
+        externalQuestionCountForPoint,
+        localQuestionTemplateCountForPoint,
         buildQuestionSetForPoint,
         buildAdaptiveQuestionSet,
         buildSmartDailyQuestionSet,
@@ -10026,6 +10188,7 @@
         runQuestionQualityAudit,
         runQuestionSourceAudit,
         renderQuestionSourceAudit,
+        roundQuestionSourceSummary,
         renderQuestionDiagram,
         normalizeQuestionSourceImage,
         parseNumericAnswer,

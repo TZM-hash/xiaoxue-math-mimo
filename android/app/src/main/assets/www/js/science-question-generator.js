@@ -1326,5 +1326,12 @@
     return preferred.build(options || {});
   }
 
-  window.MathCampScienceQuestionGenerator = { makeQuestion };
+  function questionTemplateCountForPoint(point) {
+    const safePoint = point || {};
+    const pointSpecs = POINT_SPECS[safePoint.id];
+    if (Array.isArray(pointSpecs) && pointSpecs.length) return pointSpecs.length;
+    return 4;
+  }
+
+  window.MathCampScienceQuestionGenerator = { makeQuestion, questionTemplateCountForPoint };
 })();

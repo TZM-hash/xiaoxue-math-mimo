@@ -168,6 +168,30 @@
     }
   }
 
+  async function testConnection(config) {
+    if (!config || !config.url || !config.anonKey) {
+      return { ok: false, status: "missing-config", message: "请先填写 Supabase URL 和 Anon Key。" };
+    }
+
+    try {
+      if (!await ensureSupabaseSdk()) {
+        return { ok: false, status: "sdk-unavailable", message: "Supabase SDK 加载失败，请检查网络。" };
+      }
+
+      var testClient = window.supabase.createClient(config.url, config.anonKey);
+      var { error } = await testClient.from("user_data").select("owner_id").limit(1);
+      if (error && error.code === "42P01") {
+        return { ok: false, status: "missing-table", message: "连接成功，但 user_data 表不存在，请先执行建表 SQL。" };
+      }
+      if (error) {
+        return { ok: false, status: "error", message: error.message || "连接失败，请检查 URL、Anon Key 或权限策略。" };
+      }
+      return { ok: true, status: "ready", message: "连接正常，建表 SQL 已可用。" };
+    } catch (err) {
+      return { ok: false, status: "error", message: (err && err.message) || "连接失败，请检查网络和配置。" };
+    }
+  }
+
   async function pushProfiles(profiles, activeId) {
     if (!syncEnabled || !client) return false;
 
@@ -589,6 +613,7 @@
 
   window.MathCampCloudSync = {
     initSupabase: initSupabase,
+    testConnection: testConnection,
     ensureSupabaseSdk: ensureSupabaseSdk,
     getConfig: getConfig,
     saveConfig: saveConfig,

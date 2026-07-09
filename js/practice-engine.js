@@ -1,12 +1,17 @@
 (function () {
+  var MAX_SET_SIZE = 100;
+
   function buildAdaptiveQuestionSet(deps, count, preferred) {
     var profile = deps.activeProfile();
-    var total = deps.clamp(Number(count) || deps.state.setSize || 10, 1, 80);
+    var total = deps.clamp(Number(count) || deps.state.setSize || 10, 1, MAX_SET_SIZE);
     var grade = Number(profile.grade || deps.state.grade);
     var selected = [];
     var usedSignatures = new Set();
     var avoidRepeatKeys = deps.avoidRepeatKeys instanceof Set ? deps.avoidRepeatKeys : new Set();
     var recentPointIds = deps.recentPointIds instanceof Set ? deps.recentPointIds : new Set();
+    var externalChanceForPoint = typeof deps.externalQuestionChanceForPoint === "function"
+      ? deps.externalQuestionChanceForPoint
+      : function () { return typeof deps.externalQuestionChance === "number" ? deps.externalQuestionChance : undefined; };
     var previousSignature = "";
     var pick = typeof deps.createRoundQuestionPicker === "function" ? deps.createRoundQuestionPicker(preferred) : null;
     var due = deps.dueWrongbook(profile, grade);
@@ -22,7 +27,7 @@
     }
     function makeForPoint(point) {
       if (typeof deps.makeDistinctQuestionForPoint === "function") {
-        return deps.makeDistinctQuestionForPoint(point, preferred, { usedSignatures: usedSignatures, previousSignature: previousSignature, pick: pick, avoidRepeatKeys: avoidRepeatKeys });
+        return deps.makeDistinctQuestionForPoint(point, preferred, { usedSignatures: usedSignatures, previousSignature: previousSignature, pick: pick, avoidRepeatKeys: avoidRepeatKeys, externalChance: externalChanceForPoint(point) });
       }
       return deps.makeStrictQuestionForPoint(point, preferred);
     }

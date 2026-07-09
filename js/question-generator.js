@@ -1,9 +1,13 @@
 (function () {
+  var EXTERNAL_QUESTION_CHANCE = 0.4;
+
   function externalQuestion(deps, point, options) {
     if (!window.MathCampExternalQuestionSeeds) return null;
-    if (options && options.strict && !options.preferExternal) return null;
+    if (options && options.disableExternal) return null;
     var shouldUse = Boolean(options && options.preferExternal);
-    if (!shouldUse && !(options && options.strict)) shouldUse = Math.random() < 0.16;
+    var chance = typeof (options && options.externalChance) === "number" ? options.externalChance : EXTERNAL_QUESTION_CHANCE;
+    if (!shouldUse && options && options.strict && typeof options.externalChance !== "number") return null;
+    if (!shouldUse) shouldUse = Math.random() < chance;
     if (!shouldUse) return null;
     return window.MathCampExternalQuestionSeeds.makeQuestion(deps || {}, point, options || {});
   }

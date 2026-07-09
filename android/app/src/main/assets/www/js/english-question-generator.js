@@ -2338,6 +2338,10 @@
     return result;
   }
 
+  function questionTemplateCountForPoint(point) {
+    return specsForPoint(point || {}).length;
+  }
+
   function makeQuestion(deps, point) {
     const allSpecs = specsForPoint(point);
     let spec;
@@ -2352,5 +2356,5 @@
     return baseQuestion(deps || {}, point, data);
   }
 
-  window.MathCampEnglishQuestionGenerator = { makeQuestion };
+  window.MathCampEnglishQuestionGenerator = { makeQuestion, questionTemplateCountForPoint };
 })();
