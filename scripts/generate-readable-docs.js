@@ -92,6 +92,14 @@ function makeContext() {
     "js/grade4-reference-scan-index.js",
     "js/grade4-reference-question-seeds.js",
     "js/grade4-original-question-seeds.js",
+    "js/grade5-reference-source-meta.js",
+    "js/grade5-reference-scan-index.js",
+    "js/grade5-reference-question-seeds.js",
+    "js/grade5-original-question-seeds.js",
+    "js/grade6-reference-source-meta.js",
+    "js/grade6-reference-scan-index.js",
+    "js/grade6-reference-question-seeds.js",
+    "js/grade6-original-question-seeds.js",
     "js/external-question-seeds.js",
     "js/chinese-question-generator.js",
     "js/english-question-generator.js",
@@ -123,7 +131,9 @@ function sourceFiles(context) {
   return [
     { grade: 2, module: context.MathCampGrade2ReferenceSourceMeta },
     { grade: 3, module: context.MathCampGrade3ReferenceSourceMeta },
-    { grade: 4, module: context.MathCampGrade4ReferenceSourceMeta }
+    { grade: 4, module: context.MathCampGrade4ReferenceSourceMeta },
+    { grade: 5, module: context.MathCampGrade5ReferenceSourceMeta },
+    { grade: 6, module: context.MathCampGrade6ReferenceSourceMeta }
   ].flatMap(({ grade, module }) => (module?.files || []).map((file) => ({ ...file, grade })));
 }
 
@@ -134,7 +144,11 @@ function collectModuleSeeds(context) {
     { grade: 3, category: "reference", module: context.MathCampGrade3ReferenceQuestionSeeds },
     { grade: 3, category: "original", module: context.MathCampGrade3OriginalQuestionSeeds },
     { grade: 4, category: "reference", module: context.MathCampGrade4ReferenceQuestionSeeds },
-    { grade: 4, category: "original", module: context.MathCampGrade4OriginalQuestionSeeds }
+    { grade: 4, category: "original", module: context.MathCampGrade4OriginalQuestionSeeds },
+    { grade: 5, category: "reference", module: context.MathCampGrade5ReferenceQuestionSeeds },
+    { grade: 5, category: "original", module: context.MathCampGrade5OriginalQuestionSeeds },
+    { grade: 6, category: "reference", module: context.MathCampGrade6ReferenceQuestionSeeds },
+    { grade: 6, category: "original", module: context.MathCampGrade6OriginalQuestionSeeds }
   ];
   const entries = [];
   const seenSeedIds = new Set();

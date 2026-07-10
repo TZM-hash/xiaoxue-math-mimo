@@ -29,6 +29,14 @@ vm.createContext(context);
   "js/grade4-reference-scan-index.js",
   "js/grade4-reference-question-seeds.js",
   "js/grade4-original-question-seeds.js",
+  "js/grade5-reference-source-meta.js",
+  "js/grade5-reference-scan-index.js",
+  "js/grade5-reference-question-seeds.js",
+  "js/grade5-original-question-seeds.js",
+  "js/grade6-reference-source-meta.js",
+  "js/grade6-reference-scan-index.js",
+  "js/grade6-reference-question-seeds.js",
+  "js/grade6-original-question-seeds.js",
   "js/external-question-seeds.js",
   "js/chinese-question-generator.js",
   "js/english-question-generator.js",
@@ -53,6 +61,14 @@ const grade4ReferenceMeta = context.window.MathCampGrade4ReferenceSourceMeta;
 const grade4ScanIndex = context.window.MathCampGrade4ReferenceScanIndex;
 const grade4ReferenceSeeds = context.window.MathCampGrade4ReferenceQuestionSeeds;
 const grade4OriginalSeeds = context.window.MathCampGrade4OriginalQuestionSeeds;
+const grade5ReferenceMeta = context.window.MathCampGrade5ReferenceSourceMeta;
+const grade5ScanIndex = context.window.MathCampGrade5ReferenceScanIndex;
+const grade5ReferenceSeeds = context.window.MathCampGrade5ReferenceQuestionSeeds;
+const grade5OriginalSeeds = context.window.MathCampGrade5OriginalQuestionSeeds;
+const grade6ReferenceMeta = context.window.MathCampGrade6ReferenceSourceMeta;
+const grade6ScanIndex = context.window.MathCampGrade6ReferenceScanIndex;
+const grade6ReferenceSeeds = context.window.MathCampGrade6ReferenceQuestionSeeds;
+const grade6OriginalSeeds = context.window.MathCampGrade6OriginalQuestionSeeds;
 assert(referenceMeta, "二年级资料来源清单应独立暴露为 MathCampGrade2ReferenceSourceMeta");
 assert(scanIndex, "二年级资料逐页扫描索引应独立暴露为 MathCampGrade2ReferenceScanIndex");
 assert(referenceSeeds, "二年级资料派生题源应独立暴露为 MathCampGrade2ReferenceQuestionSeeds");
@@ -377,6 +393,59 @@ assert(new Set(grade4EnglishSeedPoints).size >= 5, "四年级英语扩展题源�
 });
 ["e4-vocabulary-home-school", "e4-phonics-silent-e", "e4-pattern-location-time", "e4-grammar-plural-pronoun", "e4-reading-notice"].forEach((pointId) => {
   assert(grade4EnglishSeedPoints.includes(pointId), `四年级英语资料扩充应覆盖 ${pointId}`);
+});
+
+// ---- 五、六年级资料扩充 ----
+assert(grade5ReferenceMeta && grade5ScanIndex && grade5ReferenceSeeds && grade5OriginalSeeds, "五年级四个资料模块应独立暴露");
+assert(grade6ReferenceMeta && grade6ScanIndex && grade6ReferenceSeeds && grade6OriginalSeeds, "六年级四个资料模块应独立暴露");
+assert(Array.isArray(grade5ReferenceMeta.files) && grade5ReferenceMeta.files.length >= 7, "五年级资料来源清单应记录 Reference/grade5 下的资料文件");
+assert(grade5ReferenceMeta.files.every((item) => item.grade === 5 && item.path.includes("Reference/grade5")), "五年级资料来源清单应限定为五年级资料");
+assert(Array.isArray(grade6ReferenceMeta.files) && grade6ReferenceMeta.files.length >= 8, "六年级资料来源清单应记录 Reference/grade6 下的资料文件");
+assert(grade6ReferenceMeta.files.every((item) => item.grade === 6 && item.path.includes("Reference/grade6")), "六年级资料来源清单应限定为六年级资料");
+
+const grade5ReferenceSeedItems = flattenBank(grade5ReferenceSeeds.BANK);
+const grade6ReferenceSeedItems = flattenBank(grade6ReferenceSeeds.BANK);
+const grade5OriginalSeedItems = flattenBank(grade5OriginalSeeds.BANK);
+const grade6OriginalSeedItems = flattenBank(grade6OriginalSeeds.BANK);
+assert(grade5ReferenceSeedItems.length >= 800, "五年级资料派生题应达到与低年级相当的规模");
+assert(grade6ReferenceSeedItems.length >= 800, "六年级资料派生题应达到与低年级相当的规模");
+assert(grade5ReferenceSeedItems.every((item) => item.sourceMeta?.kind === "referenceDerived" && (item.sourceMeta?.sourcePath || "").includes("Reference/grade5")), "五年级资料派生题应指向 Reference/grade5");
+assert(grade6ReferenceSeedItems.every((item) => item.sourceMeta?.kind === "referenceDerived" && (item.sourceMeta?.sourcePath || "").includes("Reference/grade6")), "六年级资料派生题应指向 Reference/grade6");
+assert(grade5OriginalSeedItems.every((item) => item.sourceMeta?.maintainerNote), "五年级原创扩展题应保留原创维护注释");
+assert(grade6OriginalSeedItems.every((item) => item.sourceMeta?.maintainerNote), "六年级原创扩展题应保留原创维护注释");
+assert(grade5ReferenceSeedItems.some((item) => /^ref-g5-olympiad-/.test(item.id)), "五年级资料派生题应包含奥数改写题");
+assert(grade6ReferenceSeedItems.some((item) => /^ref-g6-olympiad-/.test(item.id)), "六年级资料派生题应包含奥数改写题");
+
+const grade5MathSeedPoints = banks.math.points
+  .filter((point) => point.grade === 5 && seeds.forPoint(point).some((seed) => /^ref-g5-|^orig-g5-/.test(seed.id)))
+  .map((point) => point.id);
+const grade5ChineseSeedPoints = banks.chinese.points
+  .filter((point) => point.grade === 5 && seeds.forPoint(point).some((seed) => /^ref-g5-|^orig-g5-/.test(seed.id)))
+  .map((point) => point.id);
+const grade5EnglishSeedPoints = banks.english.points
+  .filter((point) => point.grade === 5 && seeds.forPoint(point).some((seed) => /^ref-g5-|^orig-g5-/.test(seed.id)))
+  .map((point) => point.id);
+assert(new Set(grade5MathSeedPoints).size >= 15, "五年级数学扩展题源应覆盖全部现有五年级数学知识点");
+assert(new Set(grade5ChineseSeedPoints).size >= 8, "五年级语文扩展题源应覆盖全部现有五年级语文知识点");
+assert(new Set(grade5EnglishSeedPoints).size >= 5, "五年级英语扩展题源应覆盖词汇、拼读、句型、语法和阅读");
+["g5-decimal", "g5-equation", "g5-geometry-motion", "g5-volume", "g5-percent", "g5-word", "g5-appendix"].forEach((pointId) => {
+  assert(grade5MathSeedPoints.includes(pointId), `五年级数学资料扩充应覆盖 ${pointId}`);
+});
+
+const grade6MathSeedPoints = banks.math.points
+  .filter((point) => point.grade === 6 && seeds.forPoint(point).some((seed) => /^ref-g6-|^orig-g6-/.test(seed.id)))
+  .map((point) => point.id);
+const grade6ChineseSeedPoints = banks.chinese.points
+  .filter((point) => point.grade === 6 && seeds.forPoint(point).some((seed) => /^ref-g6-|^orig-g6-/.test(seed.id)))
+  .map((point) => point.id);
+const grade6EnglishSeedPoints = banks.english.points
+  .filter((point) => point.grade === 6 && seeds.forPoint(point).some((seed) => /^ref-g6-|^orig-g6-/.test(seed.id)))
+  .map((point) => point.id);
+assert(new Set(grade6MathSeedPoints).size >= 13, "六年级数学扩展题源应覆盖全部现有六年级数学知识点");
+assert(new Set(grade6ChineseSeedPoints).size >= 8, "六年级语文扩展题源应覆盖全部现有六年级语文知识点");
+assert(new Set(grade6EnglishSeedPoints).size >= 5, "六年级英语扩展题源应覆盖词汇、拼读、句型、语法和阅读");
+["g6-circle", "g6-ratio", "g6-percent", "g6-fraction-percent", "g6-complex-word", "g6-scale", "g6-appendix"].forEach((pointId) => {
+  assert(grade6MathSeedPoints.includes(pointId), `六年级数学资料扩充应覆盖 ${pointId}`);
 });
 
 const grade2MathSeedPoints = banks.math.points

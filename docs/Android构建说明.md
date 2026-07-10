@@ -1,6 +1,6 @@
 # Android 构建说明
 
-生成日期：2026/07/08
+生成日期：2026/07/10
 
 Web 根目录是主源，Android WebView 目录只是镜像：`android/app/src/main/assets/www/`。改动 `index.html`、`css/`、`js/`、`assets/` 后，先同步再构建。
 
