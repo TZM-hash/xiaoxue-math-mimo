@@ -200,6 +200,7 @@ vm.createContext(context);
   "js/question-bank-excel.js",
   "js/bank-images.js",
   "js/custom-bank.js",
+  "js/app-utils.js",
   "js/app.js"
 ].forEach((file) => {
   const source = fs.readFileSync(path.join(root, file), "utf8");
