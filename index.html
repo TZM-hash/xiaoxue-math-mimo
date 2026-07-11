@@ -320,13 +320,20 @@
                 <span class="tag" id="gradeTag">一年级</span>
                 <span class="tag topic" id="pointTag">20 以内加减</span>
                 <span class="tag" id="modeTag">普通练习</span>
-                <button class="secondary read-aloud-btn" type="button" id="readAloudBtn" aria-label="朗读题目">🔊 读题</button>
               </div>
               <h2 class="question" id="questionText">8 + 5 = ?</h2>
               <div class="question-diagram" id="questionDiagram" hidden aria-label="题目图形"></div>
               <div class="answer-row">
                 <input class="answer-input" id="answerInput" inputmode="decimal" autocomplete="off" placeholder="在这里输入答案" aria-label="输入答案" />
                 <button class="primary" type="button" id="checkBtn">🔍 检查答案</button>
+              </div>
+              <div class="confidence-control" id="confidenceControl" aria-label="本题答题信心，可不选择">
+                <span>答题信心（可选）</span>
+                <div class="confidence-options">
+                  <button type="button" data-confidence="sure" aria-pressed="false">确定</button>
+                  <button type="button" data-confidence="unsure" aria-pressed="false">不确定</button>
+                  <button type="button" data-confidence="guess" aria-pressed="false">猜的</button>
+                </div>
               </div>
               <div class="answer-mode-panel" id="answerModePanel" hidden></div>
               <div class="answer-control-slot" id="answerControlSlot">
@@ -718,7 +725,7 @@
               <p class="muted">保留能指导下一轮练习的重点信息，删掉奖励、徽章和流水记录。</p>
             </div>
             <div class="row-actions">
-              <button class="primary" type="button" id="startWeakReportBtn">按薄弱点出题</button>
+              <button class="primary" type="button" id="startWeakReportBtn">生成周复习</button>
               <button class="secondary" type="button" id="clearTodayBtn">清空今日记录</button>
             </div>
           </div>
@@ -1035,6 +1042,8 @@
                   <option value="classic">🌿 经典</option>
                   <option value="eye-care">🍃 护眼</option>
                   <option value="anime">🌸 二次元</option>
+                  <option value="glass-clear">🫧 清透玻璃</option>
+                  <option value="glass-pop">🎨 缤纷玻璃</option>
                   <option value="purple">💜 紫色</option>
                   <option value="rainbow">🌈 彩虹</option>
                   <option value="star">🌙 星空</option>
@@ -1383,6 +1392,7 @@ CREATE POLICY "allow_all_user_settings" ON user_settings FOR ALL USING (true) WI
   <script src="js/english-question-generator.js"></script>
   <script src="js/science-question-generator.js"></script>
   <script src="js/question-generator.js"></script>
+  <script src="js/learning-quality-engine.js"></script>
   <script src="js/practice-engine.js"></script>
   <script src="js/question-rules-engine.js"></script>
   <script src="js/question-interaction.js"></script>

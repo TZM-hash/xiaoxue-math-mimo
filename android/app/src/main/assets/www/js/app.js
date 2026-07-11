@@ -10,6 +10,7 @@
     };
     const MAX_SET_SIZE = 100;
     const SubjectRegistry = window.MathCampSubjects || {};
+    const LearningQuality = window.MathCampLearningQuality || {};
     const SUBJECTS = Object.freeze(SubjectRegistry.SUBJECT_META || {
       chinese: { label: "语文", short: "语", icon: "文", metaColor: "#c66b3d", themeLabel: "纸页阅读", themeCopy: "阅读、写作、古诗文会使用更温暖的纸页色和文字符号。" },
       math: { label: "数学", short: "数", icon: "数", metaColor: "#3aa47c", themeLabel: "清爽计算", themeCopy: "计算、应用、图形保持清亮绿色和算式符号。" },
@@ -32,6 +33,8 @@
       classic: { label: "经典", icon: "🌿", metaColor: "#3aa47c", desc: "清爽稳定的默认主题。", initial: true },
       "eye-care": { label: "护眼", icon: "🍃", metaColor: "#6c9a57", desc: "柔和绿调，适合长时间练习。", initial: true },
       anime: { label: "二次元", icon: "🌸", metaColor: "#d85ca6", desc: "轻快明亮的卡通配色。", initial: true },
+      "glass-clear": { label: "清透玻璃", icon: "🫧", metaColor: "#43b9ad", desc: "浅青薄荷柔光，清透安静的毛玻璃。", initial: true },
+      "glass-pop": { label: "缤纷玻璃", icon: "🎨", metaColor: "#ef5f78", desc: "鲜艳卡通色彩与多层柔光毛玻璃。", initial: true },
       purple: { label: "紫色", icon: "💜", metaColor: "#8b5cf6", desc: "梦幻紫色学习桌。", unlockLevel: 3, price: 70 },
       rainbow: { label: "彩虹", icon: "🌈", metaColor: "#ff8a4c", desc: "多彩但不刺眼，适合低年级。", unlockLevel: 4, price: 95 },
       forest: { label: "森林", icon: "🌳", metaColor: "#287a55", desc: "像在小森林里安静做题。", unlockLevel: 5, price: 120 },
@@ -297,13 +300,13 @@
       gradeTag: document.getElementById("gradeTag"),
       pointTag: document.getElementById("pointTag"),
       modeTag: document.getElementById("modeTag"),
-      readAloudBtn: document.getElementById("readAloudBtn"),
       questionText: document.getElementById("questionText"),
       questionDiagram: document.getElementById("questionDiagram"),
       answerInput: document.getElementById("answerInput"),
       answerControlSlot: document.getElementById("answerControlSlot"),
       numberPad: document.getElementById("numberPad"),
       answerModePanel: document.getElementById("answerModePanel"),
+      confidenceControl: document.getElementById("confidenceControl"),
       checkBtn: document.getElementById("checkBtn"),
       nextBtn: document.getElementById("nextBtn"),
       skipBtn: document.getElementById("skipBtn"),
@@ -563,56 +566,6 @@
       return true;
     }
     // 把题目整理成适合中文朗读的纯文本（含选择题选项）。
-    function questionReadText(question) {
-      if (!question) return "";
-      let base = "";
-      if (question.answerType === "choice") {
-        // choice 题的 text 形如 "题干\nA. x\nB. y"，直接朗读整段
-        base = String(question.text || question.prompt || "");
-      } else if (question.passage) {
-        base = `${question.passage}。${question.text || ""}`;
-      } else {
-        base = String(question.text || "");
-      }
-      return base
-        .replace(/\s*\n\s*/g, "，")
-        .replace(/_+/g, "几")
-        .replace(/×/g, "乘")
-        .replace(/÷/g, "除以")
-        .replace(/＝|=/g, "等于")
-        .replace(/(\d+(?:\.\d+)?)\s*[％%]/g, "百分之$1")
-        .replace(/[％%]/g, "百分之")
-        .replace(/\s{2,}/g, " ")
-        .trim();
-    }
-    function readQuestionAloud(question = state.currentSet[state.index]) {
-      // 英语听力题优先走原有英文朗读
-      if (hasAudioPrompt(question)) return speakQuestionPrompt(question);
-      const synth = window.speechSynthesis;
-      const Utterance = window.SpeechSynthesisUtterance || globalThis.SpeechSynthesisUtterance;
-      if (!synth || !Utterance) {
-        UI.notify("当前设备不支持语音朗读。", { tone: "bad" });
-        return false;
-      }
-      const text = questionReadText(question);
-      if (!text) {
-        UI.notify("这道题没有可朗读的文字（可能是纯图片题）。", { tone: "warn" });
-        return false;
-      }
-      const utterance = new Utterance(text);
-      const isEnglish = question && (question.subject === "english" || /^e\d-/.test(String(question.pointId || "")));
-      utterance.lang = isEnglish ? "en-US" : "zh-CN";
-      utterance.rate = 0.85;
-      utterance.pitch = 1;
-      const voices = typeof synth.getVoices === "function" ? synth.getVoices() : [];
-      const voice = isEnglish
-        ? voices.find((v) => /^en[-_]/i.test(v.lang || ""))
-        : voices.find((v) => /^zh[-_]/i.test(v.lang || "")) || voices.find((v) => /Chinese|中文|普通话/i.test(v.name || ""));
-      if (voice) utterance.voice = voice;
-      if (typeof synth.cancel === "function") synth.cancel();
-      synth.speak(utterance);
-      return true;
-    }
     function answerMatches(question, parsed) {      if (isSelfReviewQuestion(question)) return false;
       if (question?.answerType === "choice") return textAnswerMatches(parsed.raw, question) || answerLabelMatches(parsed.raw, question);
       if (question?.answerType === "formula") return formulaAnswerMatches(parsed.raw, question);
@@ -1438,7 +1391,8 @@
       normalized.history = Array.isArray(normalized.history)
         ? normalized.history.map(normalizeHistoryItem).filter(Boolean).slice(0, 2500)
         : [];
-      normalized.mastery = normalized.mastery && typeof normalized.mastery === "object" ? normalized.mastery : {};
+      normalized.mastery = Object.fromEntries(Object.entries(normalized.mastery && typeof normalized.mastery === "object" ? normalized.mastery : {})
+        .map(([pointId, mastery]) => [pointId, LearningQuality.normalizeMasteryState?.(mastery) || mastery]));
       normalized.settings = {
         pointId: "auto",
         setSize: 10,
@@ -1551,6 +1505,10 @@
         wrongCount: clamp(Number(item.wrongCount) || 1, 1, 999),
         correctStreak: clamp(Number(item.correctStreak) || 0, 0, 3),
         reviewStage,
+        chainStage: ["scaffold", "sameModel", "transfer", "delayed"].includes(item.chainStage) ? item.chainStage : "scaffold",
+        recentDiagnostic: LearningQuality.normalizeDiagnostic?.(item.recentDiagnostic) || "uncertain",
+        confidence: LearningQuality.normalizeConfidence?.(item.confidence) || "",
+        hintLevel: clamp(Number(item.hintLevel) || 0, 0, 3),
         dueDate,
         lastReviewedAt: Number(item.lastReviewedAt) || 0,
         lastResult: item.lastResult === "correct" ? "correct" : "wrong",
@@ -1582,8 +1540,15 @@
         grade,
         correct: Boolean(item.correct),
         cause: normalizeCause(item.cause),
-        mode: ["practice", "daily-smart", "wrongbook", "due-review", "similar", "weak", "timed", "appendix", "hard-word", "logic-reading", "challenge"].includes(item.mode) ? item.mode : "practice",
-        text: String(item.text || "").slice(0, 160)
+        mode: ["practice", "daily-smart", "weekly-review", "wrongbook", "due-review", "similar", "weak", "timed", "appendix", "hard-word", "logic-reading", "challenge"].includes(item.mode) ? item.mode : "practice",
+        text: String(item.text || "").slice(0, 160),
+        confidence: LearningQuality.normalizeConfidence?.(item.confidence) || "",
+        elapsedMs: Math.max(0, Number(item.elapsedMs) || 0),
+        hintLevel: clamp(Number(item.hintLevel) || 0, 0, 3),
+        firstTryCorrect: item.firstTryCorrect === undefined ? Boolean(item.correct) : Boolean(item.firstTryCorrect),
+        diagnostic: LearningQuality.normalizeDiagnostic?.(item.diagnostic) || "uncertain",
+        difficultyScore: clamp(Number(item.difficultyScore) || 0, 0, 5),
+        masteryDelta: clamp(Number(item.masteryDelta) || 0, -20, 20)
       };
     }
     function migrateOldWrongbook() {
@@ -1640,6 +1605,7 @@
       answerMode: "auto",
       currentSet: [],
       recentQuestionKeys: [],
+      recentQuestionFamilyKeys: [],
       index: 0,
       checked: false,
       correct: 0,
@@ -1657,6 +1623,9 @@
       practiceLayer: "setup",
       practiceReturnState: { layer: "setup", typeSettingsOpen: false },
       stepHintOpen: false,
+      hintLevel: 0,
+      selectedConfidence: "",
+      questionStartedAt: 0,
       setStartedAt: 0,
       setElapsedMs: 0,
       timerId: null,
@@ -2575,6 +2544,18 @@
       };
       return hints[question.topic] || hints.word;
     }
+    function hintForLevel(question, level = 1) {
+      const safeLevel = clamp(Number(level) || 1, 1, 3);
+      if (safeLevel === 1) {
+        if (isChineseQuestion(question)) return "先看题目问什么，再回到短文或原文圈出直接相关的词句，作答时注意完整表达。";
+        if (isEnglishQuestion(question)) return "先看疑问词、空格前后和句子的时间信息。";
+        if (isScienceQuestion(question)) return "先分清观察到的现象、改变的条件和要解释的结论。";
+        return question?.word ? "先分开看已知条件和问题，不要急着计算。" : "先确认运算符号、单位和计算顺序。";
+      }
+      if (safeLevel === 2) return methodHintFor(question);
+      const steps = (Array.isArray(question?.steps) ? question.steps : []).slice(0, 2).map((step, index) => `${index + 1}. ${step}`).join(" ");
+      return steps || methodHintFor(question);
+    }
     function verticalSpecFromText(text) {
       const match = String(text || "").match(/用竖式计算：(.+?)\s*([+\-×÷])\s*(.+?)\s*=\s*(.+?)(?:，|$)/);
       if (!match) return null;
@@ -3202,13 +3183,47 @@
       const target = bankPointMap()[point?.id] || pointMap[point?.id] || point;
       const fallbackPoint = choosePoint();
       if (!target && !fallbackPoint) return null;
-      if (!target) return applyQuestionInteraction(makeQuestion(fallbackPoint), preferred);
+      if (!target) return applyQuestionInteraction(enrichQuestionLearningMeta(makeQuestion(fallbackPoint)), preferred);
+      let qualityFallback = null;
       for (let attempt = 0; attempt < 16; attempt += 1) {
-        const question = makeQuestion(target, { strict: true, ...generationOptions });
+        const question = enrichQuestionLearningMeta(makeQuestion(target, { strict: true, ...generationOptions }));
         const issues = questionRuleIssues(target, question, { strict: true });
-        if (!issues.length) return applyQuestionInteraction(question, preferred);
+        if (!qualityFallback || question.learningMeta.qualityScore > qualityFallback.learningMeta.qualityScore) qualityFallback = question;
+        if (!issues.length && question.learningMeta.qualityScore >= 60) return applyQuestionInteraction(question, preferred);
       }
-      return applyQuestionInteraction(makeQuestion(target, { strict: true, ...generationOptions }), preferred);
+      return applyQuestionInteraction(qualityFallback || enrichQuestionLearningMeta(makeQuestion(target, { strict: true, ...generationOptions })), preferred);
+    }
+    function enrichQuestionLearningMeta(question) {
+      if (!question) return question;
+      const supported = enhanceQuestionTeachingSupport(question);
+      const quality = LearningQuality.scoreQuestionQuality?.(supported) || { score: 100, reasons: [] };
+      const mastery = masteryFor(activeProfile(), supported.pointId);
+      return {
+        ...supported,
+        learningMeta: {
+          ...(supported.learningMeta || {}),
+          qualityScore: quality.score,
+          qualityReasons: quality.reasons,
+          familyKey: LearningQuality.questionFamilyKey?.(supported) || questionRepeatKey(supported),
+          difficultyScore: LearningQuality.estimateDifficulty?.(supported, mastery) || clamp(Number(mastery.level) || 1, 1, 5)
+        }
+      };
+    }
+    function enhanceQuestionTeachingSupport(question) {
+      const explanation = String(question?.explanation || "").trim();
+      if (/易错提醒|检查方法/.test(explanation)) return question;
+      const pitfall = (Array.isArray(question?.commonPitfalls) ? question.commonPitfalls : []).map((item) => String(item || "").trim()).find(Boolean);
+      const subject = subjectIdFromQuestion(question);
+      const check = {
+        math: "把结果代回条件，并检查运算符号、单位和数量关系",
+        chinese: "把答案放回原句或材料，确认表达完整且有依据",
+        english: "把答案放回句子，检查词义、语法和拼写",
+        science: "用观察记录、变量或证据重新核对结论"
+      }[subject] || "把答案放回题目条件重新核对";
+      return {
+        ...question,
+        explanation: `${explanation}${explanation ? " " : ""}易错提醒：${pitfall || "不要只凭第一印象作答"}。检查方法：${check}。`
+      };
     }
     function makeDistinctQuestionForPoint(point, preferred = state.answerMode, scope = {}) {
       const target = bankPointMap()[point?.id] || pointMap[point?.id] || point;
@@ -3217,40 +3232,70 @@
       if (!target) return applyQuestionInteraction(makeQuestion(fallbackPoint), preferred);
       const used = scope.usedSignatures instanceof Set ? scope.usedSignatures : new Set();
       const avoidRepeatKeys = scope.avoidRepeatKeys instanceof Set ? scope.avoidRepeatKeys : new Set();
+      const usedFamilyKeys = scope.usedFamilyKeys instanceof Set ? scope.usedFamilyKeys : new Set();
+      const recentFamilyKeys = scope.recentFamilyKeys instanceof Set ? scope.recentFamilyKeys : new Set();
+      const baseTargetDifficulty = Number(scope.targetDifficulty) || targetDifficultyForPoint(target);
+      const targetDifficulty = LearningQuality.chainDifficultyTarget?.(scope.chainStage, baseTargetDifficulty) || baseTargetDifficulty;
       const previous = String(scope.previousSignature || "");
       let fallback = null;
       let uniqueRecentFallback = null;
+      let bestCandidate = null;
+      let bestPriority = -Infinity;
       let last = null;
       for (let attempt = 0; attempt < 32; attempt += 1) {
         const generationOptions = {
           pick: scope.pick,
           ...(scope.preferExternal ? { preferExternal: true } : {}),
           ...(scope.disableExternal || (attempt > 0 && last?.enrichment) ? { disableExternal: true } : {}),
-          ...(typeof scope.externalChance === "number" ? { externalChance: scope.externalChance } : {})
+          ...(typeof scope.externalChance === "number" ? { externalChance: scope.externalChance } : {}),
+          ...(scope.chainStage ? { chainStage: scope.chainStage } : {}),
+          difficultyLevel: Math.round(targetDifficulty)
         };
         const question = makeStrictQuestionForPoint(target, preferred, generationOptions);
         const sig = signature(question);
         const repeatKey = questionRepeatKey(question);
+        const meta = question.learningMeta || {};
+        const priority = LearningQuality.candidatePriority?.(meta, {
+          targetDifficulty,
+          usedFamilyKeys,
+          recentFamilyKeys,
+          preferredFamilyKey: scope.preferredFamilyKey,
+          avoidFamilyKey: scope.avoidFamilyKey
+        }) || 0;
         last = question;
-        if (sig !== previous && !used.has(sig) && !avoidRepeatKeys.has(repeatKey)) return question;
+        if (sig !== previous && !used.has(sig) && !avoidRepeatKeys.has(repeatKey) && priority > bestPriority) {
+          bestCandidate = question;
+          bestPriority = priority;
+        }
+        const familyMatchesScope = (!scope.preferredFamilyKey || meta.familyKey === scope.preferredFamilyKey)
+          && (!scope.avoidFamilyKey || meta.familyKey !== scope.avoidFamilyKey);
+        if (sig !== previous && !used.has(sig) && !avoidRepeatKeys.has(repeatKey)
+          && !usedFamilyKeys.has(meta.familyKey) && !recentFamilyKeys.has(meta.familyKey)
+          && familyMatchesScope && meta.qualityScore >= 60 && Math.abs((meta.difficultyScore || targetDifficulty) - targetDifficulty) <= 0.9) return question;
         if (sig !== previous && !used.has(sig) && !uniqueRecentFallback) uniqueRecentFallback = question;
         if (sig !== previous && !fallback) fallback = question;
       }
-      return uniqueRecentFallback || fallback || last || makeStrictQuestionForPoint(target, preferred, { pick: scope.pick });
+      return bestCandidate || uniqueRecentFallback || fallback || last || makeStrictQuestionForPoint(target, preferred, { pick: scope.pick });
+    }
+    function targetDifficultyForPoint(point) {
+      return LearningQuality.targetDifficultyForMastery?.(masteryFor(activeProfile(), point?.id)) || 2.5;
     }
     function buildQuestionSetForPoint(point, count, preferred = state.answerMode) {
       const target = bankPointMap()[point?.id] || pointMap[point?.id] || point;
       if (!target) return [];
       const total = clamp(Number(count) || state.setSize || 10, 1, MAX_SET_SIZE);
       const usedSignatures = new Set();
+      const usedFamilyKeys = new Set();
       const avoidRepeatKeys = recentQuestionRepeatKeys(activeProfile(), target.grade);
+      const recentFamilyKeys = recentQuestionFamilyKeySet(activeProfile(), target.grade);
       const pick = createRoundQuestionPicker(preferred);
       let previousSignature = "";
       return Array.from({ length: total }, () => {
-        const question = makeDistinctQuestionForPoint(target, preferred, { usedSignatures, previousSignature, pick, avoidRepeatKeys, externalChance: externalQuestionChanceForPoint(target) });
+        const question = makeDistinctQuestionForPoint(target, preferred, { usedSignatures, usedFamilyKeys, previousSignature, pick, avoidRepeatKeys, recentFamilyKeys, targetDifficulty: targetDifficultyForPoint(target), externalChance: externalQuestionChanceForPoint(target) });
         if (!question) return null;
         previousSignature = signature(question);
         usedSignatures.add(previousSignature);
+        if (question.learningMeta?.familyKey) usedFamilyKeys.add(question.learningMeta.familyKey);
         return question;
       }).filter(Boolean);
     }
@@ -3262,7 +3307,9 @@
       const pointsForGrade = availablePoints(state.grade);
       const sourceOffsets = {};
       const usedSignatures = new Set();
+      const usedFamilyKeys = new Set();
       const avoidRepeatKeys = recentQuestionRepeatKeys(activeProfile(), state.grade);
+      const recentFamilyKeys = recentQuestionFamilyKeySet(activeProfile(), state.grade);
       const pick = createRoundQuestionPicker(preferred);
       let previousSignature = "";
       return plan.map((sourceType) => {
@@ -3272,10 +3319,11 @@
         const offset = sourceOffsets[sourceType] || 0;
         sourceOffsets[sourceType] = offset + 1;
         const point = candidates[offset % candidates.length] || choosePoint();
-        const question = makeDistinctQuestionForPoint(point, preferred, { usedSignatures, previousSignature, pick, avoidRepeatKeys, externalChance: externalQuestionChanceForPoint(point) });
+        const question = makeDistinctQuestionForPoint(point, preferred, { usedSignatures, usedFamilyKeys, previousSignature, pick, avoidRepeatKeys, recentFamilyKeys, targetDifficulty: targetDifficultyForPoint(point), externalChance: externalQuestionChanceForPoint(point) });
         if (!question) return null;
         previousSignature = signature(question);
         usedSignatures.add(previousSignature);
+        if (question.learningMeta?.familyKey) usedFamilyKeys.add(question.learningMeta.familyKey);
         return question;
       }).filter(Boolean);
     }
@@ -3296,7 +3344,10 @@
         makeStrictQuestionForPoint,
         pointMap: bankPointMap(),
         avoidRepeatKeys: recentQuestionRepeatKeys(activeProfile(), state.grade),
+        recentFamilyKeys: recentQuestionFamilyKeySet(activeProfile(), state.grade),
         recentPointIds: recentQuestionPointIds(activeProfile(), state.grade),
+        questionFamilyKey: LearningQuality.questionFamilyKey,
+        targetDifficultyForPoint,
         createRoundQuestionPicker,
         shuffle,
         signature,
@@ -3318,7 +3369,10 @@
         makeStrictQuestionForPoint,
         pointMap: bankPointMap(),
         avoidRepeatKeys: recentQuestionRepeatKeys(activeProfile(), state.grade),
+        recentFamilyKeys: recentQuestionFamilyKeySet(activeProfile(), state.grade),
         recentPointIds: recentQuestionPointIds(activeProfile(), state.grade),
+        questionFamilyKey: LearningQuality.questionFamilyKey,
+        targetDifficultyForPoint,
         createRoundQuestionPicker,
         shuffle,
         signature,
@@ -3330,8 +3384,55 @@
         reviewSource: question.reviewSource || "fresh"
       }));
     }
+    function buildWeeklyReviewQuestionSet(count = state.setSize, preferred = state.answerMode) {
+      const total = clamp(Number(count) || state.setSize || 10, 1, MAX_SET_SIZE);
+      const profile = activeProfile();
+      const weeklyNeed = new Map();
+      currentWeekItems(profile).forEach((item) => {
+        if (Number(item.grade || state.grade) !== Number(state.grade)) return;
+        if (item.subject && item.subject !== activeSubjectId()) return;
+        const pointId = item.pointId;
+        if (!pointId || pointId === "auto") return;
+        const need = (item.correct ? 0 : 4) + (Number(item.hintLevel) || 0) + (item.confidence === "guess" ? 2 : item.confidence === "unsure" ? 1 : 0);
+        weeklyNeed.set(pointId, (weeklyNeed.get(pointId) || 0) + need);
+      });
+      dueWrongbook(profile, state.grade).forEach((item) => {
+        const pointId = item?.question?.pointId;
+        if (pointId) weeklyNeed.set(pointId, (weeklyNeed.get(pointId) || 0) + 6);
+      });
+      const candidates = availablePoints(state.grade).slice().sort((a, b) => {
+        const needDiff = (weeklyNeed.get(b.id) || 0) - (weeklyNeed.get(a.id) || 0);
+        if (needDiff) return needDiff;
+        return (masteryFor(profile, a.id).score || 0) - (masteryFor(profile, b.id).score || 0);
+      });
+      const usedSignatures = new Set();
+      const usedFamilyKeys = new Set();
+      const avoidRepeatKeys = recentQuestionRepeatKeys(profile, state.grade);
+      const recentFamilyKeys = recentQuestionFamilyKeySet(profile, state.grade);
+      const pickQuestion = createRoundQuestionPicker(preferred);
+      let previousSignature = "";
+      return Array.from({ length: total }, (_, index) => {
+        const point = candidates[index % Math.max(1, candidates.length)] || choosePoint();
+        const question = makeDistinctQuestionForPoint(point, preferred, {
+          usedSignatures,
+          usedFamilyKeys,
+          previousSignature,
+          pick: pickQuestion,
+          avoidRepeatKeys,
+          recentFamilyKeys,
+          targetDifficulty: targetDifficultyForPoint(point),
+          externalChance: externalQuestionChanceForPoint(point)
+        });
+        if (!question) return null;
+        previousSignature = signature(question);
+        usedSignatures.add(previousSignature);
+        if (question.learningMeta?.familyKey) usedFamilyKeys.add(question.learningMeta.familyKey);
+        return { ...question, weeklyReview: true, reviewSource: "weekly" };
+      }).filter(Boolean);
+    }
     function masteryFor(profile, pointId) {
-      if (!profile.mastery[pointId]) profile.mastery[pointId] = { attempts: 0, correct: 0, level: 1, streak: 0 };
+      if (!profile.mastery[pointId]) profile.mastery[pointId] = { attempts: 0, correct: 0, level: 1, streak: 0, score: 12, stableCorrect: 0, diagnostics: {} };
+      if (LearningQuality.normalizeMasteryState) profile.mastery[pointId] = LearningQuality.normalizeMasteryState(profile.mastery[pointId]);
       return profile.mastery[pointId];
     }
     function masteryAccuracy(profile, pointId) {
@@ -3345,9 +3446,10 @@
         .map((point) => {
           const m = masteryFor(profile, point.id);
           const accuracy = m.attempts ? m.correct / m.attempts : 0.45;
+          const masteryScore = clamp(Number(m.score) || 0, 0, 100) / 100;
           const wrongs = profile.wrongbook.filter((item) => item.question.pointId === point.id).length;
           const recentPenalty = recentPointIds.has(point.id) ? 0.22 : 0;
-          return { point, score: accuracy - wrongs * 0.08 + Math.min(m.attempts, 5) * 0.015 + recentPenalty };
+          return { point, score: (accuracy + masteryScore) / 2 - wrongs * 0.08 + Math.min(m.attempts, 5) * 0.015 + recentPenalty };
         })
         .sort((a, b) => a.score - b.score)
         .slice(0, limit)
@@ -3377,13 +3479,15 @@
       options.forEach((point) => {
         const m = masteryFor(profile, point.id);
         const accuracy = m.attempts ? m.correct / m.attempts : 0.3;
+        const masteryNeed = 1 - clamp(Number(m.score) || 0, 0, 100) / 100;
+        const diagnosticNeed = Object.values(m.diagnostics || {}).reduce((sum, value) => sum + Math.max(0, Number(value) || 0), 0);
         const wrongs = profile.wrongbook.filter((item) => item.question.pointId === point.id).length;
         const dueBoost = (dueCounts.get(point.id) || 0) * 4;
         const recentWrongs = recentWrongPointIds.filter((id) => id === point.id).length;
         const coldStart = m.attempts < 3 ? 2 : 0;
         const levelBoost = clamp(6 - (Number(m.level) || 1), 1, 5);
         const recentPenalty = recentPointIds.has(point.id) ? 10 : 0;
-        const weight = clamp(Math.round((1 - accuracy) * 8 + wrongs * 2.4 + dueBoost + recentWrongs * 1.6 + coldStart + levelBoost - recentPenalty), 0, 18);
+        const weight = clamp(Math.round((1 - accuracy) * 5 + masteryNeed * 6 + Math.min(diagnosticNeed, 5) * 0.8 + wrongs * 2.4 + dueBoost + recentWrongs * 1.6 + coldStart + levelBoost - recentPenalty), 0, 18);
         for (let i = 0; i < weight; i += 1) weighted.push(point);
       });
       return pick(weighted.length ? weighted : options);
@@ -3474,6 +3578,8 @@
       if (scienceQuestion && point?.topic === "earth" && /天气/.test(visibleCopy) && /宇宙|天体|模型位置/.test(visibleCopy)) {
         warnings.push("科学题混合了不相关的概念范围");
       }
+      const quality = LearningQuality.scoreQuestionQuality?.(question);
+      if (quality && quality.score < 60) warnings.push(`题目质量分过低（${quality.score}）`);
       return warnings;
     }
     function runQuestionRuleSelfTest(sampleSize = 80) {
@@ -4476,7 +4582,8 @@
           extraHTML: canSave ? `<button class="secondary compact-btn" type="button" data-floating-pet-save-cause="${escapeAttr(cause)}">保存“${escapeHTML(cause)}”</button>` : ""
         };
       }
-      return { title: "招财提示", body: methodHintFor(question), extraHTML: "" };
+      const nextLevel = clamp((Number(state.hintLevel) || 0) + 1, 1, 3);
+      return { title: `招财第 ${nextLevel} 级提示`, body: hintForLevel(question, nextLevel), extraHTML: "" };
     }
     function openFloatingPetPanel(action = "") {
       if (!els.floatingPetPanel || !els.floatingPetMessage) return;
@@ -4491,11 +4598,12 @@
       const current = state.currentSet[state.index];
       if (action === "hint" && current) {
         state.stepHintOpen = true;
-        const hint = methodHintFor(current);
+        state.hintLevel = clamp(state.hintLevel + 1, 1, 3);
+        const hint = hintForLevel(current, state.hintLevel);
         if (els.methodHint) els.methodHint.textContent = hint;
         if (!isWaitingForCauseSave()) renderAnswerModePanel(current);
-        updatePetStatus(`招财：这题属于"${pointLabel(current.pointId)}"。${hint}`, "提示");
-        setPetAction("hint", "提示");
+        updatePetStatus(`招财：第 ${state.hintLevel} 级提示。${hint}`, "提示");
+        setPetAction("hint", `${state.hintLevel}级`);
       }
       openFloatingPetPanel(action || "hint");
     }
@@ -7031,7 +7139,7 @@
       els.streakStat.textContent = state.streak;
       els.gradeTag.textContent = gradeNames[state.grade - 1];
       els.pointTag.textContent = current ? pointLabel(current.pointId) : pointLabel(state.pointId);
-      els.modeTag.textContent = state.mode === "due-review" ? "到期错题复习" : state.mode === "wrongbook" ? "错题复练" : state.mode === "similar" ? "同类巩固" : state.mode === "weak" ? "薄弱点练习" : state.mode === "timed" ? "限时小测" : state.mode === "appendix" ? "附加题挑战" : state.mode === "hard-word" ? "应用题强化" : state.mode === "logic-reading" ? "思维阅读训练" : state.mode === "custom-bank" ? `校内题库：${state.customBankMeta?.name || "练习"}` : state.mode === "challenge" ? `闯关第 ${state.challengeMeta?.level || 1} 关` : "普通练习";
+      els.modeTag.textContent = state.mode === "due-review" ? "到期错题复习" : state.mode === "weekly-review" ? "本周综合复习" : state.mode === "wrongbook" ? "错题复练" : state.mode === "similar" ? "同类巩固" : state.mode === "weak" ? "薄弱点练习" : state.mode === "timed" ? "限时小测" : state.mode === "appendix" ? "附加题挑战" : state.mode === "hard-word" ? "应用题强化" : state.mode === "logic-reading" ? "思维阅读训练" : state.mode === "custom-bank" ? `校内题库：${state.customBankMeta?.name || "练习"}` : state.mode === "challenge" ? `闯关第 ${state.challengeMeta?.level || 1} 关` : "普通练习";
       els.progressDots.innerHTML = "";
       for (let i = 0; i < total; i += 1) {
         const dot = document.createElement("span");
@@ -7093,6 +7201,12 @@
     }
     function isWaitingForCauseSave() {
       return Boolean(state.checked && state.lastWrongRecordId && els.causePanel?.classList.contains("active"));
+    }
+    function setSelectedConfidence(value = "") {
+      state.selectedConfidence = LearningQuality.normalizeConfidence?.(value) || "";
+      els.confidenceControl?.querySelectorAll("[data-confidence]").forEach((button) => {
+        button.setAttribute("aria-pressed", String(button.dataset.confidence === state.selectedConfidence));
+      });
     }
     function answerPlaceholderForQuestion(question) {
       if (question?.answerType === "formula") return "输入算式和答案，如 23+15=38";
@@ -7779,6 +7893,9 @@
       }
       state.grade = current.grade || state.grade;
       state.checked = false;
+      state.questionStartedAt = Date.now();
+      state.hintLevel = 0;
+      setSelectedConfidence("");
       clearAutoNext();
       closePetHintPopover();
       els.practiceCard.removeAttribute("data-mood");
@@ -7859,20 +7976,16 @@
       }
       return { valid: true, value, raw };
     }
-    function updateMastery(pointId, correct) {
-      const m = masteryFor(activeProfile(), pointId);
-      m.attempts += 1;
-      if (correct) {
-        m.correct += 1;
-        m.streak += 1;
-        if (m.streak >= 3) {
-          m.level = clamp(m.level + 1, 1, 5);
-          m.streak = 0;
-        }
-      } else {
-        m.streak = 0;
-        m.level = clamp(m.level - 1, 1, 5);
+    function updateMastery(pointId, correct, evidence = {}) {
+      const profile = activeProfile();
+      const current = masteryFor(profile, pointId);
+      if (LearningQuality.updateMasteryState) {
+        profile.mastery[pointId] = LearningQuality.updateMasteryState(current, { ...evidence, correct });
+        return profile.mastery[pointId];
       }
+      current.attempts += 1;
+      if (correct) current.correct += 1;
+      return current;
     }
     function signature(question) {
       return `${question.pointId}|${question.text}|${formatAnswer(question.answer, question.answerLabel)}`;
@@ -7900,6 +8013,17 @@
       });
       return ids;
     }
+    function recentQuestionFamilyKeySet(profile = activeProfile(), grade = Number(profile?.grade || state.grade), limit = 80) {
+      const subject = activeSubjectId();
+      const keys = new Set(Array.isArray(state.recentQuestionFamilyKeys) ? state.recentQuestionFamilyKeys.filter(Boolean) : []);
+      (Array.isArray(profile?.history) ? profile.history : []).slice(0, limit).forEach((item) => {
+        if (Number(item.grade || grade) !== Number(grade)) return;
+        if (item.subject && item.subject !== subject) return;
+        const familyKey = LearningQuality.questionFamilyKey?.({ pointId: item.pointId, text: item.text, questionType: item.questionType || "" });
+        if (familyKey) keys.add(familyKey);
+      });
+      return keys;
+    }
     function rememberRecentQuestionSet(questions, limit = 160) {
       const existing = Array.isArray(state.recentQuestionKeys) ? state.recentQuestionKeys : [];
       const generated = (questions || []).map(questionRepeatKey).filter((key) => key && !key.endsWith("|"));
@@ -7913,6 +8037,8 @@
         compact.unshift(key);
       }
       state.recentQuestionKeys = compact.slice(-limit);
+      const families = (questions || []).map((question) => question?.learningMeta?.familyKey || LearningQuality.questionFamilyKey?.(question)).filter(Boolean);
+      state.recentQuestionFamilyKeys = [...new Set([...(state.recentQuestionFamilyKeys || []), ...families])].slice(-limit);
     }
     const REVIEW_STAGE_OFFSETS = [0, 1, 3, 7];
     function nextReviewDueDate(stage) {
@@ -7931,7 +8057,7 @@
       if (due === todayKey(1)) return "明天复习";
       return `${due.slice(5).replace("-", "/")} 复习`;
     }
-    function upsertWrong(question, cause = "未标记") {
+    function upsertWrong(question, cause = "未标记", evidence = {}) {
       const profile = activeProfile();
       const sig = signature(question);
       const found = profile.wrongbook.find((item) => item.signature === sig);
@@ -7943,6 +8069,10 @@
         found.lastReviewedAt = Date.now();
         found.lastResult = "wrong";
         found.cause = cause || found.cause || "未标记";
+        found.chainStage = "scaffold";
+        found.recentDiagnostic = LearningQuality.normalizeDiagnostic?.(evidence.diagnostic) || found.recentDiagnostic || "uncertain";
+        found.confidence = LearningQuality.normalizeConfidence?.(evidence.confidence) || "";
+        found.hintLevel = clamp(Number(evidence.hintLevel) || 0, 0, 3);
         found.updatedAt = Date.now();
         return found.id;
       }
@@ -7955,6 +8085,10 @@
         wrongCount: 1,
         correctStreak: 0,
         reviewStage: 0,
+        chainStage: "scaffold",
+        recentDiagnostic: LearningQuality.normalizeDiagnostic?.(evidence.diagnostic) || "uncertain",
+        confidence: LearningQuality.normalizeConfidence?.(evidence.confidence) || "",
+        hintLevel: clamp(Number(evidence.hintLevel) || 0, 0, 3),
         dueDate: todayKey(),
         lastReviewedAt: Date.now(),
         lastResult: "wrong",
@@ -7977,14 +8111,16 @@
       };
       profile.masteredWrong = [mastered, ...(profile.masteredWrong || []).filter((entry) => entry.signature !== item.signature)].slice(0, 500);
     }
-    function updateWrongbookAttemptForProfile(profile, id, correct) {
+    function updateWrongbookAttemptForProfile(profile, id, correct, evidence = {}) {
       if (!profile || !Array.isArray(profile.wrongbook)) return false;
       const itemIndex = profile.wrongbook.findIndex((entry) => entry.id === id);
       const item = itemIndex >= 0 ? profile.wrongbook[itemIndex] : null;
       if (!item) return false;
       if (correct) {
+        const stable = LearningQuality.isStableEvidence ? LearningQuality.isStableEvidence({ ...evidence, correct }) : true;
         item.correctStreak = clamp((Number(item.correctStreak) || 0) + 1, 0, 3);
         item.reviewStage = clamp((Number(item.reviewStage) || 0) + 1, 0, 4);
+        item.chainStage = LearningQuality.nextChainStage?.(item.chainStage || "scaffold", { correct, stable }) || item.chainStage || "scaffold";
         item.dueDate = nextReviewDueDate(item.reviewStage);
         item.lastReviewedAt = Date.now();
         item.lastResult = "correct";
@@ -7994,7 +8130,7 @@
         pet.bond = clamp(pet.bond + 1, 0, 100);
         if (hasWrongbookBuddy) pet.bond = clamp(pet.bond + 1, 0, 100);
         pet.mood = clamp(pet.mood + 1, 0, 100);
-        if (item.correctStreak >= 3) {
+        if (item.correctStreak >= 3 && item.chainStage === "delayed") {
           markWrongAsMastered(profile, item);
           profile.wrongbook.splice(itemIndex, 1);
           if (!profile.rewards) profile.rewards = {};
@@ -8007,6 +8143,10 @@
       } else {
         item.correctStreak = 0;
         item.reviewStage = 0;
+        item.chainStage = "scaffold";
+        item.recentDiagnostic = LearningQuality.normalizeDiagnostic?.(evidence.diagnostic) || item.recentDiagnostic || "uncertain";
+        item.confidence = LearningQuality.normalizeConfidence?.(evidence.confidence) || "";
+        item.hintLevel = clamp(Number(evidence.hintLevel) || 0, 0, 3);
         item.dueDate = todayKey();
         item.lastReviewedAt = Date.now();
         item.wrongCount += 1;
@@ -8015,13 +8155,13 @@
       }
       return true;
     }
-    function updateWrongbookAttempt(id, correct) {
-      return updateWrongbookAttemptForProfile(activeProfile(), id, correct);
+    function updateWrongbookAttempt(id, correct, evidence = {}) {
+      return updateWrongbookAttemptForProfile(activeProfile(), id, correct, evidence);
     }
-    function recordReviewSourceAttempt(question, correct) {
+    function recordReviewSourceAttempt(question, correct, evidence = {}) {
       const sourceId = question?.reviewSourceWrongId || "";
       if (!sourceId) return false;
-      let updated = updateWrongbookAttempt(sourceId, correct);
+      let updated = updateWrongbookAttempt(sourceId, correct, evidence);
       const candidates = [];
       state.profiles.forEach((profile) => {
         candidates.push(profile);
@@ -8031,7 +8171,7 @@
       for (const profile of candidates) {
         if (!profile || seen.has(profile)) continue;
         seen.add(profile);
-        updated = updateWrongbookAttemptForProfile(profile, sourceId, correct) || updated;
+        updated = updateWrongbookAttemptForProfile(profile, sourceId, correct, evidence) || updated;
       }
       return updated;
     }
@@ -8099,9 +8239,16 @@
         cause,
         selfReview: result
       };
-      updateMastery(question.pointId, correct);
-      if (!correct) upsertWrong(question, cause);
-      addHistory({ date: record.date, time: record.time, pointId: question.pointId, grade: question.grade, correct, cause, text: question.text, mode: state.mode || "practice", selfReview: result });
+      const evidence = {
+        confidence: state.selectedConfidence,
+        hintLevel: state.hintLevel,
+        elapsedMs: Math.max(0, Date.now() - state.questionStartedAt),
+        diagnostic: correct ? "uncertain" : LearningQuality.inferDiagnostic?.(question, { cause })
+      };
+      const beforeScore = masteryFor(activeProfile(), question.pointId).score;
+      const mastery = updateMastery(question.pointId, correct, evidence);
+      if (!correct) upsertWrong(question, cause, evidence);
+      addHistory({ date: record.date, time: record.time, pointId: question.pointId, grade: question.grade, correct, cause, text: question.text, mode: state.mode || "practice", selfReview: result, ...evidence, firstTryCorrect: correct, masteryDelta: Math.round((mastery.score || 0) - (beforeScore || 0)) });
       state.records[state.index] = record;
       els.answerInput.disabled = true;
       els.checkBtn.disabled = true;
@@ -8130,6 +8277,12 @@
       }
       const expected = Number(current.answer);
       const correct = answerMatches(current, parsed);
+      const elapsedMs = Math.max(0, Date.now() - state.questionStartedAt);
+      const confidence = state.selectedConfidence;
+      const hintLevel = state.hintLevel;
+      const diagnostic = correct ? "uncertain" : LearningQuality.inferDiagnostic?.(current, { answer: parsed.raw || parsed.value || "" }) || "uncertain";
+      const difficultyScore = LearningQuality.estimateDifficulty?.(current, masteryFor(activeProfile(), current.pointId)) || 0;
+      const evidence = { confidence, hintLevel, elapsedMs, diagnostic, expectedMs: 35000 + difficultyScore * 7000 };
       state.checked = true;
       const coinGain = awardQuestionReward(correct, current);
       if ((current.interaction?.mode || "input") === "step" && state.stepHintOpen) {
@@ -8142,7 +8295,13 @@
         question: current,
         answer: parsed.value,
         correct,
-        cause: "未标记"
+        cause: "未标记",
+        confidence,
+        elapsedMs,
+        hintLevel,
+        firstTryCorrect: correct,
+        diagnostic,
+        difficultyScore
       };
       if (correct) {
         state.correct += 1;
@@ -8172,11 +8331,13 @@
         showCausePanelForWrong(current);
         if (els.showAnswerBtn) els.showAnswerBtn.disabled = false;
       }
-      updateMastery(current.pointId, correct);
-      const updatedReviewSource = recordReviewSourceAttempt(current, correct);
-      if (state.mode === "wrongbook") updateWrongbookAttempt(current.wrongId, correct);
-      else if (!correct && !updatedReviewSource) upsertWrong(current);
-      addHistory({ date: record.date, time: record.time, pointId: current.pointId, grade: current.grade, correct, cause: record.cause, text: current.text, mode: state.mode || "practice" });
+      const beforeScore = masteryFor(activeProfile(), current.pointId).score;
+      const mastery = updateMastery(current.pointId, correct, evidence);
+      const masteryDelta = Math.round((mastery.score || 0) - (beforeScore || 0));
+      const updatedReviewSource = recordReviewSourceAttempt(current, correct, evidence);
+      if (state.mode === "wrongbook") updateWrongbookAttempt(current.wrongId, correct, evidence);
+      else if (!correct && !updatedReviewSource) upsertWrong(current, "未标记", evidence);
+      addHistory({ date: record.date, time: record.time, pointId: current.pointId, grade: current.grade, correct, cause: record.cause, text: current.text, mode: state.mode || "practice", ...evidence, firstTryCorrect: correct, difficultyScore, masteryDelta });
       state.records[state.index] = record;
       state.lastWrongRecordId = correct ? "" : record.id;
       els.answerInput.disabled = true;
@@ -8661,6 +8822,31 @@
     function startWeakPractice() {
       const weak = weakestPoints(1)[0] || availablePoints(state.grade)[0];
       startPointSet(weak.id, Math.min(10, state.setSize), "weak");
+    }
+    function startWeeklyReviewPractice() {
+      state.mode = "weekly-review";
+      state.challengeMeta = null;
+      state.pointId = "auto";
+      state.currentSet = buildWeeklyReviewQuestionSet(Math.min(10, state.setSize || 10), state.answerMode);
+      rememberRecentQuestionSet(state.currentSet);
+      state.index = 0;
+      state.checked = false;
+      state.correct = 0;
+      state.streak = 0;
+      state.records = [];
+      state.roundCoins = 0;
+      state.lastWrongRecordId = "";
+      state.setFinished = false;
+      delete state._lastFinishResult;
+      els.summaryPanel.hidden = true;
+      els.challengeResultOverlay.hidden = true;
+      els.mobileChallengeResult.hidden = true;
+      els.reviewPanel.hidden = true;
+      showView("practice");
+      resetRoundRuntime();
+      renderPracticeQuestion();
+      enterPracticeFocus();
+      startRoundTimer();
     }
     function startLogicReadingTraining() {
       const point = readingPointForGrade(activeProfile().grade || state.grade);
@@ -9713,7 +9899,11 @@
     els.backToSetupBtn.addEventListener("click", returnToPracticeSetup);
     els.closeTypeSettingsBtn?.addEventListener("click", closeTypeSettings);
     els.checkBtn.addEventListener("click", checkAnswer);
-    els.readAloudBtn?.addEventListener("click", () => readQuestionAloud());
+    els.confidenceControl?.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-confidence]");
+      if (!button || state.checked) return;
+      setSelectedConfidence(button.dataset.confidence === state.selectedConfidence ? "" : button.dataset.confidence);
+    });
     els.nextBtn.addEventListener("click", nextQuestion);
     if (els.skipBtn) els.skipBtn.addEventListener("click", skipQuestion);
     if (els.showAnswerBtn) els.showAnswerBtn.addEventListener("click", showAnswerPopover);
@@ -9756,14 +9946,15 @@
       const current = state.currentSet[state.index];
       if (!current) return;
       state.stepHintOpen = true;
-      const hint = methodHintFor(current);
+      state.hintLevel = clamp(state.hintLevel + 1, 1, 3);
+      const hint = hintForLevel(current, state.hintLevel);
       els.methodHint.textContent = hint;
       if (!isWaitingForCauseSave()) {
         renderAnswerModePanel(current);
       }
-      updatePetStatus(`招财：这题属于"${pointLabel(current.pointId)}"。${hint}`, "提示");
+      updatePetStatus(`招财：第 ${state.hintLevel} 级提示。${hint}`, "提示");
       if (shouldUseMobilePetHintPopover()) openPetHintPopover(hint);
-      setPetAction("hint", "提示");
+      setPetAction("hint", `${state.hintLevel}级`);
     });
     els.mobilePetHintClose?.addEventListener("click", closePetHintPopover);
     els.floatingPetButton?.addEventListener("pointerdown", beginFloatingPetDrag);
@@ -10047,7 +10238,7 @@
       if (ids.length) deleteWrongItems(ids);
     });
     [els.wrongPointFilter, els.wrongCauseFilter].forEach((control) => control.addEventListener("change", renderWrongbook));
-    els.startWeakReportBtn.addEventListener("click", startWeakPractice);
+    els.startWeakReportBtn.addEventListener("click", startWeeklyReviewPractice);
     els.clearTodayBtn.addEventListener("click", async () => {
       const profile = activeProfile();
       const today = profile.history.filter((item) => item.date === todayKey());
@@ -10526,11 +10717,17 @@
         buildQuestionSetForPoint,
         buildAdaptiveQuestionSet,
         buildSmartDailyQuestionSet,
+        buildWeeklyReviewQuestionSet,
         startNewSet,
         renderPracticeQuestion,
         answerPlaceholderForQuestion,
         answerGuidanceForQuestion,
+        hintForLevel,
+        setSelectedConfidence,
+        enrichQuestionLearningMeta,
+        learningQuality: LearningQuality,
         startSmartDailyPractice,
+        startWeeklyReviewPractice,
         startChallengeSet,
         challengeDifficultyForLevel,
         recordReviewSourceAttempt,

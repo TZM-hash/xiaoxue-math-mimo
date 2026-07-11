@@ -64,6 +64,7 @@ const questionGenerator = read("js/question-generator.js");
 const questionBank = read("js/question-bank.js");
 const questionBankCoverage = read("js/question-bank-coverage.js");
 const learningInsights = read("js/learning-insights.js");
+const learningQuality = read("js/learning-quality-engine.js");
 const subjectRegistry = read("js/subject-registry.js");
 const practiceEngine = read("js/practice-engine.js");
 const reportModule = read("js/report.js");
@@ -194,6 +195,25 @@ assertNotContains(html, 'id="historyList"', "学习报告不应保留最近记�
 assertContains(html, 'src="js/question-generator.js"', "页面应加载拆分后的题目生成模块");
 assertContains(html, 'src="js/question-source-summary.js"', "页面应加载题目来源统计模块");
 assertContains(html, 'src="js/practice-engine.js"', "页面应加载拆分后的练习引擎模块");
+assertContains(html, 'src="js/learning-quality-engine.js"', "页面应加载学习质量引擎模块");
+assertContains(html, '<option value="glass-clear">', "主题设置应提供清透玻璃主题");
+assertContains(html, '<option value="glass-pop">', "主题设置应提供缤纷玻璃主题");
+assertContains(css, ':root[data-theme="glass-clear"]', "主题令牌应定义清透玻璃主题");
+assertContains(css, ':root[data-theme="glass-pop"]', "主题令牌应定义缤纷玻璃主题");
+assertContains(css, 'backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));', "毛玻璃主题应使用统一背景模糊和饱和度令牌");
+assertContains(css, 'radial-gradient(circle at 14% 12%', "毛玻璃主题背景应包含柔和光球");
+assertContains(html, 'id="confidenceControl"', "练习页应提供可选答题信心控件");
+assertNotContains(html, 'id="readAloudBtn"', "练习页不应保留通用读题按钮");
+assertNotContains(app, "function readQuestionAloud", "应用不应保留通用整题朗读功能");
+assertContains(html, 'id="startWeakReportBtn">生成周复习', "学习报告应复用现有入口提供周复习组卷");
+assertContains(html, 'data-confidence="sure"', "答题信心控件应包含确定选项");
+assertContains(html, 'data-confidence="unsure"', "答题信心控件应包含不确定选项");
+assertContains(html, 'data-confidence="guess"', "答题信心控件应包含猜测选项");
+assertContains(css, ".confidence-control", "答题信心控件应有稳定布局样式");
+assertContains(app, "questionStartedAt", "答题流程应记录单题开始时间");
+assertContains(app, "selectedConfidence", "答题流程应记录可选信心值");
+assertContains(app, "hintLevel", "答题流程应记录最高提示等级");
+assertContains(learningQuality, "function updateMasteryState", "学习质量引擎应提供掌握度更新函数");
 assertContains(html, 'src="js/question-rules-engine.js"', "页面应加载拆分后的题目规则引擎");
 assertContains(html, 'src="js/question-interaction.js"', "页面应加载拆分后的答题交互模块");
 assertContains(html, 'src="js/report.js"', "页面应加载拆分后的报告模块");
@@ -438,7 +458,7 @@ assertContains(effectsControlIntegrated, "this.returnFocusElement?.focus?.()", "
 assertContains(app, "objectiveQuestionPromptHTML", "objective questions should have a prompt-only title renderer");
 assertNotContains(css, "white-space: nowrap;\n      word-break: keep-all;\n      overflow-x: auto;", "question options should wrap instead of scrolling horizontally");
 assertContains(css, "overflow-wrap: anywhere;", "practice question content should allow long text to wrap within the viewport");
-assertContains(css, "body.practice-view-active.practice-focus-mode .floating-pet-assistant", "mobile practice focus should suppress the floating pet so answer controls stay unobstructed");
+assertNotContains(css, "body.practice-view-active.practice-focus-mode .floating-pet-assistant {\n        display: none !important;", "mobile practice focus should keep the draggable floating pet visible");
 assertContains(uiFeedback, "root.replaceChildren(toast)", "notifications should replace the previous toast instead of stacking over practice controls");
 assertNotContains(grade3ReferenceSeeds, '"参考截图来自', "grade 3 student prompts should not expose reference-production wording");
 assertNotContains(grade4ReferenceSeeds, '"参考截图来自', "grade 4 student prompts should not expose reference-production wording");
@@ -664,6 +684,7 @@ assertContains(css, "#reportView .report-visual-panel:first-child {\n        gri
   "js/science-question-bank.js",
   "js/science-question-generator.js",
   "js/question-generator.js",
+  "js/learning-quality-engine.js",
   "js/practice-engine.js",
   "js/question-rules-engine.js",
   "js/question-interaction.js",

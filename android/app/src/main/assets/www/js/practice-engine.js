@@ -7,7 +7,9 @@
     var grade = Number(profile.grade || deps.state.grade);
     var selected = [];
     var usedSignatures = new Set();
+    var usedFamilyKeys = new Set();
     var avoidRepeatKeys = deps.avoidRepeatKeys instanceof Set ? deps.avoidRepeatKeys : new Set();
+    var recentFamilyKeys = deps.recentFamilyKeys instanceof Set ? deps.recentFamilyKeys : new Set();
     var recentPointIds = deps.recentPointIds instanceof Set ? deps.recentPointIds : new Set();
     var externalChanceForPoint = typeof deps.externalQuestionChanceForPoint === "function"
       ? deps.externalQuestionChanceForPoint
@@ -24,10 +26,24 @@
       selected.push(question);
       previousSignature = deps.signature(question);
       usedSignatures.add(previousSignature);
+      if (question.learningMeta && question.learningMeta.familyKey) usedFamilyKeys.add(question.learningMeta.familyKey);
     }
-    function makeForPoint(point) {
+    function makeForPoint(point, options) {
+      options = options || {};
       if (typeof deps.makeDistinctQuestionForPoint === "function") {
-        return deps.makeDistinctQuestionForPoint(point, preferred, { usedSignatures: usedSignatures, previousSignature: previousSignature, pick: pick, avoidRepeatKeys: avoidRepeatKeys, externalChance: externalChanceForPoint(point) });
+        return deps.makeDistinctQuestionForPoint(point, preferred, {
+          usedSignatures: usedSignatures,
+          usedFamilyKeys: usedFamilyKeys,
+          previousSignature: previousSignature,
+          pick: pick,
+          avoidRepeatKeys: avoidRepeatKeys,
+          recentFamilyKeys: recentFamilyKeys,
+          targetDifficulty: typeof deps.targetDifficultyForPoint === "function" ? deps.targetDifficultyForPoint(point) : undefined,
+          chainStage: options.chainStage,
+          preferredFamilyKey: options.preferredFamilyKey,
+          avoidFamilyKey: options.avoidFamilyKey,
+          externalChance: externalChanceForPoint(point)
+        });
       }
       return deps.makeStrictQuestionForPoint(point, preferred);
     }
@@ -43,12 +59,19 @@
     due.slice(0, dueVariantCount).forEach(function (item) {
       var point = deps.pointMap[item && item.question && item.question.pointId];
       if (!point || point.grade !== grade) return;
-      var dueQuestion = makeForPoint(point);
+      var chainStage = item.chainStage || "scaffold";
+      var originalFamilyKey = typeof deps.questionFamilyKey === "function" ? deps.questionFamilyKey(item.question || {}) : "";
+      var dueQuestion = makeForPoint(point, {
+        chainStage: chainStage,
+        preferredFamilyKey: chainStage === "sameModel" ? originalFamilyKey : "",
+        avoidFamilyKey: chainStage === "transfer" ? originalFamilyKey : ""
+      });
       if (!dueQuestion) return;
       addQuestion({
         ...dueQuestion,
         reviewSource: "due",
-        reviewSourceWrongId: item.id
+        reviewSourceWrongId: item.id,
+        reviewChainStage: chainStage
       });
     });
 

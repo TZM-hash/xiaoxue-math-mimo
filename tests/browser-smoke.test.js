@@ -90,16 +90,33 @@ async function runSmoke(createPage) {
         debug.state.setSize = 3;
         debug.els.setSizeInput.value = "3";
         debug.startNewSet({ focus: true });
+        const confidenceButtons = Array.from(document.querySelectorAll("#confidenceControl [data-confidence]"));
+        confidenceButtons.find((button) => button.dataset.confidence === "guess")?.click();
+        debug.els.petHintBtn.click();
+        const firstHint = debug.els.methodHint.textContent;
+        debug.els.petHintBtn.click();
+        const secondHint = debug.els.methodHint.textContent;
         const visible = Array.from(document.querySelectorAll("#questionText, #answerModePanel, #answerModePanel .answer-option"));
         const viewportWidth = document.documentElement.clientWidth;
         return {
           documentOverflow: document.documentElement.scrollWidth - viewportWidth,
           widestRight: Math.max(...visible.map((element) => element.getBoundingClientRect().right), 0),
-          viewportWidth
+          viewportWidth,
+          confidenceCount: confidenceButtons.length,
+          selectedConfidence: debug.state.selectedConfidence,
+          hintLevel: debug.state.hintLevel,
+          hintsDiffer: firstHint !== secondHint,
+          confidenceFits: document.getElementById("confidenceControl").getBoundingClientRect().right <= viewportWidth + 1
         };
       });
       if (scienceLayout.documentOverflow > 1 || scienceLayout.widestRight > scienceLayout.viewportWidth + 1) {
         throw new Error(`${viewport.name}: science question overflows viewport ${JSON.stringify(scienceLayout)}`);
+      }
+      if (scienceLayout.confidenceCount !== 3 || scienceLayout.selectedConfidence !== "guess" || !scienceLayout.confidenceFits) {
+        throw new Error(`${viewport.name}: confidence control failed ${JSON.stringify(scienceLayout)}`);
+      }
+      if (scienceLayout.hintLevel !== 2 || !scienceLayout.hintsDiffer) {
+        throw new Error(`${viewport.name}: staged hints failed ${JSON.stringify(scienceLayout)}`);
       }
 
       const interactionResult = await page.evaluate(async () => {
@@ -130,6 +147,45 @@ async function runSmoke(createPage) {
         window.MathCampEffectsControl?.closeModal?.();
         await new Promise((resolve) => setTimeout(resolve, 350));
 
+        const themeSelect = document.getElementById("themeSelect");
+        const fieldLabelTopmost = (fieldSelector) => {
+          const label = document.querySelector(`${fieldSelector} .floating-label`);
+          if (!label) return null;
+          const rect = label.getBoundingClientRect();
+          if (!rect.width || !rect.height) return null;
+          const previousPointerEvents = label.style.pointerEvents;
+          label.style.pointerEvents = "auto";
+          const layers = document.elementsFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+          label.style.pointerEvents = previousPointerEvents;
+          const input = label.parentElement?.querySelector("input");
+          const labelIndex = layers.indexOf(label);
+          const inputIndex = layers.indexOf(input);
+          return {
+            topmost: labelIndex >= 0 && inputIndex >= 0 && labelIndex < inputIndex,
+            labelIndex,
+            inputIndex,
+            labelZIndex: getComputedStyle(label).zIndex,
+            inputZIndex: getComputedStyle(input).zIndex
+          };
+        };
+        themeSelect.value = "glass-clear";
+        themeSelect.dispatchEvent(new Event("change", { bubbles: true }));
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        const clearTheme = document.documentElement.dataset.theme;
+        const clearBackdrop = getComputedStyle(document.querySelector(".panel, .card, .home-dashboard")).backdropFilter;
+        const clearSetupLabelLayers = [
+          fieldLabelTopmost(".setup-set-size-field"),
+          fieldLabelTopmost(".setup-daily-goal-field")
+        ];
+        themeSelect.value = "glass-pop";
+        themeSelect.dispatchEvent(new Event("change", { bubbles: true }));
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        const popTheme = document.documentElement.dataset.theme;
+        const popSetupLabelLayers = [
+          fieldLabelTopmost(".setup-set-size-field"),
+          fieldLabelTopmost(".setup-daily-goal-field")
+        ];
+
         return {
           animationError,
           switchFocusable,
@@ -138,7 +194,12 @@ async function runSmoke(createPage) {
           activeElementId: document.activeElement?.id || "",
           activeElementTag: document.activeElement?.tagName || "",
           modalFocused,
-          focusRestored: document.activeElement === returnTarget
+          focusRestored: document.activeElement === returnTarget,
+          clearTheme,
+          popTheme,
+          clearBackdrop,
+          clearSetupLabelLayers,
+          popSetupLabelLayers
         };
       });
 
@@ -151,6 +212,13 @@ async function runSmoke(createPage) {
       }
       if (viewport.width >= 700 && (!interactionResult.modalFocused || !interactionResult.focusRestored)) {
         throw new Error(`${viewport.name}: effects modal focus flow failed ${JSON.stringify(interactionResult)}`);
+      }
+      if (interactionResult.clearTheme !== "glass-clear" || interactionResult.popTheme !== "glass-pop" || interactionResult.clearBackdrop === "none") {
+        throw new Error(`${viewport.name}: glass theme switching failed ${JSON.stringify(interactionResult)}`);
+      }
+      const visibleGlassLabelLayers = [...interactionResult.clearSetupLabelLayers, ...interactionResult.popSetupLabelLayers].filter(Boolean);
+      if (visibleGlassLabelLayers.some((item) => !item.topmost)) {
+        throw new Error(`${viewport.name}: glass theme setup labels are covered by inputs ${JSON.stringify(interactionResult)}`);
       }
     } finally {
       await page.close();

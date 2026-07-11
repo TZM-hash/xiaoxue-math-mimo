@@ -359,6 +359,44 @@
       font-weight: 950;
       text-align: center;
     }
+    .confidence-control {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-width: 0;
+      padding: 7px 9px;
+      border: 1px solid color-mix(in oklch, var(--subject-line), transparent 20%);
+      border-radius: 8px;
+      background: color-mix(in oklch, var(--subject-soft), white 48%);
+    }
+    .confidence-control > span {
+      flex: 0 0 auto;
+      color: color-mix(in oklch, var(--fg), white 18%);
+      font-size: 12px;
+      font-weight: 850;
+    }
+    .confidence-options {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 5px;
+      width: min(270px, 62%);
+    }
+    .confidence-options button {
+      min-height: 32px;
+      padding: 4px 8px;
+      border-radius: 7px;
+      background: rgba(255,255,255,.82);
+      color: color-mix(in oklch, var(--fg), white 8%);
+      box-shadow: none;
+      font-size: 12px;
+      font-weight: 850;
+    }
+    .confidence-options button[aria-pressed="true"] {
+      border-color: color-mix(in oklch, var(--subject-accent), black 5%);
+      background: color-mix(in oklch, var(--subject-soft), white 12%);
+      color: color-mix(in oklch, var(--subject-ink), black 5%);
+    }
     .number-pad {
       margin-top: 10px;
       display: grid;

@@ -16,6 +16,99 @@
       cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Ccircle cx='12' cy='17' r='6' fill='%23f6c86f' stroke='%23533b1b' stroke-width='2'/%3E%3Ccircle cx='6' cy='10' r='3' fill='%23f6c86f' stroke='%23533b1b' stroke-width='1.6'/%3E%3Ccircle cx='12' cy='7' r='3' fill='%23f6c86f' stroke='%23533b1b' stroke-width='1.6'/%3E%3Ccircle cx='18' cy='10' r='3' fill='%23f6c86f' stroke='%23533b1b' stroke-width='1.6'/%3E%3C/svg%3E") 8 8, auto;
     }
 
+    :root[data-theme="glass-clear"] body,
+    :root[data-theme="glass-pop"] body {
+      position: relative;
+      isolation: isolate;
+      background-attachment: fixed;
+    }
+    :root[data-theme="glass-clear"] body {
+      background:
+        radial-gradient(circle at 14% 12%, rgba(137, 240, 224, .54) 0 13vw, transparent 31vw),
+        radial-gradient(circle at 88% 10%, rgba(255, 226, 126, .38) 0 10vw, transparent 27vw),
+        radial-gradient(circle at 74% 78%, rgba(125, 199, 244, .3) 0 12vw, transparent 30vw),
+        linear-gradient(145deg, #eefcff 0%, #f8ffff 38%, #edfff8 72%, #fffbea 100%);
+    }
+    :root[data-theme="glass-pop"] body {
+      background:
+        radial-gradient(circle at 14% 12%, rgba(255, 93, 126, .58) 0 15vw, transparent 34vw),
+        radial-gradient(circle at 88% 9%, rgba(255, 218, 75, .62) 0 13vw, transparent 31vw),
+        radial-gradient(circle at 80% 76%, rgba(47, 186, 238, .5) 0 15vw, transparent 34vw),
+        radial-gradient(circle at 18% 82%, rgba(91, 214, 130, .48) 0 13vw, transparent 32vw),
+        linear-gradient(145deg, #fff1f5 0%, #fff9dc 33%, #eafaff 67%, #efffee 100%);
+    }
+    :root[data-theme="glass-clear"] body::before,
+    :root[data-theme="glass-pop"] body::before {
+      content: "";
+      position: fixed;
+      inset: -10%;
+      z-index: -1;
+      pointer-events: none;
+      filter: blur(42px);
+      opacity: .68;
+    }
+    :root[data-theme="glass-clear"] body::before {
+      background:
+        radial-gradient(circle at 24% 28%, rgba(255,255,255,.92) 0 7%, transparent 22%),
+        radial-gradient(circle at 76% 38%, rgba(106,224,208,.38) 0 9%, transparent 25%);
+    }
+    :root[data-theme="glass-pop"] body::before {
+      background:
+        radial-gradient(circle at 22% 28%, rgba(255,103,142,.5) 0 8%, transparent 24%),
+        radial-gradient(circle at 72% 30%, rgba(255,222,68,.52) 0 9%, transparent 25%),
+        radial-gradient(circle at 62% 78%, rgba(61,181,244,.48) 0 10%, transparent 27%);
+    }
+    :root:is([data-theme="glass-clear"], [data-theme="glass-pop"]) :is(
+      .app-header,
+      .panel,
+      .card,
+      .summary-panel,
+      .review-panel,
+      .wrongbook-card,
+      .report-card,
+      .data-card,
+      .print-controls,
+      .practice-card,
+      .home-dashboard,
+      .home-side-panel,
+      .home-route-step,
+      .home-mode-card,
+      .home-settings-card,
+      .mission-card,
+      .pet-modal-panel,
+      .archive-modal-panel,
+      .hub-modal-panel,
+      .pet-collection-card,
+      .floating-pet-panel
+    ) {
+      background: var(--glass-surface);
+      border-color: var(--glass-border);
+      box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,.72);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
+      backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
+    }
+    :root:is([data-theme="glass-clear"], [data-theme="glass-pop"]) .app-header {
+      margin-bottom: 12px;
+      padding: 9px 12px;
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+    }
+    :root:is([data-theme="glass-clear"], [data-theme="glass-pop"]) :is(input, select, textarea, .answer-option, .answer-input, .number-pad button) {
+      background-color: var(--glass-strong);
+      border-color: rgba(255,255,255,.86);
+      -webkit-backdrop-filter: blur(8px) saturate(1.08);
+      backdrop-filter: blur(8px) saturate(1.08);
+    }
+    :root:is([data-theme="glass-clear"], [data-theme="glass-pop"]) .enhanced-input-wrapper :is(input, textarea) {
+      position: relative;
+      z-index: 1;
+    }
+    :root:is([data-theme="glass-clear"], [data-theme="glass-pop"]) .enhanced-input-wrapper .floating-label {
+      z-index: 2;
+      border-radius: 5px;
+      background: var(--glass-strong);
+    }
+
     button, input, select, textarea { font: inherit; }
     button {
       position: relative;

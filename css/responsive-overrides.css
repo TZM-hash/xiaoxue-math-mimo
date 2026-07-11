@@ -6711,10 +6711,20 @@
       body.practice-view-active.practice-focus-mode .choice-options {
         grid-template-columns: minmax(0, 1fr);
       }
-      body.practice-view-active.practice-focus-mode .practice-card > .companion {
-        display: none !important;
+      body.practice-view-active.practice-focus-mode .confidence-control {
+        align-items: stretch;
+        padding: 6px;
       }
-      body.practice-view-active.practice-focus-mode .floating-pet-assistant {
+      body.practice-view-active.practice-focus-mode .confidence-control > span {
+        display: none;
+      }
+      body.practice-view-active.practice-focus-mode .confidence-options {
+        width: 100%;
+      }
+      body.practice-view-active.practice-focus-mode .confidence-options button {
+        min-height: 36px;
+      }
+      body.practice-view-active.practice-focus-mode .practice-card > .companion {
         display: none !important;
       }
     }

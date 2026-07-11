@@ -3,6 +3,8 @@ const path = require("path");
 const vm = require("vm");
 const assert = require("assert");
 
+require("./learning-quality-engine.test.js");
+
 const root = path.resolve(__dirname, "..");
 
 class FakeElement {
@@ -189,6 +191,7 @@ vm.createContext(context);
   "js/english-question-generator.js",
   "js/science-question-generator.js",
   "js/question-generator.js",
+  "js/learning-quality-engine.js",
   "js/handwriting-input.js",
   "js/practice-engine.js",
   "js/question-rules-engine.js",
@@ -2198,6 +2201,66 @@ function runBalancedSelectionAndAnswerCopyTests() {
   assert.strictEqual(debug.answerPlaceholderForQuestion({ subject: "science", answerType: "text" }), "输入科学概念、现象或证据", "science prompt should request scientific evidence or concepts");
 }
 
+function runAdaptiveLearningQualityIntegrationTests() {
+  const debug = context.mathCampDebug;
+  assert.strictEqual(typeof debug.hintForLevel, "function", "staged hint helper should be testable");
+  const hintQuestion = {
+    subject: "math",
+    pointId: "g3-word-two-step",
+    topic: "word",
+    text: "两步应用题",
+    steps: ["先求第一步。", "再求最终结果。"]
+  };
+  const hints = [1, 2, 3].map((level) => debug.hintForLevel(hintQuestion, level));
+  assert.strictEqual(new Set(hints).size, 3, "three hint levels should reveal progressively different guidance");
+  assert(hints[2].includes("先求第一步"), "level-three hint should expose a key intermediate step without the final answer");
+
+  const migrated = debug.normalizeProfile({
+    id: "quality-old-profile",
+    name: "旧档案",
+    grade: 3,
+    mastery: { "g3-word-two-step": { attempts: 4, correct: 3, level: 2, streak: 1 } },
+    history: [{ date: "2026-07-11", time: 1, grade: 3, pointId: "g3-word-two-step", correct: true, text: "旧题" }],
+    wrongbook: []
+  });
+  assert(Number.isFinite(migrated.mastery["g3-word-two-step"].score), "old mastery data should gain a compatible continuous score");
+  assert.strictEqual(migrated.history[0].confidence, "", "old history should default to neutral confidence");
+  assert.strictEqual(migrated.history[0].hintLevel, 0, "old history should default to no hints");
+
+  debug.selectSubject("math");
+  debug.state.grade = 3;
+  const point = debug.pointMap["g3-word-two-step"];
+  const question = debug.makeStrictQuestionForPoint(point, "auto");
+  assert(question.learningMeta && question.learningMeta.qualityScore >= 60, "generated practice questions should pass the runtime quality gate");
+  assert(question.learningMeta.familyKey, "generated questions should carry an internal semantic family key");
+  assert(question.learningMeta.difficultyScore >= 1 && question.learningMeta.difficultyScore <= 5, "generated questions should carry calibrated difficulty");
+  const teachingChoice = debug.makeStrictQuestionForPoint(debug.pointMap["g3-reading"], "choice");
+  assert(/易错提醒|检查方法/.test(teachingChoice.explanation), "generated explanations should include a pitfall or next-check strategy");
+
+  assert.strictEqual(typeof debug.buildWeeklyReviewQuestionSet, "function", "weekly review builder should be exposed");
+  const profile = debug.activeProfile();
+  const originalHistory = profile.history;
+  profile.history = [
+    { date: debug.todayKey(), time: 1, grade: 3, subject: "math", pointId: "g3-word-two-step", correct: false, hintLevel: 2, confidence: "unsure", text: "两步应用题" },
+    ...originalHistory
+  ];
+  const weeklySet = debug.buildWeeklyReviewQuestionSet(6, "auto");
+  profile.history = originalHistory;
+  assert.strictEqual(weeklySet.length, 6, "weekly review should build the requested number of questions");
+  assert(weeklySet.every((item) => item.weeklyReview), "weekly review questions should be marked internally");
+  assert(weeklySet.some((item) => item.pointId === "g3-word-two-step"), "weekly review should include this week's weak point");
+}
+
+function runGlassThemeTests() {
+  const debug = context.mathCampDebug;
+  ["glass-clear", "glass-pop"].forEach((themeId) => {
+    assert(debug.themeRegistry[themeId], `${themeId} should be registered`);
+    assert.strictEqual(debug.themeRegistry[themeId].initial, true, `${themeId} should be available from the start`);
+    assert.strictEqual(debug.systemThemeOwned(themeId), true, `${themeId} should not require levels or coins`);
+    assert.strictEqual(debug.safeThemeId(themeId), themeId, `${themeId} should be accepted as a safe theme id`);
+  });
+}
+
 const result = context.mathCampSelfTest(32);
 if (result.failed) {
   console.error(JSON.stringify(result.failures.slice(0, 10), null, 2));
@@ -2239,6 +2302,8 @@ runScienceSubjectIntegrationTests();
 runQuestionSourceSummaryTests();
 runVisibleQuestionQualityTests();
 runBalancedSelectionAndAnswerCopyTests();
+runAdaptiveLearningQualityIntegrationTests();
+runGlassThemeTests();
 
 console.log(`Question rule self-test passed: ${result.total} samples, 0 failures.`);
 console.log("Data boundary tests passed.");
@@ -2271,3 +2336,5 @@ console.log("Science subject integration tests passed.");
 console.log("Question source summary tests passed.");
 console.log("Visible question quality tests passed.");
 console.log("Balanced selection and answer copy tests passed.");
+console.log("Adaptive learning quality integration tests passed.");
+console.log("Glass theme tests passed.");
