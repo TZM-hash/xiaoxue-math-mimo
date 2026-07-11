@@ -84,7 +84,7 @@
       "g4-statistics",
       "g4-math-bar-stat-word",
       1,
-      "看参考页截图中的条形统计图题型。做统计图应用题时，第一步最应该做什么？",
+      "做条形统计图应用题时，第一步最应该做什么？",
       "看清每格表示的数量和横纵项目",
       ["只看最高的柱子颜色", "直接把所有数相乘", "忽略统计图标题"],
       "条形统计图要先读标题、单位和每格数量，再比较或计算。",
@@ -98,7 +98,7 @@
       "g4-angle-triangle",
       "g4-math-peiyou-100",
       20,
-      "参考截图来自培优图形题。改写题：一个三角形两个内角分别是 45° 和 65°，第三个角是多少度？",
+      "一个三角形两个内角分别是 45° 和 65°，第三个角是多少度？",
       "70",
       "三角形内角和是 180°，180 - 45 - 65 = 70。",
       ["写出内角和 180°。", "减去已知两个角。", "得到第三个角。"],
@@ -111,7 +111,7 @@
       "g4-area",
       "g4-math-special-training",
       10,
-      "参考截图来自数学专题卷。改写题：长方形长 12 米、宽 7 米，面积是多少平方米？",
+      "长方形长 12 米、宽 7 米，面积是多少平方米？",
       "84",
       "长方形面积 = 长 × 宽，12 × 7 = 84。",
       ["找到长和宽。", "用长乘宽。", "写出平方米。"],
@@ -152,7 +152,7 @@
       "c4-modern-reading",
       "g4-chinese-sunshine-paper",
       12,
-      "参考截图来自语文试卷阅读题。回答现代文阅读原因题时，最应该怎么做？",
+      "回答现代文阅读原因题时，最应该怎么做？",
       "回到原文找前后句依据",
       ["只看插图颜色", "只猜一个成语", "只抄题号"],
       "原因题要回到原文，找前后句中的行为、心理或结果依据。",
@@ -166,7 +166,7 @@
       "e4-vocabulary-home-school",
       "g4-english-ready",
       6,
-      "Look at the reference page style. Which word means 教室?",
+      "Which word means 教室?",
       "classroom",
       ["fork", "weather", "uncle"],
       "classroom means 教室.",
@@ -194,7 +194,7 @@
       "g4-thinking",
       "g4-math-olympiad-training",
       1,
-      "参考截图来自四年级奥数图形计数题。数线段、长方形这类图形时，最稳的方法是哪一项？",
+      "数线段、长方形这类图形时，最稳的方法是哪一项？",
       "按顺序分类计数，避免重复和遗漏",
       ["只看最大的图形", "随便猜一个数", "先把题目涂黑"],
       "图形计数题要按长度、位置或组合方式分类，逐类计数后再合并。",
@@ -737,7 +737,7 @@
     }]);
     docSource("g4-large", "ref-g4-docx-large-001", {
       answerType: "text",
-      text: "DOCX 期中卷改写：3L = ? mL。",
+      text: "3L = ? mL。",
       answer: "3000",
       acceptedAnswers: ["3000"],
       explanation: "1L = 1000mL，所以 3L = 3000mL。",
@@ -746,7 +746,7 @@
     });
     docSource("g4-mul-div", "ref-g4-docx-muldiv-001", {
       answerType: "text",
-      text: "DOCX 期中卷改写：900 ÷ 45 = ?",
+      text: "900 ÷ 45 = ?",
       answer: "20",
       acceptedAnswers: ["20"],
       explanation: "45 × 20 = 900，所以 900 ÷ 45 = 20。",
@@ -755,7 +755,7 @@
     });
     docSource("g4-thinking", "ref-g4-docx-thinking-001", {
       answerType: "choice",
-      prompt: "DOCX 期中卷改写：要使 43□ 既是 3 的倍数又是 5 的倍数，□ 里应填什么？",
+      prompt: "要使 43□ 既是 3 的倍数又是 5 的倍数，□ 里应填什么？",
       correct: "5",
       wrongs: ["0", "3", "9"],
       explanation: "5 的倍数个位是 0 或 5；435 各位数字和是 12，是 3 的倍数。",
@@ -764,7 +764,7 @@
     });
     docSource("g4-statistics", "ref-g4-docx-stat-001", {
       answerType: "choice",
-      prompt: "DOCX 期中卷改写：条形统计图每格表示 10 人，柱子高 7 格，表示多少人？",
+      prompt: "条形统计图每格表示 10 人，柱子高 7 格，表示多少人？",
       correct: "70 人",
       wrongs: ["17 人", "7 人", "10 人"],
       explanation: "每格 10 人，7 格就是 70 人。",
@@ -773,7 +773,7 @@
     });
     docSource("g4-large", "ref-g4-docx-large-002", {
       answerType: "choice",
-      prompt: "DOCX 期中卷改写：6000mL = ? L。",
+      prompt: "6000mL = ? L。",
       correct: "6",
       wrongs: ["60", "600", "6000"],
       explanation: "1000mL = 1L，6000mL = 6L。",
@@ -782,7 +782,7 @@
     });
     docSource("g4-thinking", "ref-g4-docx-thinking-002", {
       answerType: "text",
-      text: "DOCX 期中卷改写：60 的因数中，既是偶数又是质数的数是多少？",
+      text: "60 的因数中，既是偶数又是质数的数是多少？",
       answer: "2",
       acceptedAnswers: ["2"],
       explanation: "偶数中唯一的质数是 2，2 也是 60 的因数。",
@@ -791,7 +791,7 @@
     });
     docSource("g4-vertical", "ref-g4-docx-vertical-001", {
       answerType: "choice",
-      prompt: "DOCX 期中卷改写：□43 ÷ 63，如果商是一位数，□ 中最大能填几？",
+      prompt: "□43 ÷ 63，如果商是一位数，□ 中最大能填几？",
       correct: "5",
       wrongs: ["6", "7", "9"],
       explanation: "商是一位数说明被除数小于 63 × 10 = 630，□43 小于 630 时 □ 最大是 5。",
@@ -800,7 +800,7 @@
     });
     docSource("g4-word", "ref-g4-docx-word-001", {
       answerType: "text",
-      text: "DOCX 期中卷改写：一盒牛奶 250mL，4 盒一共多少 mL？",
+      text: "一盒牛奶 250mL，4 盒一共多少 mL？",
       answer: "1000",
       acceptedAnswers: ["1000", "1000mL"],
       explanation: "250 × 4 = 1000。",
@@ -809,7 +809,7 @@
     });
     docSource("g4-mixed", "ref-g4-docx-mixed-001", {
       answerType: "text",
-      text: "DOCX 期中卷改写：32 与 25 的乘积是多少？",
+      text: "32 与 25 的乘积是多少？",
       answer: "800",
       acceptedAnswers: ["800"],
       explanation: "32 × 25 = 32 × 100 ÷ 4 = 800。",
@@ -818,7 +818,7 @@
     });
     docSource("g4-reading", "ref-g4-docx-reading-001", {
       answerType: "choice",
-      prompt: "DOCX 期中卷改写：一桶矿泉水 13（ ），一盒牛奶 250（ ）。括号里应填什么单位？",
+      prompt: "一桶矿泉水 13（ ），一盒牛奶 250（ ）。括号里应填什么单位？",
       correct: "L，mL",
       wrongs: ["mL，L", "米，厘米", "千克，克"],
       explanation: "桶装水容量较大用 L，盒装牛奶较小常用 mL。",
@@ -836,7 +836,7 @@
         pointCycle[index % pointCycle.length],
         sourceId,
         page,
-        `参考截图来自四年级奥数培训综合训练第 ${page} 页。做这一页的奥数题时，最适合先做什么？`,
+        "解答分类计数、和差倍或周期类奥数题时，最适合先做什么？",
         "先分类整理条件，再选择巧算、画图、列表或方程思路",
         ["只抄最后一个数字", "不看题目条件直接猜", "把图形题都当成面积题"],
         "四年级奥数题常涉及分类计数、和差倍、周期和优化，先整理题型再动笔更稳。",
@@ -891,7 +891,7 @@
       add(item.point, [{
         id: `ref-g4-olympiad-${String(item.n).toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
         answerType: "text",
-        text: `根据奥数 PDF 第 ${item.n} 题改写：${item.q}`,
+        text: item.q,
         answer,
         acceptedAnswers: (item.accept || [answer]).map(String),
         explanation: item.exp,

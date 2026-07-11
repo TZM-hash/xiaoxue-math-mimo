@@ -67,13 +67,91 @@ async function runSmoke(createPage) {
           subject: debug.state.subject,
           setSize: debug.state.currentSet.length,
           hasChinesePoint: debug.state.currentSet.every((question) => question.pointId === "c3-paragraph-reading"),
-          hasExplanation: debug.state.currentSet.every((question) => question.explanation && question.steps && question.steps.length)
+          hasExplanation: debug.state.currentSet.every((question) => question.explanation && question.steps && question.steps.length),
+          titleOptionCount: document.querySelectorAll("#questionText .question-option").length,
+          answerOptionCount: document.querySelectorAll("#answerModePanel .answer-option").length
         };
       });
 
       if (chineseResult.subject !== "chinese") throw new Error(`${viewport.name}: Chinese subject did not activate`);
       if (chineseResult.setSize !== 3) throw new Error(`${viewport.name}: Chinese practice set did not build`);
       if (!chineseResult.hasChinesePoint || !chineseResult.hasExplanation) throw new Error(`${viewport.name}: Chinese questions missing metadata`);
+      if (chineseResult.titleOptionCount !== 0 || chineseResult.answerOptionCount !== 4) {
+        throw new Error(`${viewport.name}: objective choices should render once ${JSON.stringify(chineseResult)}`);
+      }
+
+      const scienceLayout = await page.evaluate(() => {
+        const debug = window.mathCampDebug;
+        debug.selectSubject("science");
+        debug.state.grade = 3;
+        debug.state.pointId = "s3-earth-air-weather";
+        debug.els.pointSelect.innerHTML = debug.pointOptionsHTML(3, debug.state.pointId);
+        debug.els.pointSelect.value = debug.state.pointId;
+        debug.state.setSize = 3;
+        debug.els.setSizeInput.value = "3";
+        debug.startNewSet({ focus: true });
+        const visible = Array.from(document.querySelectorAll("#questionText, #answerModePanel, #answerModePanel .answer-option"));
+        const viewportWidth = document.documentElement.clientWidth;
+        return {
+          documentOverflow: document.documentElement.scrollWidth - viewportWidth,
+          widestRight: Math.max(...visible.map((element) => element.getBoundingClientRect().right), 0),
+          viewportWidth
+        };
+      });
+      if (scienceLayout.documentOverflow > 1 || scienceLayout.widestRight > scienceLayout.viewportWidth + 1) {
+        throw new Error(`${viewport.name}: science question overflows viewport ${JSON.stringify(scienceLayout)}`);
+      }
+
+      const interactionResult = await page.evaluate(async () => {
+        document.getElementById("backToSetupBtn")?.click();
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        let animationError = "";
+        const onError = (event) => { animationError = event.error?.message || event.message || "unknown error"; };
+        window.addEventListener("error", onError);
+
+        window.MathCampAnimationIntegration?.setupNumberCounters?.();
+        const todayPill = document.getElementById("todayPill");
+        if (!todayPill.firstChild) todayPill.textContent = "0";
+        if (todayPill.firstChild?.nodeType === Node.TEXT_NODE) todayPill.firstChild.data = "1";
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        window.removeEventListener("error", onError);
+
+        window.MathCampMicroInteractions?.enhanceSwitches?.();
+        const nativeSwitch = document.querySelector(".custom-switch input[type='checkbox']");
+        nativeSwitch?.focus();
+        const switchFocusable = Boolean(nativeSwitch && document.activeElement === nativeSwitch && getComputedStyle(nativeSwitch).display !== "none");
+
+        const returnTarget = document.getElementById("adaptiveToggle");
+        returnTarget.focus();
+        window.MathCampEffectsControl?.openModal?.();
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        const effectsModal = document.getElementById("effectsSettingsModal");
+        const modalFocused = Boolean(effectsModal?.contains(document.activeElement));
+        window.MathCampEffectsControl?.closeModal?.();
+        await new Promise((resolve) => setTimeout(resolve, 350));
+
+        return {
+          animationError,
+          switchFocusable,
+          switchDisplay: nativeSwitch ? getComputedStyle(nativeSwitch).display : "missing",
+          switchId: nativeSwitch?.id || "",
+          activeElementId: document.activeElement?.id || "",
+          activeElementTag: document.activeElement?.tagName || "",
+          modalFocused,
+          focusRestored: document.activeElement === returnTarget
+        };
+      });
+
+      if (interactionResult.animationError) throw new Error(`${viewport.name}: number counter mutation failed: ${interactionResult.animationError}`);
+      if (interactionResult.switchDisplay === "none" || !interactionResult.switchId) {
+        throw new Error(`${viewport.name}: custom switch hides the native checkbox ${JSON.stringify(interactionResult)}`);
+      }
+      if (viewport.width >= 700 && !interactionResult.switchFocusable) {
+        throw new Error(`${viewport.name}: custom switch lost native keyboard focus ${JSON.stringify(interactionResult)}`);
+      }
+      if (viewport.width >= 700 && (!interactionResult.modalFocused || !interactionResult.focusRestored)) {
+        throw new Error(`${viewport.name}: effects modal focus flow failed ${JSON.stringify(interactionResult)}`);
+      }
     } finally {
       await page.close();
     }

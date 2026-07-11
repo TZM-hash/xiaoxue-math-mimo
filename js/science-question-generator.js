@@ -16,12 +16,19 @@
       evidence: "颗粒均匀分散到水中而不是消失，科学上称为溶解。",
       wrongs: ["只根据杯子颜色判断", "认为颗粒凭空消失了", "不比较搅拌前后的现象"]
     },
-    earth: {
-      correct: "连续记录天气或模型位置，再根据变化寻找规律",
+    earthWeather: {
+      correct: "在固定时间连续记录天气现象，再比较变化规律",
+      inputAnswer: "天气记录",
+      inputPrompt: "每天同一时间记录气温、云量和风向，用来比较一周的天气变化。请填入这种记录名称。",
+      evidence: "在相同时间连续记录气温、云量和风向，才能用多天证据判断天气变化。",
+      wrongs: ["只记录变化最明显的一天", "每天更换观察时间再直接比较", "用一个季节的记录代表全年天气"]
+    },
+    earthModel: {
+      correct: "用模型表示天体的位置和运动，再根据现象作出解释",
       inputAnswer: "模型",
       inputPrompt: "研究很大的天体运动时，课堂上常用球、灯和轨道图来表示真实对象。请填入这种研究方法。",
-      evidence: "天气和宇宙现象需要长期观察或模型模拟，不能只凭一次印象。",
-      wrongs: ["只看图片漂亮不漂亮", "不用记录就直接下结论", "把一次天气当成全年规律"]
+      evidence: "天体距离遥远且运动周期较长，可以用球、灯和轨道图模拟位置关系并检验解释。",
+      wrongs: ["把模型大小当成天体真实大小", "只记住天体名称而不比较位置", "改变多个模型条件后直接归因于其中一个"]
     },
     engineering: {
       correct: "先明确需求，再测试承重或稳定性，根据结果改进",
@@ -46,6 +53,16 @@
     engineering: ["需求", "结构测试", "迭代改进"],
     inquiry: ["变量", "证据", "结论"]
   };
+
+  function earthSeed(point) {
+    const scope = `${point?.label || ""} ${point?.short || ""} ${point?.helper || ""}`;
+    return /天气|气温|云量|降水|风向|风力|季节/.test(scope) ? topicSeeds.earthWeather : topicSeeds.earthModel;
+  }
+
+  function topicSeed(point) {
+    if (point?.topic === "earth") return earthSeed(point);
+    return topicSeeds[point?.topic] || topicSeeds.inquiry;
+  }
 
   // ==========================================================================
   // 知识点专属题池：key 为 point.id（多为单元点 s{年级}-unit-{学期}-{单元}）。
@@ -1315,7 +1332,7 @@
       const preferred = pick(d, specs) || specs[0];
       return preferred.build();
     }
-    const seed = topicSeeds[safePoint.topic] || topicSeeds.inquiry;
+    const seed = topicSeed(safePoint);
     const specs = [
       { format: "choice", questionType: "现象判断", build: () => choiceQuestion(d, safePoint, seed) },
       { format: "input", questionType: "概念填空", build: () => inputQuestion(d, safePoint, seed) },

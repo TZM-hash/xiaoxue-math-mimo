@@ -42,6 +42,10 @@ class FakeElement {
     child.parentElement = this;
     return child;
   }
+  replaceChildren(...children) {
+    this.children = [];
+    children.forEach((child) => this.appendChild(child));
+  }
   remove() {}
   click() {
     (this.listeners.click || []).forEach((listener) => listener({ target: this, preventDefault() {} }));
@@ -1927,8 +1931,8 @@ function runChineseSubjectIntegrationTests() {
   assert.strictEqual(debug.els.answerModePanel.hidden, false, "语文选择题应弹出选择面板");
   assert(debug.els.answerModePanel.innerHTML.includes("选择题"), "语文选择题面板应显示选择题标题");
   assert.strictEqual(debug.els.numberPad.hidden, true, "语文选择题不应同时显示数字键盘");
-  assert(debug.els.questionText.innerHTML.includes("question-options"), "题干中的 A/B/C 选项应拆成独立选项区");
-  assert(debug.els.questionText.innerHTML.includes("question-option"), "题干中的每个选项应独立成行，便于读题");
+  assert(!debug.els.questionText.innerHTML.includes("question-options"), "选择作答时题干不应重复显示 A/B/C 选项");
+  assert.strictEqual((debug.els.answerModePanel.innerHTML.match(/class="answer-option"/g) || []).length, 4, "四个选项应只在可点击作答区显示一次");
 
   debug.state.answerMode = "judge";
   debug.els.answerModeSelect.value = "judge";
@@ -2145,6 +2149,55 @@ function runQuestionSourceSummaryTests() {
   assert(audit.items.every((item) => item.subject === "math" && Number(item.grade) === 2), "题源巡检应按学科和年级过滤");
 }
 
+function runVisibleQuestionQualityTests() {
+  const debug = context.mathCampDebug;
+  assert.strictEqual(typeof debug.questionQualityWarnings, "function", "quality audit should expose visible-question warnings");
+  const mathPoint = debug.bankPointMap()["g4-angle-triangle"];
+  const productionCopy = debug.questionQualityWarnings(mathPoint, {
+    text: "参考截图来自培优图形题。改写题：三角形第三个角是多少度？",
+    explanation: "三角形内角和是 180°。",
+    steps: ["写出内角和。", "计算第三个角。"]
+  });
+  assert(productionCopy.includes("题干含学生不需要看到的制作说明"), "quality audit should reject production-language leakage");
+
+  const chinesePoint = { grade: 3, topic: "reading", label: "段落阅读" };
+  const genericDistractors = debug.questionQualityWarnings(chinesePoint, {
+    text: "下面哪一项最符合训练目标？\nA. 抓关键词\nB. 只看字面随便猜\nC. 不读题目直接选\nD. 答案和题目无关",
+    explanation: "根据训练目标判断。",
+    steps: ["读题。", "选择。"]
+  });
+  assert(genericDistractors.includes("干扰项使用固定万能错误话术"), "quality audit should flag generic distractors");
+
+  const sciencePoint = { grade: 3, topic: "earth", label: "空气和天气" };
+  const mixedScience = debug.questionQualityWarnings(sciencePoint, {
+    subject: "science",
+    text: "连续记录天气或模型位置，再根据变化寻找规律。",
+    explanation: "天气和宇宙现象需要长期观察或模型模拟。",
+    steps: ["观察。", "解释。"]
+  });
+  assert(mixedScience.includes("科学题混合了不相关的概念范围"), "quality audit should flag cross-topic science explanations");
+}
+
+function runBalancedSelectionAndAnswerCopyTests() {
+  const debug = context.mathCampDebug;
+  assert.strictEqual(typeof debug.createRoundQuestionPicker, "function", "round picker should be testable");
+  assert.strictEqual(typeof debug.questionSpecBucket, "function", "question bucket should be testable");
+  const picker = debug.createRoundQuestionPicker("auto");
+  const specs = [
+    { format: "choice", questionType: "现象判断" },
+    { format: "choice", questionType: "实验设计" },
+    { format: "input", questionType: "概念填空" }
+  ];
+  const firstBuckets = Array.from({ length: 3 }, () => debug.questionSpecBucket(picker(specs)));
+  assert.strictEqual(new Set(firstBuckets).size, 3, "a round should cover underrepresented question buckets before repeating one");
+
+  assert.strictEqual(debug.answerPlaceholderForQuestion({ subject: "math", answerType: "formula" }), "输入算式和答案，如 23+15=38", "math formula prompt should request an equation and result");
+  assert.strictEqual(debug.answerPlaceholderForQuestion({ subject: "math", answerType: "number" }), "输入数值，注意单位", "math numeric prompt should mention values and units");
+  assert.strictEqual(debug.answerPlaceholderForQuestion({ subject: "chinese", answerType: "text" }), "根据语境输入词语或简短答案", "Chinese prompt should ask for a context-based answer");
+  assert.strictEqual(debug.answerPlaceholderForQuestion({ subject: "english", answerType: "text" }), "输入英文单词或短语，注意拼写", "English prompt should mention spelling");
+  assert.strictEqual(debug.answerPlaceholderForQuestion({ subject: "science", answerType: "text" }), "输入科学概念、现象或证据", "science prompt should request scientific evidence or concepts");
+}
+
 const result = context.mathCampSelfTest(32);
 if (result.failed) {
   console.error(JSON.stringify(result.failures.slice(0, 10), null, 2));
@@ -2184,6 +2237,8 @@ runChineseSubjectIntegrationTests();
 runEnglishSubjectIntegrationTests();
 runScienceSubjectIntegrationTests();
 runQuestionSourceSummaryTests();
+runVisibleQuestionQualityTests();
+runBalancedSelectionAndAnswerCopyTests();
 
 console.log(`Question rule self-test passed: ${result.total} samples, 0 failures.`);
 console.log("Data boundary tests passed.");
@@ -2214,3 +2269,5 @@ console.log("Chinese subject integration tests passed.");
 console.log("English subject integration tests passed.");
 console.log("Science subject integration tests passed.");
 console.log("Question source summary tests passed.");
+console.log("Visible question quality tests passed.");
+console.log("Balanced selection and answer copy tests passed.");

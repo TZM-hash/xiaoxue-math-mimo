@@ -245,7 +245,11 @@
         const observer = new MutationObserver((mutations) => {
           mutations.forEach((mutation) => {
             if (mutation.type === 'childList' || mutation.type === 'characterData') {
-              const target = mutation.target.closest('strong') || mutation.target;
+              const mutationElement = mutation.target.nodeType === 1
+                ? mutation.target
+                : mutation.target.parentElement;
+              if (!mutationElement) return;
+              const target = mutationElement.closest('strong') || mutationElement;
               const text = target.textContent;
               const match = text.match(/\d+/);
 

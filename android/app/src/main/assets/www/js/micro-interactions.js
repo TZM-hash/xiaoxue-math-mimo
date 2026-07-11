@@ -420,7 +420,19 @@
     }
 
     .custom-switch input[type="checkbox"] {
-      display: none;
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      opacity: 0;
+      cursor: pointer;
+      z-index: 2;
+    }
+
+    .custom-switch input[type="checkbox"]:focus-visible + .switch-track {
+      outline: 3px solid var(--accent);
+      outline-offset: 3px;
     }
 
     .switch-track {

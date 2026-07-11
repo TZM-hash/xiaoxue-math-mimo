@@ -2062,12 +2062,17 @@
   };
 
   function fallbackSpec(point) {
+    const correct = point.helper.replace(/[。.!！?？]$/g, "");
+    const pointPitfalls = [
+      ...(Array.isArray(point.commonPitfalls) ? point.commonPitfalls : []),
+      ...(Array.isArray(point.pitfalls) ? point.pitfalls : [])
+    ];
     return {
       prompt: `【${point.label}】下面哪一项最符合“${point.helper}”这个训练目标？`,
-      correct: point.helper.replace(/[。.!！?？]$/g, ""),
-      wrongs: ["只看字面随便猜", "不读题目直接选", "答案和题目无关"],
-      explanation: `本题对应“${point.label}”，要围绕“${point.helper}”判断。`,
-      commonPitfalls: ["没有看清知识点要求"]
+      correct,
+      wrongs: cleanWrongOptions(point, correct, pointPitfalls),
+      explanation: `判断“${point.label}”时，应先看清材料和要求，再运用“${point.helper}”完成作答。`,
+      commonPitfalls: pointPitfalls.length ? pointPitfalls : ["没有结合材料和题目要求判断"]
     };
   }
 
@@ -2132,7 +2137,7 @@
       correct,
       wrongs,
       aliases,
-      explanation: `这题对应${sourceLabel}里的“${point.label}”。按真实试卷的做法，先读材料和题目要求，再回到语境中选择答案。`,
+      explanation: `解答“${point.label}”时，先读材料和题目要求，再结合“${point.helper}”回到语境中选择答案。`,
       steps: [
         "先读材料，圈出题目问的关键信息。",
         "再把每个选项放回材料或句子中比较。",
@@ -2320,6 +2325,13 @@
       correct: "阳光",
       explanation: "根据材料原句，括号里只能填“阳光”。",
       commonPitfalls: ["词语搭配不当"]
+    },
+    "c2-textbook-picture-writing-order": {
+      questionType: "顺序词填空",
+      prompt: "【课内教材】看图写话顺序\n材料：图中小朋友先拿水壶照顾小树，接着扶正小树，最后整理工具。\n题目：小朋友最先做的动作是什么？请写出两个汉字。",
+      correct: "浇水",
+      explanation: "材料用“先”标出了第一件事，小朋友先给小树浇水。",
+      commonPitfalls: ["没有抓住先、再、最后", "动作顺序颠倒"]
     },
     "c5-textbook-integrated-language": {
       questionType: "错别字改正",

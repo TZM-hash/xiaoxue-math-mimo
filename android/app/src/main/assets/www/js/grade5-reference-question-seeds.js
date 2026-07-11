@@ -533,7 +533,7 @@
       add(item.point, [{
         id: `ref-g5-olympiad-${String(item.n).toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
         answerType: "text",
-        text: `根据奥数 PDF 第 ${item.n} 题改写：${item.q}`,
+        text: item.q,
         answer,
         acceptedAnswers: (item.accept || [answer]).map(String),
         explanation: item.exp,

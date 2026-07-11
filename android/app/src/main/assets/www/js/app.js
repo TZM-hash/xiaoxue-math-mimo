@@ -2615,6 +2615,11 @@
             </span>`).join("")}
         </span>`;
     }
+    function objectiveQuestionPromptHTML(question) {
+      const split = splitInlineChoiceText(question?.text);
+      if (!split) return null;
+      return `<span class="question-prompt">${escapeHTML(split.prompt)}</span>`;
+    }
     function audioPromptHTML(question) {
       if (!hasAudioPrompt(question)) return "";
       return `
@@ -2650,16 +2655,19 @@
       els.questionText.classList.toggle("word", Boolean(question?.word));
       els.questionText.classList.toggle("vertical-question", question?.topic === "vertical");
       const choiceHTML = choiceQuestionTitleHTML(question);
+      const titleHTML = choiceHTML && question?.interaction?.mode === "choice"
+        ? objectiveQuestionPromptHTML(question)
+        : choiceHTML;
       const audioHTML = audioPromptHTML(question);
       els.questionText.classList.toggle("choice-question", Boolean(choiceHTML));
       if (question?.passage) {
         els.questionText.classList.add("word");
-        els.questionText.innerHTML = `${audioHTML}<span class="question-passage">${escapeHTML(question.passage)}</span>${choiceHTML || structuredQuestionTitleHTML(question)}`;
+        els.questionText.innerHTML = `${audioHTML}<span class="question-passage">${escapeHTML(question.passage)}</span>${titleHTML || structuredQuestionTitleHTML(question)}`;
         return;
       }
-      if (choiceHTML) {
+      if (titleHTML) {
         els.questionText.classList.add("word");
-        els.questionText.innerHTML = `${audioHTML}${choiceHTML}`;
+        els.questionText.innerHTML = `${audioHTML}${titleHTML}`;
         return;
       }
       if (question?.topic !== "vertical") {
@@ -3141,18 +3149,29 @@
     const numericDistractors = interactionEngine.numericDistractors;
     const chineseAnswerValue = interactionEngine.textAnswerValue;
     const chineseChoiceOptions = interactionEngine.textChoiceOptions;
+    function questionSpecBucket(spec) {
+      const format = spec?.format || "input";
+      const questionType = String(spec?.questionType || "通用题").trim() || "通用题";
+      return `${format}:${questionType}`;
+    }
     function createRoundQuestionPicker(preferred = state.answerMode) {
-      const counters = new Map();
+      const bucketCounts = new Map();
+      const tieOffsets = new Map();
       return function pickQuestionSpec(items) {
         const list = Array.isArray(items) ? items.filter(Boolean) : [];
         if (!list.length) return undefined;
         const preferredFormat = preferred === "input" ? "input" : preferred === "choice" ? "choice" : "";
         const pool = preferredFormat ? list.filter((item) => item.format === preferredFormat) : list;
         const candidates = pool.length ? pool : list;
-        const key = candidates.map((item) => `${item.format || ""}:${item.questionType || ""}:${item.prompt || ""}`).join("|");
-        const index = counters.get(key) || 0;
-        counters.set(key, index + 1);
-        return candidates[index % candidates.length];
+        const minimum = Math.min(...candidates.map((item) => bucketCounts.get(questionSpecBucket(item)) || 0));
+        const underrepresented = candidates.filter((item) => (bucketCounts.get(questionSpecBucket(item)) || 0) === minimum);
+        const tieKey = underrepresented.map(questionSpecBucket).join("|");
+        const offset = tieOffsets.get(tieKey) || 0;
+        tieOffsets.set(tieKey, offset + 1);
+        const selected = underrepresented[offset % underrepresented.length];
+        const bucket = questionSpecBucket(selected);
+        bucketCounts.set(bucket, (bucketCounts.get(bucket) || 0) + 1);
+        return selected;
       };
     }
     function externalQuestionChanceForPoint(point) {
@@ -3437,12 +3456,24 @@
       const warnings = [];
       const text = String(question?.text || "").trim();
       const explanation = String(question?.explanation || "").trim();
+      const visibleCopy = `${text}\n${explanation}`;
       const steps = Array.isArray(question?.steps) ? question.steps.filter(Boolean) : [];
       if (text.length < 5) warnings.push("题干过短");
       if (!/[？?]/.test(text)) warnings.push("题干缺少问号");
       if (explanation.length < 10) warnings.push("解析过短");
       if (steps.length < 2) warnings.push("步骤少于 2 步");
       if (point?.topic === "word" && !question?.word) warnings.push("应用题知识点未标记 word");
+      if (/参考截图|改写题|(?:PDF|DOCX).{0,24}改写|根据.{0,24}(?:PDF|DOCX).{0,24}改写|按真实试卷的做法|本题对应.+里的/.test(visibleCopy)) {
+        warnings.push("题干含学生不需要看到的制作说明");
+      }
+      const genericDistractorPhrases = ["只看字面随便猜", "不读题目直接选", "答案和题目无关"];
+      if (genericDistractorPhrases.filter((phrase) => text.includes(phrase)).length >= 2) {
+        warnings.push("干扰项使用固定万能错误话术");
+      }
+      const scienceQuestion = question?.subject === "science" || /^s\d-/.test(String(question?.pointId || ""));
+      if (scienceQuestion && point?.topic === "earth" && /天气/.test(visibleCopy) && /宇宙|天体|模型位置/.test(visibleCopy)) {
+        warnings.push("科学题混合了不相关的概念范围");
+      }
       return warnings;
     }
     function runQuestionRuleSelfTest(sampleSize = 80) {
@@ -7063,6 +7094,21 @@
     function isWaitingForCauseSave() {
       return Boolean(state.checked && state.lastWrongRecordId && els.causePanel?.classList.contains("active"));
     }
+    function answerPlaceholderForQuestion(question) {
+      if (question?.answerType === "formula") return "输入算式和答案，如 23+15=38";
+      if (isChineseQuestion(question)) return "根据语境输入词语或简短答案";
+      if (isEnglishQuestion(question)) return "输入英文单词或短语，注意拼写";
+      if (isScienceQuestion(question)) return "输入科学概念、现象或证据";
+      if (question?.answerType === "text" || question?.answerType === "longText" || Array.isArray(question?.acceptedAnswers)) return "输入数值、单位或简短答案";
+      return "输入数值，注意单位";
+    }
+    function answerGuidanceForQuestion(question) {
+      if (question?.answerType === "formula") return '写出完整算式和结果，再点“检查答案”；按回车也可以提交。';
+      if (isChineseQuestion(question)) return '结合材料或语境填写关键词、词语或简短答案，再检查是否答到题目要求。';
+      if (isEnglishQuestion(question)) return '填写英文单词或短语，提交前检查大小写和拼写。';
+      if (isScienceQuestion(question)) return '填写概念、观察现象或证据，答案要和题目中的实验记录对应。';
+      return '输入答案后点“检查答案”，按回车也可以提交。';
+    }
     function renderAnswerModePanel(question) {
       if (!els.answerModePanel || !question) return;
       restoreCausePanelPlacement();
@@ -7077,8 +7123,7 @@
         ? "请选择一个答案"
         : interaction.mode === "judge"
           ? "请选择对或错"
-          : question.answerType === "formula" ? "输入算式和答案，如 23+15=38"
-            : textLikeAnswer ? "在这里输入文字答案" : "在这里输入答案";
+          : answerPlaceholderForQuestion(question);
       if (interaction.mode === "input") {
         els.answerModePanel.innerHTML = "";
         return;
@@ -7776,7 +7821,7 @@
           ? "判断这句话正确或错误，点一下就会检查。"
           : current.answerLabel
             ? "这题可能有余数或分数，输入主要数值即可，讲解里会显示完整答案。"
-            : '输入答案后点"检查答案"，按回车也可以提交。', "🤔");
+            : answerGuidanceForQuestion(current), "🤔");
       const appendixPoint = appendixPointForGrade(state.grade);
       els.appendixPreview.textContent = `${gradeNames[state.grade - 1]}附加题：${appendixPoint.helper}。答题前先想模型，再列式。`;
       renderStats();
@@ -10476,11 +10521,15 @@
         externalQuestionChanceForPoint,
         externalQuestionCountForPoint,
         localQuestionTemplateCountForPoint,
+        questionSpecBucket,
+        createRoundQuestionPicker,
         buildQuestionSetForPoint,
         buildAdaptiveQuestionSet,
         buildSmartDailyQuestionSet,
         startNewSet,
         renderPracticeQuestion,
+        answerPlaceholderForQuestion,
+        answerGuidanceForQuestion,
         startSmartDailyPractice,
         startChallengeSet,
         challengeDifficultyForLevel,
@@ -10493,6 +10542,7 @@
         applyQuestionInteraction,
         answerMatches,
         questionRuleIssues,
+        questionQualityWarnings,
         interactionRuleIssues,
         runQuestionQualityAudit,
         runQuestionSourceAudit,
