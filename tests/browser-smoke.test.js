@@ -172,6 +172,7 @@ async function runSmoke(createPage) {
         themeSelect.dispatchEvent(new Event("change", { bubbles: true }));
         await new Promise((resolve) => setTimeout(resolve, 30));
         const clearTheme = document.documentElement.dataset.theme;
+        const clearThemeTransitionActive = document.documentElement.classList.contains("theme-transitioning");
         const clearBackdrop = getComputedStyle(document.querySelector(".panel, .card, .home-dashboard")).backdropFilter;
         const clearSetupLabelLayers = [
           fieldLabelTopmost(".setup-set-size-field"),
@@ -181,10 +182,24 @@ async function runSmoke(createPage) {
         themeSelect.dispatchEvent(new Event("change", { bubbles: true }));
         await new Promise((resolve) => setTimeout(resolve, 30));
         const popTheme = document.documentElement.dataset.theme;
+        const popThemeTransitionActive = document.documentElement.classList.contains("theme-transitioning");
         const popSetupLabelLayers = [
           fieldLabelTopmost(".setup-set-size-field"),
           fieldLabelTopmost(".setup-daily-goal-field")
         ];
+        const feedback = document.getElementById("feedback");
+        feedback.className = "feedback good";
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        const goodFeedbackClass = document.getElementById("practiceCard")?.classList.contains("answer-feedback-good");
+        const correctPetReaction = document.getElementById("floatingPetAssistant")?.dataset.reaction;
+        feedback.className = "feedback bad";
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        const badFeedbackClass = document.getElementById("practiceCard")?.classList.contains("answer-feedback-bad");
+        const wrongPetReaction = document.getElementById("floatingPetAssistant")?.dataset.reaction;
+        const performanceClass = window.MathCampVisualPolish?.classifyPerformance?.({ hardwareConcurrency: 2, deviceMemory: 2, saveData: false });
+        const depthCard = document.querySelector(".desktop-overview-card, .practice-card, .home-mode-card");
+        const depthInput = document.querySelector(".setup-set-size-field input, #answerInput");
+        const depthButton = document.querySelector("button.primary, #checkBtn");
 
         return {
           animationError,
@@ -197,9 +212,21 @@ async function runSmoke(createPage) {
           focusRestored: document.activeElement === returnTarget,
           clearTheme,
           popTheme,
+          clearThemeTransitionActive,
+          popThemeTransitionActive,
           clearBackdrop,
           clearSetupLabelLayers,
-          popSetupLabelLayers
+          popSetupLabelLayers,
+          polishReady: document.documentElement.classList.contains("visual-polish-ready"),
+          motionFast: getComputedStyle(document.documentElement).getPropertyValue("--motion-fast").trim(),
+          goodFeedbackClass,
+          badFeedbackClass,
+          correctPetReaction,
+          wrongPetReaction,
+          performanceClass,
+          depthCardShadow: depthCard ? getComputedStyle(depthCard).boxShadow : "missing",
+          depthInputShadow: depthInput ? getComputedStyle(depthInput).boxShadow : "missing",
+          depthButtonShadow: depthButton ? getComputedStyle(depthButton).boxShadow : "missing"
         };
       });
 
@@ -215,6 +242,21 @@ async function runSmoke(createPage) {
       }
       if (interactionResult.clearTheme !== "glass-clear" || interactionResult.popTheme !== "glass-pop" || interactionResult.clearBackdrop === "none") {
         throw new Error(`${viewport.name}: glass theme switching failed ${JSON.stringify(interactionResult)}`);
+      }
+      if (!interactionResult.polishReady || interactionResult.motionFast !== "150ms") {
+        throw new Error(`${viewport.name}: visual polish system did not initialize ${JSON.stringify(interactionResult)}`);
+      }
+      if (!interactionResult.clearThemeTransitionActive || !interactionResult.popThemeTransitionActive) {
+        throw new Error(`${viewport.name}: theme transition state did not activate ${JSON.stringify(interactionResult)}`);
+      }
+      if (!interactionResult.goodFeedbackClass || !interactionResult.badFeedbackClass || interactionResult.correctPetReaction !== "correct" || interactionResult.wrongPetReaction !== "wrong") {
+        throw new Error(`${viewport.name}: answer and pet visual feedback did not synchronize ${JSON.stringify(interactionResult)}`);
+      }
+      if (interactionResult.performanceClass !== "low") {
+        throw new Error(`${viewport.name}: low-performance classification failed ${JSON.stringify(interactionResult)}`);
+      }
+      if (interactionResult.depthCardShadow === "none" || !interactionResult.depthInputShadow.includes("inset") || interactionResult.depthButtonShadow === "none") {
+        throw new Error(`${viewport.name}: medium-depth visual treatment is missing ${JSON.stringify(interactionResult)}`);
       }
       const visibleGlassLabelLayers = [...interactionResult.clearSetupLabelLayers, ...interactionResult.popSetupLabelLayers].filter(Boolean);
       if (visibleGlassLabelLayers.some((item) => !item.topmost)) {

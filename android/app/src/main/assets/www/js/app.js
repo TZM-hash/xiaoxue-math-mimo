@@ -50,6 +50,7 @@
     const PrintLayout = window.MathCampPrintLayout;
     const UI = window.MathCampUIFeedback;
     const PetEconomy = window.MathCampPetEconomy || {};
+    const PetExperience = window.MathCampPetExperience || {};
     const HomeRoute = window.MathCampHomeRoute || {};
     const PetDressupMeta = window.MathCampPetDressupMeta || {};
     const LearningInsights = window.MathCampLearningInsights || {};
@@ -1192,6 +1193,17 @@
         xp: 0,
         level: 1,
         inventory: defaultPetInventory(),
+        starterClaimed: false,
+        experience: {
+          starterClaimed: false,
+          freeCareDate: "",
+          dailyChoiceDate: "",
+          dailyChoiceId: "",
+          bellGameDate: "",
+          bellGameSlot: 0,
+          bellFound: false,
+          careSequence: 0
+        },
         careLog: { date: today, encourage: 0, feed: 0, clean: 0, play: 0 },
         tasks: { daily: {}, weekly: {} },
         wish: { date: today, id: "", itemId: "", progress: 0, fulfilled: false },
@@ -1295,6 +1307,16 @@
       Object.keys(pet.inventory).forEach((key) => {
         pet.inventory[key] = Math.max(0, Math.floor(Number(pet.inventory[key]) || 0));
       });
+      const starterEligible = !isPlainObject(raw) || Object.keys(raw).length === 0 || raw.starterClaimed === false || raw.experience?.starterClaimed === false;
+      pet.experience = typeof PetExperience.normalizeExperience === "function"
+        ? PetExperience.normalizeExperience(pet, todayKey())
+        : (isPlainObject(pet.experience) ? pet.experience : {});
+      if (starterEligible && typeof PetExperience.ensureStarterKit === "function") PetExperience.ensureStarterKit(pet);
+      else if (!pet.starterClaimed) {
+        pet.starterClaimed = true;
+        pet.experience.starterClaimed = true;
+      }
+      pet.starterClaimed = Boolean(pet.starterClaimed || pet.experience?.starterClaimed);
       pet.careLog = isPlainObject(pet.careLog) ? pet.careLog : {};
       if (pet.careLog.date !== todayKey()) {
         pet.careLog = { date: todayKey(), encourage: 0, feed: 0, clean: 0, play: 0 };
@@ -1639,6 +1661,7 @@
       petRoomWalkMotionTimer: null,
       petTaskClaimLocks: new Set(),
       petItemActionLocks: new Set(),
+      petDressupPreview: null,
       theme: safeThemeId(storageGet(STORE.theme, document.documentElement.dataset.theme || "classic")),
       subject: safeSubjectId(storageGet(STORE.subject, "math")),
       musicOn: storageGet(STORE.music, "false") === "true",
@@ -5675,13 +5698,14 @@
     function renderPetCarePlan(profile, pet) {
       const checklist = petCareChecklist(profile, pet);
       const done = checklist.filter((item) => item.done).length;
+      const freeCareUsed = pet.experience?.freeCareDate === todayKey();
       if (els.petCareScore) els.petCareScore.textContent = `${done}/${checklist.length}`;
       if (els.petCareChecklist) {
         els.petCareChecklist.innerHTML = checklist.map((item) => `<div class="${item.done ? "done" : ""}">
           <span>${item.done ? "✓" : "·"}</span>
           <strong>${escapeHTML(item.label)}</strong>
           <em>${escapeHTML(item.detail)}</em>
-        </div>`).join("");
+        </div>`).join("") + `<button class="${freeCareUsed ? "secondary" : "primary"} pet-free-care" type="button" data-pet-free-care ${freeCareUsed ? "disabled" : ""}>${freeCareUsed ? "今日免费照料已使用" : "今日免费照料"}</button>`;
       }
     }
     function renderPetLevelGiftCard(pet, profile = activeProfile()) {
@@ -5700,11 +5724,31 @@
         <p>奖励：金币 +${Number(pending.coins) || 0}${pending.itemId ? `，${item.name || "用品"} x${Number(pending.itemCount) || 1}` : ""}${pending.unlock ? `，解锁${petCopy(pending.unlock, profile)}` : ""}</p>
         <div class="pet-card-actions"><button class="primary" type="button" data-pet-claim-level="${pending.level}">领取礼物</button></div>`;
     }
+    function petDailyActivitiesHTML(pet) {
+      const today = todayKey();
+      const choices = typeof PetExperience.dailyChoices === "function" ? PetExperience.dailyChoices() : [];
+      const selectedChoice = pet.experience?.dailyChoiceDate === today ? pet.experience.dailyChoiceId : "";
+      const bellPlayed = pet.experience?.bellGameDate === today;
+      const bellSlot = Number(pet.experience?.bellGameSlot) || 0;
+      const bellFound = Boolean(pet.experience?.bellFound);
+      return `<div class="pet-daily-activities">
+        <div class="pet-daily-choice">
+          <strong>今日陪伴</strong>
+          <div>${choices.map((choice) => `<button class="secondary" type="button" data-pet-daily-choice="${escapeAttr(choice.id)}" ${selectedChoice ? "disabled" : ""}>${choice.icon || "🐾"} ${escapeHTML(choice.title)}</button>`).join("")}</div>
+          ${selectedChoice ? `<small>今天已经陪伴过啦，明天会有新的选择。</small>` : ""}
+        </div>
+        <div class="pet-bell-game">
+          <strong>找铃铛</strong>
+          <div>${[1, 2, 3].map((slot) => `<button class="secondary ${bellPlayed && slot === bellSlot ? "selected" : ""}" type="button" data-pet-bell-slot="${slot}" ${bellPlayed ? "disabled" : ""} aria-label="选择第 ${slot} 个垫子">${bellPlayed && slot === bellSlot ? (bellFound ? "🔔" : "🐾") : "▰"}</button>`).join("")}</div>
+          <small>${bellPlayed ? (bellFound ? "找到铃铛，奖励已经收好。" : "今天没猜中，也获得了陪伴奖励。") : "每天一次，选一个垫子看看。"}</small>
+        </div>
+      </div>`;
+    }
     function renderPetEventCard(pet, profile = activeProfile()) {
       if (!els.petEventCard) return;
       const event = currentPetEvent(pet);
       if (!event) {
-        els.petEventCard.innerHTML = `<h3>随机事件</h3><p>Lv.3 后会出现更多小窝事件。</p>`;
+        els.petEventCard.innerHTML = `<h3>随机事件</h3><p>Lv.3 后会出现更多小窝事件。</p>${petDailyActivitiesHTML(pet)}`;
         return;
       }
       const progress = clamp(Number(pet.event?.progress) || 0, 0, Number(event.target) || 1);
@@ -5720,7 +5764,8 @@
         <div class="pet-card-actions">
           ${pet.event?.resolved ? `<button class="secondary" type="button" disabled>已完成</button>` : `<button class="primary" type="button" data-pet-event-practice>做 ${target - progress} 题推进</button>`}
           ${itemAction}
-        </div>`;
+        </div>
+        ${petDailyActivitiesHTML(pet)}`;
     }
     function renderPetStoryCard(pet, profile = activeProfile()) {
       if (!els.petStoryCard) return;
@@ -5885,28 +5930,36 @@
       const recommendation = petShopRecommendation(profile, pet);
       const item = recommendation?.item;
       const careLeft = item ? petCareLeft(pet, petCareKindForItem(item)) : 0;
-      const gap = item ? Math.max(0, Number(item.price || 0) - Number(pet.coins || 0)) : 0;
+      const affordability = item && typeof PetExperience.shopProgress === "function"
+        ? PetExperience.shopProgress(pet.coins, item.price)
+        : { gap: item ? Math.max(0, Number(item.price || 0) - Number(pet.coins || 0)) : 0, pct: 0, practiceSets: 0 };
+      const gap = affordability.gap;
       els.petShopAdvisor.innerHTML = item ? `
         <div>
           <strong>推荐购买：${escapeHTML(item.name)}</strong>
-          <span>${escapeHTML(recommendation.reason)} · ${gap ? `还差 ${gap} 金币` : "金币足够"}${Number.isFinite(careLeft) ? ` · 今日收益 ${careLeft} 次` : ""}</span>
+          <span>${escapeHTML(recommendation.reason)} · ${gap ? `还差 ${gap} 金币，约 ${affordability.practiceSets} 轮短练习` : "金币足够"}${Number.isFinite(careLeft) ? ` · 今日收益 ${careLeft} 次` : ""}</span>
+          <i class="pet-afford-progress"><b style="--value:${affordability.pct}%"></b></i>
         </div>
-        <button class="${gap ? "secondary" : "primary"} compact-btn" type="button" data-pet-buy="${escapeAttr(item.id)}" ${gap ? "disabled" : ""}>${gap ? "继续攒金币" : "购买"}</button>` : "";
+        <button class="${gap ? "secondary" : "primary"} compact-btn" type="button" data-pet-buy="${escapeAttr(item.id)}" ${gap ? "disabled" : ""}>${gap ? `差 ${gap} 金币` : "购买"}</button>` : "";
     }
-    function renderPetDressupPreview(profile = activeProfile(), pet = petState(profile)) {
+    function renderPetDressupPreview(profile = activeProfile(), pet = petState(profile), preview = state.petDressupPreview) {
       if (!els.petDressupPreview) return;
-      const theme = PET_ROOM_THEME_MAP[pet.roomTheme] || PET_ROOM_THEME_MAP.sunny || { title: "阳光小窝", icon: "" };
-      const outfit = pet.outfit ? PET_OUTFIT_MAP[pet.outfit] : null;
-      const furniture = equippedFurnitureList(pet);
+      const previewDef = preview ? petCollectionDef(preview.kind, preview.id) : null;
+      const themeId = preview?.kind === "theme" && previewDef ? preview.id : pet.roomTheme;
+      const outfitId = preview?.kind === "outfit" && previewDef ? preview.id : pet.outfit;
+      const theme = PET_ROOM_THEME_MAP[themeId] || PET_ROOM_THEME_MAP.sunny || { title: "阳光小窝", icon: "" };
+      const outfit = outfitId ? PET_OUTFIT_MAP[outfitId] : null;
+      const furniture = equippedFurnitureList(pet).filter((item) => !(preview?.kind === "furniture" && item.id === preview.id));
+      if (preview?.kind === "furniture" && previewDef) furniture.unshift(previewDef);
       const counts = petCollectionCounts(pet);
       els.petDressupPreview.innerHTML = `
-        <div class="pet-dressup-preview-scene" data-room-theme="${escapeAttr(pet.roomTheme || "sunny")}" data-outfit="${escapeAttr(pet.outfit || "")}">
+        <div class="pet-dressup-preview-scene" data-room-theme="${escapeAttr(themeId || "sunny")}" data-outfit="${escapeAttr(outfitId || "")}">
           <span>${theme.icon || "☀️"}</span>
           <b>${outfit?.icon || "🐾"}</b>
         </div>
         <div>
-          <strong>当前展示</strong>
-          <p>${escapeHTML(theme.title)} · ${outfit ? escapeHTML(outfit.title) : "未穿戴装扮"} · 已摆放 ${counts.equippedFurniture} 件家具</p>
+          <strong>${previewDef ? "试穿预览" : "当前展示"}</strong>
+          <p>${escapeHTML(theme.title)} · ${outfit ? escapeHTML(outfit.title) : "未穿戴装扮"} · ${previewDef?.title ? `正在预览 ${escapeHTML(previewDef.title)}` : `已摆放 ${counts.equippedFurniture} 件家具`}</p>
           <div class="pet-dressup-preview-tags">
             ${furniture.length ? furniture.slice(0, 4).map((item) => `<span>${item.icon || "✦"} ${escapeHTML(item.title)}</span>`).join("") : "<span>还没有摆放家具</span>"}
           </div>
@@ -6004,7 +6057,8 @@
       const unlockProgress = typeof PetDressupMeta.unlockProgressText === "function"
         ? PetDressupMeta.unlockProgressText(kind, item, pet, metaSources)
         : owned ? "已拥有" : levelLocked ? `还差 ${minLevel - Number(pet.level || 1)} 级` : price > Number(pet.coins || 0) ? `还差 ${price - Number(pet.coins || 0)} 金币` : "可解锁";
-      return `<article class="pet-collection-card ${owned ? "owned" : ""} ${active ? "active" : ""} ${levelLocked ? "locked" : ""}">
+      const previewActive = state.petDressupPreview?.kind === kind && state.petDressupPreview?.id === item.id;
+      return `<article class="pet-collection-card ${owned ? "owned" : ""} ${active ? "active" : ""} ${levelLocked ? "locked" : ""} ${previewActive ? "pet-preview-active" : ""}" tabindex="0" role="button" data-pet-preview="${escapeAttr(`${kind}:${item.id}`)}" aria-label="预览${escapeAttr(item.title)}">
         <div class="pet-shop-icon" aria-hidden="true">${item.icon || "✦"}</div>
         <div>
           <strong>${escapeHTML(item.title)}</strong>
@@ -6024,7 +6078,7 @@
       if (els.petDressupSummary) {
         els.petDressupSummary.textContent = `${currentTheme} · 家具 ${countTruthy(pet.ownedFurniture)} · 装扮 ${countTruthy(pet.outfits)} · ${currentOutfit}`;
       }
-      renderPetDressupPreview(profile, pet);
+      renderPetDressupPreview(profile, pet, state.petDressupPreview);
       els.petDressupGrid.innerHTML = `
         <section class="pet-collection-section">
           <div class="pet-shop-tier-head"><h3>小窝主题</h3><span>主题随宠物等级开放，金币用于真正装进小窝。</span></div>
@@ -6316,9 +6370,12 @@
         ? "等待重新领养"
         : pet.runaway?.status === "away"
           ? `${name}暂时离家了`
-          : `${name}今天在等你练习`;
+          : `${name}记得你的学习进度`;
+      const contextMessage = typeof PetExperience.contextMessage === "function"
+        ? PetExperience.contextMessage(profile, pet, Object.fromEntries(Object.entries(SUBJECTS).map(([id, meta]) => [id, meta.label])))
+        : "";
       if (els.petRoomStatus) els.petRoomStatus.textContent = pet.runaway?.status === "home"
-        ? `完成练习、复习错题和闯关会影响成长。当前状态：${petStatusLabel(pet)}。${petLearningQuality(profile).label}会影响经验、心情和亲密。${petCareHint(pet)}`
+        ? `${contextMessage} 当前状态：${petStatusLabel(pet)}。${petCareHint(pet)}`
         : pet.runaway?.status === "away"
           ? `完成一轮练习可以找回${name}。`
           : "重新领养后可以继续从 1 级开始养成。";
@@ -6327,10 +6384,21 @@
           .slice()
           .sort((a, b) => Number(a.minLevel || 1) - Number(b.minLevel || 1))
           .find((item) => Number(item.minLevel || 1) > Number(pet.level || 1));
+        const nextCollection = nextCollectionGoal(pet);
+        const nextLevelReward = PET_LEVEL_REWARDS.find((reward) => Number(reward.level) > Number(pet.level));
+        const xpLeft = PET_XP_PER_LEVEL - xpInLevel;
+        const collectionCopy = nextCollection
+          ? nextCollection.levelGap > 0
+            ? `收藏目标：Lv.${nextCollection.item.minLevel} 解锁${nextCollection.item.title}`
+            : nextCollection.coinGap > 0
+              ? `收藏目标：${nextCollection.item.title}还差 ${nextCollection.coinGap} 金币`
+              : `收藏目标：${nextCollection.item.title}现在可以解锁`
+          : "收藏目标已全部完成";
         els.petStageCard.innerHTML = `
           <strong>${escapeHTML(stage.name)}</strong>
           <span>${escapeHTML(stage.copy)}</span>
           <em>${nextStage ? `Lv.${nextStage.minLevel} 解锁${petCopy(nextStage.name, profile)}` : "成长阶段已全部解锁"}</em>
+          <div class="pet-next-goal"><b>下一个目标</b><span>${escapeHTML(collectionCopy)}</span><small>${nextLevelReward ? `再获得 ${xpLeft} 经验接近 Lv.${pet.level + 1}，后续礼物：${petCopy(nextLevelReward.title, profile)}` : `再获得 ${xpLeft} 经验升级`}</small></div>
           ${petLearningQualityHTML(profile, pet)}`;
       }
       if (els.petSpaceLevel) els.petSpaceLevel.textContent = `${stage.name} · Lv.${pet.level}`;
@@ -6374,6 +6442,9 @@
           <div class="pet-shop-tier-grid">
             ${items.map((item) => {
               const afford = pet.coins >= item.price && pet.runaway?.status !== "lost";
+              const affordability = typeof PetExperience.shopProgress === "function"
+                ? PetExperience.shopProgress(pet.coins, item.price)
+                : { gap: Math.max(0, item.price - pet.coins), pct: 0, practiceSets: 0 };
               const careKind = petCareKindForItem(item);
               const left = careKind ? petCareLeft(pet, careKind) : Infinity;
               const recommended = item.id === recommendedShopItem;
@@ -6382,8 +6453,9 @@
                 <strong>${escapeHTML(item.name)}</strong>
                 <small>${recommended ? "推荐 · " : ""}${tierLabels[tier]}${Number.isFinite(left) ? ` · 今日 ${left} 次` : ""}</small>
                 <div class="pet-shop-buy">
-                  <span>${item.price} 金币</span>
-                  <button class="primary" type="button" data-pet-buy="${item.id}" ${afford ? "" : "disabled"}>购买</button>
+                  <span>${affordability.gap ? `还差 ${affordability.gap} 金币 · 约 ${affordability.practiceSets} 轮` : `${item.price} 金币`}</span>
+                  <i class="pet-afford-progress"><b style="--value:${affordability.pct}%"></b></i>
+                  <button class="primary" type="button" data-pet-buy="${item.id}" ${afford ? "" : "disabled"}>${afford ? "购买" : `差 ${affordability.gap} 金币`}</button>
                 </div>
               </article>`;
             }).join("")}
@@ -6516,6 +6588,7 @@
     function closePetModals(options = {}) {
       const except = options.except || null;
       const openModals = [els.petShopModal, els.petBagModal, els.petTaskModal, els.petCarePanelModal, els.petGrowthPanelModal, els.petPlanMenuModal, els.petDressupModal, els.petThemeShopModal, els.petAchievementModal].filter((modal) => modal && modal !== except && !modal.hidden);
+      if (openModals.includes(els.petDressupModal)) state.petDressupPreview = null;
       openModals.forEach((modal, index) => {
         closeWithMotion(modal, index === openModals.length - 1 ? () => {
           if (!except || except.hidden) document.body.classList.remove("pet-modal-open");
@@ -6529,6 +6602,7 @@
         closePetModals();
         return;
       }
+      if (modal === els.petDressupModal) state.petDressupPreview = null;
       if (modal.dataset.returnPetPlan === "true") {
         delete modal.dataset.returnPetPlan;
         closeWithMotion(modal, () => openPetModal("plan"));
@@ -6797,6 +6871,26 @@
       applyPetLevel(pet);
     }
 
+    function nextPetCareReaction(pet, kind, profile = activeProfile()) {
+      pet.experience = typeof PetExperience.normalizeExperience === "function"
+        ? PetExperience.normalizeExperience(pet, todayKey())
+        : (pet.experience || {});
+      const sequence = Number(pet.experience.careSequence) || 0;
+      pet.experience.careSequence = sequence + 1;
+      return typeof PetExperience.careReaction === "function"
+        ? PetExperience.careReaction(kind, petDisplayName(profile), sequence)
+        : `${petDisplayName(profile)}很开心。`;
+    }
+
+    function triggerPetCollectionUnlock() {
+      window.MathCampVisualPolish?.setPetReaction?.("reward", 1100);
+      if (!els.petRoomStage) return;
+      els.petRoomStage.classList.remove("collection-unlocked");
+      void els.petRoomStage.offsetWidth;
+      els.petRoomStage.classList.add("collection-unlocked");
+      window.setTimeout(() => els.petRoomStage?.classList.remove("collection-unlocked"), 900);
+    }
+
     function usePetItem(id) {
       const item = PET_ITEM_MAP[id];
       if (!item) return;
@@ -6841,6 +6935,7 @@
       });
       pet.inventory[id] -= 1;
       applyPetItemEffects(pet, item);
+      const reaction = nextPetCareReaction(pet, careKind || "encourage", profile);
       const wishDone = finishPetWishWithItem(id, pet);
       const careDone = updatePetCareMemory(profile, pet);
       if (!saveProfiles()) {
@@ -6862,7 +6957,7 @@
       showItemFloatText(id, "-1", "var(--danger)", "use");
       renderPetSpace(profile);
       closePetModals();
-      updatePetStatus(`${petDisplayName(profile)}使用了${item.name}。${item.desc}。${wishDone ? "今日心愿也完成了。" : ""}${careDone ? "今日照料清单完成，亲密增加。" : ""}`, wishDone ? "心愿" : "舒服");
+      updatePetStatus(`${reaction}${wishDone ? " 今日心愿也完成了。" : ""}${careDone ? " 今日照料清单完成，亲密增加。" : ""}`, wishDone ? "心愿" : "舒服");
       setPetAction(careKind === "feed" ? "fed" : careKind === "clean" ? "clean" : careKind === "play" ? "play" : "comfy", "舒服");
     }
 
@@ -6927,8 +7022,11 @@
         return;
       }
       renderPetSpace(profile);
+      state.petDressupPreview = null;
       renderPetDressup(profile);
       updatePetStatus(`${petDisplayName(profile)}解锁了${def.title}。`, "新收藏");
+      triggerPetCollectionUnlock();
+      UI.notify(`已解锁：${def.title}`);
     }
     function equipPetCollection(kind, id) {
       const def = petCollectionDef(kind, id);
@@ -6946,8 +7044,10 @@
       }
       if (!saveProfiles()) return;
       renderPetSpace(profile);
+      state.petDressupPreview = null;
       renderPetDressup(profile);
       updatePetStatus(`${petDisplayName(profile)}更新了${def.title}。`, kind === "outfit" ? "换装" : "装扮");
+      triggerPetCollectionUnlock();
     }
     function buySystemTheme(id) {
       const themeId = safeThemeId(id);
@@ -7016,6 +7116,7 @@
       renderPetAchievements(profile);
       renderPetDressup(profile);
       updatePetStatus(`${petDisplayName(profile)}完成成就：${achievement.title}。`, "成就");
+      triggerPetCollectionUnlock();
       UI.notify(`成就奖励已领取：${achievement.title}`);
     }
 
@@ -7034,6 +7135,7 @@
       if (!saveProfiles()) return;
       renderPetSpace(profile);
       updatePetStatus(`${petDisplayName(profile)}升到 Lv.${reward.level}，领取了${reward.title}。`, "升级礼物");
+      triggerPetCollectionUnlock();
       UI.notify(`已领取 Lv.${reward.level} 成长礼物。`);
     }
 
@@ -7055,6 +7157,7 @@
       if (!saveProfiles()) return;
       renderPetSpace(profile);
       updatePetStatus(`${petDisplayName(profile)}完成了故事：${chapter.title}。`, "故事完成");
+      triggerPetCollectionUnlock();
       UI.notify(`剧情奖励已领取：金币 +${Number(chapter.rewardCoins) || 0}`);
     }
 
@@ -9923,15 +10026,9 @@
         pet.bond = clamp(pet.bond + Number(limit.bond || 1), 0, 100);
       }
       pet.lastCareDate = todayKey();
-      const lines = [
-        ["招财：收到摸摸。我们慢慢来，先把题目里最重要的数字找出来。", "呼噜"],
-        ["招财：先别急着算，先看清题目问的是什么。", "陪你"],
-        ["招财：如果连错两题，我们就换成同类基础题稳一下。", "稳住"],
-        ["招财：做完这一小轮，我会帮你把错题拆成步骤。", "加油"]
-      ];
-      const [message, bubble] = pick(lines);
-      updatePetStatus(hasCareReward ? message : "招财：今天已经陪我玩够啦，继续练题会更有用。", hasCareReward ? bubble : "已满足");
-      setPetAction("encourage", hasCareReward ? bubble : "陪你");
+      const message = nextPetCareReaction(pet, "encourage", profile);
+      updatePetStatus(hasCareReward ? message : `${petDisplayName(profile)}今天已经收到足够多的摸摸啦，继续练题会更有用。`, hasCareReward ? "呼噜" : "已满足");
+      setPetAction("encourage", hasCareReward ? "呼噜" : "陪你");
       playSound("meow");
       saveProfiles();
       renderPetSpace(profile);
@@ -10026,6 +10123,67 @@
         openPetModal(openPetPanelBtn.dataset.openPetModal, { returnToPlan: Boolean(openPetPanelBtn.closest("#petPlanMenuModal")) });
         return;
       }
+      const previewCard = event.target.closest("[data-pet-preview]");
+      if (previewCard && !event.target.closest("button")) {
+        const [kind, id] = String(previewCard.dataset.petPreview || "").split(":");
+        if (petCollectionDef(kind, id)) {
+          state.petDressupPreview = { kind, id };
+          renderPetDressup();
+        }
+        return;
+      }
+      if (event.target.closest("[data-pet-free-care]")) {
+        const profile = activeProfile();
+        const pet = petState(profile);
+        const result = PetExperience.applyDailyFreeCare?.(pet, todayKey());
+        if (!result?.applied) {
+          UI.notify("今天的免费照料已经使用过了。", { tone: "warn" });
+          return;
+        }
+        applyPetLevel(pet);
+        pet.lastCareDate = todayKey();
+        addPetMemory(pet, "今日免费照料", `${petDisplayName(profile)}的${{ hunger: "饥饿", clean: "清洁", mood: "心情" }[result.stat] || "状态"}提升了 ${result.value} 点。`);
+        saveProfiles();
+        renderPetSpace(profile);
+        const action = result.stat === "hunger" ? "fed" : result.stat === "clean" ? "cleanComfy" : "play";
+        setPetAction(action, "+15");
+        UI.notify(`免费照料完成，${{ hunger: "饥饿值", clean: "清洁值", mood: "心情值" }[result.stat]} +${result.value}`);
+        return;
+      }
+      const dailyChoiceBtn = event.target.closest("[data-pet-daily-choice]");
+      if (dailyChoiceBtn) {
+        const profile = activeProfile();
+        const pet = petState(profile);
+        const result = PetExperience.applyDailyChoice?.(pet, dailyChoiceBtn.dataset.petDailyChoice, todayKey());
+        if (!result?.applied) {
+          UI.notify("今天已经完成陪伴选择了。", { tone: "warn" });
+          return;
+        }
+        applyPetLevel(pet);
+        addPetMemory(pet, result.choice.title, result.choice.message);
+        saveProfiles();
+        renderPetSpace(profile);
+        setPetAction(result.choice.id === "play" ? "play" : "encourage", "陪伴");
+        UI.notify(result.choice.message);
+        return;
+      }
+      const bellBtn = event.target.closest("[data-pet-bell-slot]");
+      if (bellBtn) {
+        const profile = activeProfile();
+        const pet = petState(profile);
+        const result = PetExperience.playBellGame?.(pet, bellBtn.dataset.petBellSlot, todayKey());
+        if (!result?.played) {
+          UI.notify("今天已经玩过找铃铛了。", { tone: "warn" });
+          return;
+        }
+        applyPetLevel(pet);
+        addPetMemory(pet, "找铃铛", result.found ? `在第 ${result.winningSlot} 个垫子下找到了铃铛。` : "虽然没有猜中，也一起开心地玩了一会儿。");
+        saveProfiles();
+        renderPetSpace(profile);
+        setPetAction(result.found ? "play" : "encourage", result.found ? `+${result.rewardCoins}` : "有奖励");
+        UI.notify(result.found ? `找到铃铛，金币 +${result.rewardCoins}` : `没有猜中，也获得金币 +${result.rewardCoins}`);
+        return;
+      }
       const buyBtn = event.target.closest("[data-pet-buy]");
       if (buyBtn) {
         buyPetItem(buyBtn.dataset.petBuy);
@@ -10118,6 +10276,13 @@
     els.petPlanMenuModal?.addEventListener("click", handlePetPanelAction);
     els.petShopModal?.addEventListener("click", handlePetPanelAction);
     els.petDressupModal?.addEventListener("click", handlePetPanelAction);
+    els.petDressupModal?.addEventListener("keydown", (event) => {
+      if (event.target.closest("button") || (event.key !== "Enter" && event.key !== " ")) return;
+      const card = event.target.closest("[data-pet-preview]");
+      if (!card) return;
+      event.preventDefault();
+      handlePetPanelAction(event);
+    });
     els.petThemeShopModal?.addEventListener("click", handlePetPanelAction);
     els.petAchievementModal?.addEventListener("click", handlePetPanelAction);
     [els.petShopModal, els.petBagModal, els.petTaskModal, els.petCarePanelModal, els.petGrowthPanelModal, els.petPlanMenuModal, els.petDressupModal, els.petThemeShopModal, els.petAchievementModal].forEach((modal) => {

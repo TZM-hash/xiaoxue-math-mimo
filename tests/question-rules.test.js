@@ -173,6 +173,7 @@ vm.createContext(context);
   "js/question-bank-coverage.js",
   "js/learning-insights.js",
   "js/pet-economy.js",
+  "js/pet-experience.js",
   "js/question-spec-utils.js",
   "js/grade2-reference-source-meta.js",
   "js/grade2-reference-scan-index.js",
@@ -301,7 +302,11 @@ function runUpgradeFeatureTests() {
 
   const pet = legacy.rewards.pet;
   assert.strictEqual(pet.name, "招财", "新宠物默认名应为招财");
-  assert.strictEqual(pet.coins, 0, "新宠物初始金币应为 0");
+  assert.strictEqual(pet.coins, 12, "新宠物应获得开局金币");
+  assert.strictEqual(pet.inventory.basicFood, 1, "新宠物应获得一份基础猫粮");
+  assert.strictEqual(pet.inventory.towel, 1, "新宠物应获得一条小毛巾");
+  assert.strictEqual(pet.inventory.yarnBall, 1, "新宠物应获得一个毛线球");
+  assert.strictEqual(pet.starterClaimed, true, "开局礼包应标记为已领取");
   assert.strictEqual(pet.inventory.renameCard, 0, "改名卡背包数量应初始化");
   assert.strictEqual(pet.mood, 70, "宠物心情初始值应为 70");
   assert.strictEqual(pet.hunger, 70, "宠物饥饿初始值应为 70");
@@ -473,10 +478,11 @@ function runPetEconomyTests() {
   debug.state.profiles = [rewardProfile];
   debug.state.activeId = rewardProfile.id;
   debug.state.roundCoins = 0;
+  const starterCoins = debug.petState(rewardProfile).coins;
   assert.strictEqual(debug.awardQuestionReward(false, {}), 0, "答错题目不应奖励金币");
-  assert.strictEqual(debug.petState(rewardProfile).coins, 0, "答错后宠物金币不应增加");
+  assert.strictEqual(debug.petState(rewardProfile).coins, starterCoins, "答错后宠物金币不应增加");
   assert.strictEqual(debug.awardQuestionReward(true, {}), 2, "答对普通题应奖励 2 金币");
-  assert.strictEqual(debug.petState(rewardProfile).coins, 2, "答对后宠物金币应增加");
+  assert.strictEqual(debug.petState(rewardProfile).coins, starterCoins + 2, "答对后宠物金币应增加");
 
   const pet = debug.petState(debug.normalizeProfile({ id: "pet-care", name: "Care", grade: 2 }));
   assert.strictEqual(pet.level, 1, "New pet initial level should be 1");
@@ -2152,6 +2158,40 @@ function runQuestionSourceSummaryTests() {
   assert(audit.items.every((item) => item.subject === "math" && Number(item.grade) === 2), "题源巡检应按学科和年级过滤");
 }
 
+function runPetExperienceTests() {
+  const Experience = context.MathCampPetExperience;
+  assert(Experience, "宠物体验模块应加载");
+  const today = "2026-07-11";
+  const pet = {
+    coins: 0,
+    mood: 48,
+    hunger: 30,
+    clean: 55,
+    bond: 40,
+    inventory: { basicFood: 0, towel: 0, yarnBall: 0 },
+    experience: {}
+  };
+  assert.strictEqual(Experience.ensureStarterKit(pet), true, "首次进入应发放开局礼包");
+  assert.strictEqual(Experience.ensureStarterKit(pet), false, "开局礼包不能重复发放");
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(pet.inventory)), { basicFood: 1, towel: 1, yarnBall: 1 }, "礼包应包含三种基础用品");
+  assert.strictEqual(pet.coins, 12, "礼包应包含少量启动金币");
+  const freeCare = Experience.applyDailyFreeCare(pet, today);
+  assert.strictEqual(freeCare.applied, true, "每日免费照料首次应生效");
+  assert.strictEqual(Experience.applyDailyFreeCare(pet, today).applied, false, "每日免费照料当天不能重复");
+  assert.strictEqual(freeCare.stat, "hunger", "免费照料应优先补最低状态");
+  const progress = Experience.shopProgress(7, 24);
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(progress)), { gap: 17, pct: 29, practiceSets: 2 }, "商店应给出金币和练习进度");
+  const choices = Experience.dailyChoices();
+  assert.strictEqual(choices.length, 3, "每日陪伴应提供三个轻量选择");
+  assert.strictEqual(Experience.applyDailyChoice(pet, "walk", today).applied, true, "每日选择首次应生效");
+  assert.strictEqual(Experience.applyDailyChoice(pet, "rest", today).applied, false, "每日选择当天只能完成一次");
+  const game = Experience.playBellGame(pet, 1, today);
+  assert.strictEqual(game.played, true, "找铃铛小游戏首次应可完成");
+  assert.strictEqual(Experience.playBellGame(pet, 2, today).played, false, "找铃铛小游戏当天不能重复领奖");
+  const message = Experience.contextMessage({ history: [{ subject: "chinese", correct: true }] }, pet, { chinese: "语文" });
+  assert(message.includes("语文"), "宠物记忆文案应关联最近学习学科");
+}
+
 function runVisibleQuestionQualityTests() {
   const debug = context.mathCampDebug;
   assert.strictEqual(typeof debug.questionQualityWarnings, "function", "quality audit should expose visible-question warnings");
@@ -2304,6 +2344,7 @@ runVisibleQuestionQualityTests();
 runBalancedSelectionAndAnswerCopyTests();
 runAdaptiveLearningQualityIntegrationTests();
 runGlassThemeTests();
+runPetExperienceTests();
 
 console.log(`Question rule self-test passed: ${result.total} samples, 0 failures.`);
 console.log("Data boundary tests passed.");
@@ -2338,3 +2379,4 @@ console.log("Visible question quality tests passed.");
 console.log("Balanced selection and answer copy tests passed.");
 console.log("Adaptive learning quality integration tests passed.");
 console.log("Glass theme tests passed.");
+console.log("Pet experience tests passed.");
