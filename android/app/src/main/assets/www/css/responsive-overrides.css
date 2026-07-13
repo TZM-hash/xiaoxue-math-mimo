@@ -2104,6 +2104,16 @@
       }
     }
     @media (max-width: 620px) {
+      .bank-audit-summary { align-items: flex-start; flex-direction: column; }
+      .bank-bulk-editor { grid-template-columns: 1fr; }
+      .bank-bulk-editor .checkline,
+      .bank-bulk-editor button { grid-column: auto; }
+      .home-plan-mix {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .home-plan-mix > strong {
+        grid-column: 1 / -1;
+      }
       .app { width: min(100% - 12px, 1320px); padding: 0 0 6px; gap: 6px; }
       .app-header {
         position: relative;

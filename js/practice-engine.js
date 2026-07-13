@@ -16,8 +16,11 @@
       : function () { return typeof deps.externalQuestionChance === "number" ? deps.externalQuestionChance : undefined; };
     var previousSignature = "";
     var pick = typeof deps.createRoundQuestionPicker === "function" ? deps.createRoundQuestionPicker(preferred) : null;
+    var dailyPlan = deps.dailyPlan && typeof deps.dailyPlan === "object" ? deps.dailyPlan : null;
+    var allocations = dailyPlan && dailyPlan.allocations || {};
     var due = deps.dueWrongbook(profile, grade);
-    var dueVariantCount = Math.min(due.length, Math.max(0, Math.floor(total * 0.25)));
+    var reviewQuota = dailyPlan ? Math.max(0, Number(allocations.review) || 0) : Math.max(0, Math.floor(total * 0.25));
+    var dueVariantCount = Math.min(due.length, reviewQuota);
     function termBucket(point) {
       var term = String(point && point.curriculum && point.curriculum.term || "");
       var upper = term.indexOf("上") >= 0;
@@ -92,6 +95,7 @@
       if (!dueQuestion) return;
       addQuestion({
         ...dueQuestion,
+        planSegment: dailyPlan ? "review" : undefined,
         reviewSource: "due",
         reviewSourceWrongId: item.id,
         reviewChainStage: chainStage
@@ -103,28 +107,62 @@
       weak = weak.filter(function (point) { return !recentPointIds.has(point.id); })
         .concat(weak.filter(function (point) { return recentPointIds.has(point.id); }));
     }
-    var weakTarget = Math.min(total - selected.length, Math.max(2, Math.ceil(total * 0.45)));
+    var reviewShortfall = dailyPlan ? Math.max(0, reviewQuota - selected.length) : 0;
+    var weakQuota = dailyPlan ? Math.max(0, Number(allocations.weak) || 0) + reviewShortfall : Math.max(2, Math.ceil(total * 0.45));
+    var weakTarget = Math.min(total - selected.length, weakQuota);
+    var weakStop = selected.length + weakTarget;
     var weakAttempts = 0;
-    while (selected.length < dueVariantCount + weakTarget && weak.length && weakAttempts < total * 8) {
+    while (selected.length < weakStop && weak.length && weakAttempts < total * 8) {
       weakAttempts += 1;
       var weakQuestion = makeForPoint(weak[selected.length % weak.length]);
       if (!weakQuestion) continue;
       addQuestion({
         ...weakQuestion,
+        planSegment: dailyPlan ? "weak" : undefined,
         reviewSource: "weak"
       });
+    }
+
+    function addFromPointPool(pool, quota, segment, source) {
+      if (!dailyPlan || !pool.length || quota <= 0) return;
+      var target = Math.min(total, selected.length + quota);
+      var attempts = 0;
+      while (selected.length < target && attempts < total * 8) {
+        var point = pool[attempts % pool.length];
+        attempts += 1;
+        var question = makeForPoint(point);
+        if (!question) continue;
+        addQuestion({ ...question, planSegment: segment, reviewSource: source });
+      }
+    }
+
+    if (dailyPlan) {
+      var currentPoints = gradePoints.filter(function (point) { return termBucket(point) === dailyPlan.term; });
+      if (!currentPoints.length) currentPoints = gradePoints.filter(function (point) { return termBucket(point) !== "year"; });
+      addFromPointPool(currentPoints.length ? currentPoints : gradePoints, Math.max(0, Number(allocations.current) || 0), "current", "current-term");
+
+      var challengePoints = gradePoints.filter(function (point) {
+        return point.sourceType === "abilityLine" || ["appendix", "thinking", "reading"].includes(String(point.topic || ""));
+      });
+      addFromPointPool(challengePoints.length ? challengePoints : weak.slice().reverse(), Math.max(0, Number(allocations.challenge) || 0), "challenge", "challenge");
     }
 
     var fillAttempts = 0;
     while (selected.length < total && fillAttempts < total * 12) {
       fillAttempts += 1;
-      addQuestion(makeForPoint(freshFillPoint()));
+      var fillQuestion = makeForPoint(freshFillPoint());
+      addQuestion(dailyPlan && fillQuestion ? { ...fillQuestion, planSegment: "weak", reviewSource: "weak-fill" } : fillQuestion);
     }
 
     return deps.shuffle(selected).slice(0, total);
   }
 
+  function buildDailyQuestionSet(deps, count, preferred, plan) {
+    return buildAdaptiveQuestionSet({ ...deps, dailyPlan: plan || deps.dailyPlan || {} }, count, preferred);
+  }
+
   window.MathCampPracticeEngine = {
-    buildAdaptiveQuestionSet: buildAdaptiveQuestionSet
+    buildAdaptiveQuestionSet: buildAdaptiveQuestionSet,
+    buildDailyQuestionSet: buildDailyQuestionSet
   };
 })();

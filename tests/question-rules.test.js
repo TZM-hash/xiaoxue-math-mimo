@@ -193,6 +193,7 @@ vm.createContext(context);
   "js/science-question-generator.js",
   "js/question-generator.js",
   "js/learning-quality-engine.js",
+  "js/daily-learning-plan.js",
   "js/handwriting-input.js",
   "js/practice-engine.js",
   "js/question-rules-engine.js",
@@ -1559,10 +1560,10 @@ function runQuestionSetDedupeTests() {
 function runArchiveVersionTests() {
   const debug = context.mathCampDebug;
   const archive = debug.buildArchiveData();
-  assert.strictEqual(archive.version, 6, "archive version should advance after migration");
+  assert.strictEqual(archive.version, 7, "archive version should advance after migration");
   debug.els.importText.value = JSON.stringify({ ...archive, version: 5 });
   const parsed = debug.parseImportBackup();
-  assert(parsed.repairNotes.some((note) => /v5|v6/.test(note)), "older archives should report an upgrade note");
+  assert(parsed.repairNotes.some((note) => /v5|v7/.test(note)), "older archives should report an upgrade note");
 }
 
 function runCoverageAndInsightTests() {
@@ -1679,8 +1680,9 @@ function runLightSmartExperienceTests() {
       question: { id: "smart-q", grade: 3, subject: "math", pointId: "g3-mul-div", topic: "muldiv", text: "7 × 8 = ?", answer: 56 },
       cause: "计算粗心",
       wrongCount: 2,
-      correctStreak: 2,
-      reviewStage: 2,
+      correctStreak: 3,
+      reviewStage: 3,
+      chainStage: "delayed",
       dueDate: debug.todayKey(),
       updatedAt: Date.now()
     }],
@@ -1701,10 +1703,13 @@ function runLightSmartExperienceTests() {
   assert.strictEqual(smartSet.length, 8, "今日一键练应保持用户设置的题量");
   assert(smartSet.some((question) => question.reviewSource === "due" && question.reviewSourceWrongId === "smart-due"), "今日一键练应自动混入到期错题变式");
   assert(smartSet.some((question) => question.reviewSource === "weak"), "今日一键练应自动混入薄弱点练习");
+  assert(smartSet.some((question) => question.planSegment === "current"), "今日一键练应包含当前学期知识");
+  assert(smartSet.some((question) => question.planSegment === "challenge"), "今日一键练应包含综合挑战");
+  assert.deepStrictEqual([...debug.reviewStageOffsets], [1, 3, 7, 14], "错题应按 1、3、7、14 天间隔复习");
 
   debug.recordReviewSourceAttempt({ reviewSourceWrongId: "smart-due" }, true);
   const activeSmartProfile = debug.activeProfile();
-  assert(!activeSmartProfile.wrongbook.some((item) => item.id === "smart-due"), "到期错题变式做对后应自动推进原错题并可移入已掌握");
+  assert(!activeSmartProfile.wrongbook.some((item) => item.id === "smart-due"), "完成四次间隔复习后应自动推进原错题并移入已掌握");
   assert(activeSmartProfile.masteredWrong.some((item) => item.signature === "smart-due-sig"), "连续达标的原错题应自动进入已掌握记录");
 
   const prompt = debug.buildParentWeeklyPrompt(activeSmartProfile);

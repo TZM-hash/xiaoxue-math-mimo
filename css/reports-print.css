@@ -908,6 +908,82 @@
       gap: 12px;
       padding-right: 4px;
     }
+    .bank-import-preview {
+      margin-top: 10px;
+      padding: 12px;
+      border: 1px solid color-mix(in oklch, var(--border), white 12%);
+      border-left: 4px solid var(--accent, #3aa47c);
+      background: rgba(255,255,255,.68);
+    }
+    .bank-import-preview[hidden] { display: none; }
+    .bank-preview-summary {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .bank-preview-summary span,
+    .bank-import-preview li,
+    .bank-import-preview p { color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .bank-import-preview ul { margin: 8px 0; padding-left: 20px; }
+    .bank-import-preview li b { margin-right: 6px; color: var(--fg); }
+    .bank-status-badge {
+      display: inline-block;
+      margin-left: 5px;
+      padding: 2px 7px;
+      border-radius: 6px;
+      background: color-mix(in oklch, #d98a3d, white 78%);
+      color: #92561b;
+      font-size: 11px;
+      vertical-align: middle;
+    }
+    .bank-status-badge[data-status="published"] { background: color-mix(in oklch, #2f9d63, white 80%); color: #17623c; }
+    .bank-status-badge[data-status="disabled"] { background: color-mix(in oklch, #687386, white 82%); color: #44505f; }
+    .bank-review-toolbar {
+      display: grid;
+      gap: 10px;
+      padding: 12px 0;
+      border-bottom: 1px solid color-mix(in oklch, var(--border), white 16%);
+    }
+    .bank-review-toolbar[hidden] { display: none; }
+    .bank-audit-summary {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 9px 10px;
+      border-left: 4px solid #2f9d63;
+      background: color-mix(in oklch, #2f9d63, white 91%);
+    }
+    .bank-audit-summary.has-risk { border-left-color: #c44f4f; background: color-mix(in oklch, #c44f4f, white 92%); }
+    .bank-audit-summary span { color: var(--muted); font-size: 12px; }
+    .bank-bulk-editor {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .bank-bulk-editor .checkline,
+    .bank-bulk-editor button { grid-column: 1 / -1; }
+    .bank-bulk-editor select { width: 100%; min-width: 0; }
+    .bank-version-history {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+    .bank-version-history > span {
+      flex: 0 0 auto;
+      display: flex;
+      gap: 5px;
+      align-items: baseline;
+      padding: 5px 7px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .bank-version-history em { font-style: normal; opacity: .72; }
     .bank-detail-empty { padding: 24px 8px; text-align: center; }
     .bank-q-item {
       border: 1px solid color-mix(in oklch, var(--border), white 18%);
@@ -918,6 +994,7 @@
       flex-direction: column;
       gap: 8px;
     }
+    .bank-q-item.is-disabled { opacity: .58; background: color-mix(in oklch, #687386, white 94%); }
     .bank-q-top {
       display: flex;
       align-items: center;
@@ -959,6 +1036,21 @@
       background: color-mix(in oklch, #d98a3d, white 76%);
       color: #a6631f;
     }
+    .bank-q-badge.quality-high { background: color-mix(in oklch, #c44f4f, white 82%); color: #8d3030; }
+    .bank-q-badge.quality-medium { background: color-mix(in oklch, #d98a3d, white 80%); color: #8a531d; }
+    .bank-q-badge.quality-low { background: color-mix(in oklch, #4f7ed8, white 84%); color: #31528e; }
+    .bank-q-badge.quality-ok { background: color-mix(in oklch, #2f9d63, white 82%); color: #1b6740; }
+    .bank-q-select,
+    .bank-q-enable {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .bank-q-select input,
+    .bank-q-enable input { width: 16px; height: 16px; margin: 0; }
     .bank-q-stem {
       font-size: 15px;
       line-height: 1.6;

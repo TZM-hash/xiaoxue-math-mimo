@@ -1,7 +1,7 @@
 (function () {
   function buildArchiveData(deps) {
     return {
-      version: 6,
+      version: 7,
       type: "miaomiao-math-complete-archive",
       format: "json",
       app: "miaomiao-math",
@@ -39,7 +39,7 @@
       return sum + (deps.isPlainObject(profile.rewards && profile.rewards.pet) ? 1 : 0);
     }, 0);
     var repairNotes = [];
-    if (archiveVersion && archiveVersion < 6) repairNotes.push("Auto upgraded archive v" + archiveVersion + " -> v6");
+    if (archiveVersion && archiveVersion < 7) repairNotes.push("Auto upgraded archive v" + archiveVersion + " -> v7");
     if (before.profiles !== profiles.length) repairNotes.push("丢弃 " + (before.profiles - profiles.length) + " 个无效学生档案");
     if (before.wrong !== wrongCount) repairNotes.push("修复/丢弃 " + (before.wrong - wrongCount) + " 条异常错题");
     if (before.mastered !== masteredCount) repairNotes.push("修复/丢弃 " + (before.mastered - masteredCount) + " 条已掌握错题记录");

@@ -743,6 +743,42 @@
     .home-cockpit-meter .pet-mini-progress {
       height: 5px;
     }
+    .home-plan-mix {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: minmax(110px, 1.2fr) repeat(4, minmax(76px, 1fr));
+      gap: 6px;
+      align-items: stretch;
+      margin-top: 7px;
+    }
+    .home-plan-mix > strong,
+    .home-plan-mix > span {
+      min-width: 0;
+      min-height: 42px;
+      display: grid;
+      align-content: center;
+      gap: 2px;
+      padding: 6px 8px;
+      border-left: 3px solid color-mix(in oklch, var(--subject-accent), white 20%);
+      background: rgba(255,255,255,.62);
+    }
+    .home-plan-mix > strong {
+      color: var(--fg);
+      font: 900 12px/1.25 var(--font-display);
+    }
+    .home-plan-mix b {
+      color: color-mix(in oklch, var(--subject-accent), black 12%);
+      font: 900 13px/1.1 var(--font-display);
+    }
+    .home-plan-mix em {
+      color: var(--muted);
+      font-size: 10px;
+      font-style: normal;
+      font-weight: 800;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
     .weak-point-list {
       grid-column: 2;
       grid-row: 1 / span 3;

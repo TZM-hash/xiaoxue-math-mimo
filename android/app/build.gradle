@@ -1,5 +1,10 @@
 apply plugin: 'com.android.application'
 
+def releaseStoreFile = file('../miaomiao-release.keystore')
+def releaseStorePassword = System.getenv('KEYSTORE_PASSWORD')
+def releaseKeyPassword = System.getenv('KEY_PASSWORD')
+def releaseSigningReady = releaseStoreFile.exists() && releaseStorePassword && releaseKeyPassword
+
 android {
     namespace 'com.miaomiao.math'
     compileSdk 34
@@ -8,16 +13,18 @@ android {
         applicationId "com.miaomiao.math"
         minSdk 21
         targetSdk 34
-        versionCode 3
-        versionName "1.1.0"
+        versionCode 4
+        versionName "1.2.0"
     }
 
     signingConfigs {
-        release {
-            storeFile file('../miaomiao-release.keystore')
-            storePassword System.getenv('KEYSTORE_PASSWORD') ?: 'miaomiao2024'
-            keyAlias 'miaomiao'
-            keyPassword System.getenv('KEY_PASSWORD') ?: 'miaomiao2024'
+        if (releaseSigningReady) {
+            release {
+                storeFile releaseStoreFile
+                storePassword releaseStorePassword
+                keyAlias 'miaomiao'
+                keyPassword releaseKeyPassword
+            }
         }
     }
 
@@ -26,7 +33,9 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.release
+            if (releaseSigningReady) {
+                signingConfig signingConfigs.release
+            }
         }
         debug {
             applicationIdSuffix ".debug"

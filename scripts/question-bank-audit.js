@@ -15,6 +15,8 @@ function createContext() {
   vm.createContext(context);
   const files = [
     "js/question-spec-utils.js",
+    "js/learning-quality-engine.js",
+    "js/question-quality-audit.js",
     "js/question-bank.js",
     "js/chinese-curriculum-data.js",
     "js/chinese-question-bank.js",
@@ -70,6 +72,16 @@ function canonicalType(subject, point, question) {
   if (/实验|变量|公平/.test(type)) return "experiment";
   if (/证据|推理|解释/.test(type)) return "evidence";
   return "concept-observation";
+}
+
+function inferredDifficulty(point, question) {
+  const explicit = Number(question?.difficultyScore || question?.difficulty || question?.learningMeta?.difficultyScore);
+  if (explicit >= 1 && explicit <= 5) return explicit;
+  const topic = String(point?.topic || "");
+  const textLength = String(question?.text || question?.prompt || "").length;
+  if (["appendix", "thinking", "inquiry", "engineering"].includes(topic) || textLength > 150) return 4;
+  if (["word", "reading", "geometry", "statistics", "writing"].includes(topic) || textLength > 70) return 3;
+  return 2;
 }
 
 function localQuestions(context, point) {
@@ -180,6 +192,23 @@ function buildAudit() {
           if (count < 10) gaps.push({ level: "high", subject, grade, message: `${unit} has fewer than 10 local templates` });
         });
       }
+      const qualityAudit = context.MathCampQuestionQualityAudit.auditQuestions(entries.map((entry) => ({
+        ...entry.question,
+        grade: entry.question?.grade || entry.point.grade,
+        subject: entry.question?.subject || subject,
+        pointId: entry.question?.pointId || entry.point.id,
+        difficultyScore: inferredDifficulty(entry.point, entry.question)
+      })));
+      if (qualityAudit.counts.high) {
+        const samples = qualityAudit.rows.filter((row) => row.highestSeverity === "high").slice(0, 5)
+          .map((row) => `${row.id || "unknown"}:${row.issues.filter((item) => item.severity === "high").map((item) => item.code).join("+")}`)
+          .join(", ");
+        gaps.push({ level: "high", subject, grade, message: `${qualityAudit.counts.high} effective questions have blocking answer or option issues (${samples})` });
+      }
+      const difficultyTypes = countBy(qualityAudit.rows, (row) => {
+        const difficulty = Number(row.difficulty) || 3;
+        return difficulty <= 2 ? "basic" : difficulty >= 4 ? "challenge" : "standard";
+      });
       rows.push({
         subject,
         grade,
@@ -195,7 +224,9 @@ function buildAudit() {
         localTerms,
         effectiveTerms,
         canonicalTypes: countBy(entries, (entry) => canonicalType(subject, entry.point, entry.question)),
-        answerTypes: countBy(entries, (entry) => entry.question?.answerType || "text")
+        answerTypes: countBy(entries, (entry) => entry.question?.answerType || "text"),
+        difficultyTypes,
+        qualityAverage: qualityAudit.averageScore
       });
     });
   });
@@ -209,8 +240,8 @@ function compactCounts(counts) {
 function formatAudit(report) {
   const lines = [
     "Question bank audit",
-    "subject | grade | points | raw external | effective external | local | unique | cross-point overlap | effective terms | local terms | canonical types",
-    "------- | ----- | ------ | ------------ | ------------------ | ----- | ------ | ------------------- | --------------- | ----------- | ---------------"
+    "subject | grade | points | raw external | effective external | local | unique | cross-point overlap | effective terms | local terms | canonical types | difficulty | quality",
+    "------- | ----- | ------ | ------------ | ------------------ | ----- | ------ | ------------------- | --------------- | ----------- | --------------- | ---------- | -------"
   ];
   report.rows.forEach((row) => {
     lines.push([
@@ -224,7 +255,9 @@ function formatAudit(report) {
       row.crossPointOverlaps,
       compactCounts(row.effectiveTerms),
       compactCounts(row.localTerms),
-      compactCounts(row.canonicalTypes)
+      compactCounts(row.canonicalTypes),
+      compactCounts(row.difficultyTypes),
+      row.qualityAverage
     ].join(" | "));
   });
   const high = report.gaps.filter((gap) => gap.level === "high").length;
@@ -240,4 +273,4 @@ if (require.main === module) {
   if (process.argv.includes("--strict") && report.gaps.some((gap) => gap.level === "high")) process.exitCode = 1;
 }
 
-module.exports = { buildAudit, formatAudit, termBucket, canonicalType };
+module.exports = { buildAudit, formatAudit, termBucket, canonicalType, inferredDifficulty };

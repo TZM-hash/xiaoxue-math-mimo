@@ -109,7 +109,7 @@
       { id: "daily-goal", title: "今日达标", desc: "当天完成每日目标题数。", test: (p) => todayItems(p).length >= dailyGoal(p) },
       { id: "accuracy-80", title: "稳定 80%", desc: "累计 30 题后正确率达到 80%。", test: (p) => p.history.length >= 30 && accuracyOf(p.history) >= 80 },
       { id: "streak-3", title: "连续学习 3 天", desc: "连续 3 天都有练习记录。", test: (p) => learningDaysFor(p) >= 3 },
-      { id: "wrong-cleaner", title: "错题清理员", desc: "至少一题连续做对 3 次后自动移除。", test: (p) => (p.rewards?.clearedWrong || 0) >= 1 },
+      { id: "wrong-cleaner", title: "错题清理员", desc: "至少一题完成四次间隔复习后自动移除。", test: (p) => (p.rewards?.clearedWrong || 0) >= 1 },
       { id: "challenge-pass", title: "闯关小勇士", desc: "通过任意一个闯关关卡。", test: (p) => Object.values(p.rewards?.challenge?.gradeLevels || {}).some((item) => (item.passed || 0) >= 1) },
       { id: "hundred", title: "百题里程碑", desc: "累计完成 100 道题。", test: (p) => p.history.length >= 100 },
       { id: "five-points", title: "知识点探索", desc: "练过 5 个不同知识点。", test: (p) => new Set(p.history.map((item) => item.pointId)).size >= 5 },
@@ -208,6 +208,7 @@
       petCoinPill: document.getElementById("petCoinPill"),
       homePlanCopy: document.getElementById("homePlanCopy"),
       homeCockpitMeter: document.getElementById("homeCockpitMeter"),
+      homePlanMix: document.getElementById("homePlanMix"),
       homeSettingsCard: document.getElementById("homeSettingsCard"),
       homeWeakList: document.getElementById("homeWeakList"),
       homeRouteList: document.getElementById("homeRouteList"),
@@ -508,12 +509,28 @@
       customBankImageInput: document.getElementById("customBankImageInput"),
       customBankImageBtn: document.getElementById("customBankImageBtn"),
       customBankImageName: document.getElementById("customBankImageName"),
+      previewCustomBankBtn: document.getElementById("previewCustomBankBtn"),
       importCustomBankBtn: document.getElementById("importCustomBankBtn"),
       customBankImportStatus: document.getElementById("customBankImportStatus"),
+      customBankPreview: document.getElementById("customBankPreview"),
       customBankList: document.getElementById("customBankList"),
       bankDetailTitle: document.getElementById("bankDetailTitle"),
       bankDetailMeta: document.getElementById("bankDetailMeta"),
-      bankDetailBody: document.getElementById("bankDetailBody")
+      bankDetailBody: document.getElementById("bankDetailBody"),
+      bankReviewToolbar: document.getElementById("bankReviewToolbar"),
+      bankAuditSummary: document.getElementById("bankAuditSummary"),
+      publishCustomBankBtn: document.getElementById("publishCustomBankBtn"),
+      disableCustomBankBtn: document.getElementById("disableCustomBankBtn"),
+      reviewCustomBankBtn: document.getElementById("reviewCustomBankBtn"),
+      auditCustomBankBtn: document.getElementById("auditCustomBankBtn"),
+      bankSelectAllQuestions: document.getElementById("bankSelectAllQuestions"),
+      bankBulkGradeSelect: document.getElementById("bankBulkGradeSelect"),
+      bankBulkSubjectSelect: document.getElementById("bankBulkSubjectSelect"),
+      bankBulkTermSelect: document.getElementById("bankBulkTermSelect"),
+      bankBulkPointSelect: document.getElementById("bankBulkPointSelect"),
+      bankBulkDifficultySelect: document.getElementById("bankBulkDifficultySelect"),
+      applyBankBulkEditBtn: document.getElementById("applyBankBulkEditBtn"),
+      bankVersionHistory: document.getElementById("bankVersionHistory")
     };
 
     const {
@@ -1159,6 +1176,7 @@
     }
     function createProfile(name = "小学生", grade = 1) {
       return {
+        schemaVersion: 2,
         id: uid("student"),
         name,
         grade: clamp(Number(grade) || 1, 1, 6),
@@ -1166,6 +1184,7 @@
         masteredWrong: [],
         history: [],
         mastery: {},
+        learningPlan: null,
         updatedAt: Date.now(),
         settings: { pointId: "auto", setSize: 10, adaptive: true, dailyGoal: 20, answerSpace: "auto", answerMode: "auto", printTemplate: "practice", printOutputMode: "answers" },
         rewards: {
@@ -1403,6 +1422,7 @@
       normalized.id = safeRecordId(normalized.id, "student");
       normalized.name = String(normalized.name || "小学生").trim().slice(0, 24) || "小学生";
       normalized.grade = clamp(Number(normalized.grade) || 1, 1, 6);
+      normalized.schemaVersion = 2;
       normalized.updatedAt = Math.max(0, Number(normalized.updatedAt) || latestProfileActivityTime(normalized) || Date.now());
       normalized.wrongbook = Array.isArray(normalized.wrongbook)
         ? uniquifyRecordIds(normalized.wrongbook.map(normalizeWrongItem).filter(Boolean).slice(0, 300), "wrong")
@@ -1415,6 +1435,13 @@
         : [];
       normalized.mastery = Object.fromEntries(Object.entries(normalized.mastery && typeof normalized.mastery === "object" ? normalized.mastery : {})
         .map(([pointId, mastery]) => [pointId, LearningQuality.normalizeMasteryState?.(mastery) || mastery]));
+      normalized.learningPlan = window.MathCampDailyLearningPlan?.normalizeStoredPlan?.(normalized.learningPlan, {
+        profile: normalized,
+        grade: normalized.grade,
+        subject: normalized.activeSubject || "math",
+        setSize: normalized.settings?.setSize || 10,
+        dateKey: todayKey()
+      }) || null;
       normalized.settings = {
         pointId: "auto",
         setSize: 10,
@@ -1525,7 +1552,7 @@
         question,
         cause,
         wrongCount: clamp(Number(item.wrongCount) || 1, 1, 999),
-        correctStreak: clamp(Number(item.correctStreak) || 0, 0, 3),
+        correctStreak: clamp(Number(item.correctStreak) || 0, 0, 4),
         reviewStage,
         chainStage: ["scaffold", "sameModel", "transfer", "delayed"].includes(item.chainStage) ? item.chainStage : "scaffold",
         recentDiagnostic: LearningQuality.normalizeDiagnostic?.(item.recentDiagnostic) || "uncertain",
@@ -1548,7 +1575,7 @@
         cause: normalizeCause(item.cause),
         wrongCount: clamp(Number(item.wrongCount) || 1, 1, 999),
         masteredAt: Number(item.masteredAt || item.updatedAt) || Date.now(),
-        reviewCount: clamp(Number(item.reviewCount) || 3, 0, 999)
+        reviewCount: clamp(Number(item.reviewCount) || 4, 0, 999)
       };
     }
     function normalizeHistoryItem(item) {
@@ -1642,6 +1669,8 @@
       printBlockedReason: "",
       printSignature: "",
       pendingImport: null,
+      customBankImportPreview: null,
+      selectedBankId: "",
       practiceLayer: "setup",
       practiceReturnState: { layer: "setup", typeSettingsOpen: false },
       stepHintOpen: false,
@@ -2091,11 +2120,24 @@
       const stage = petStageCopy(petGrowthStage(pet), profile);
       const done = todayItems(profile).length;
       const goal = dailyGoal(profile);
+      const dailyPlan = window.MathCampDailyLearningPlan?.buildPlan?.({
+        profile,
+        grade: profile.grade || state.grade,
+        subject: activeSubjectId(),
+        setSize: state.setSize || profile.settings?.setSize || 10,
+        dueCount: dueWrongbook(profile, profile.grade || state.grade).length,
+        dateKey: todayKey()
+      });
       if (els.homePlanCopy) {
         const first = weak[0];
+        const prefix = dailyPlan?.mode === "diagnostic" ? "学习数据还不够，今天先完成起始诊断" : "今天按掌握情况智能组卷";
         els.homePlanCopy.textContent = first
-          ? `${subjectMeta.label} · ${subjectMeta.themeLabel}：先复习到期错题，再练"${first.label}"，最后用小测或闯关收尾。`
-          : `${subjectMeta.label} · ${subjectMeta.themeLabel}：先复习到期错题，再完成一组基础练习，最后用小测或闯关收尾。`;
+          ? `${subjectMeta.label} · ${prefix}，重点关注“${first.label}”。`
+          : `${subjectMeta.label} · ${prefix}，完成后会更新知识点掌握状态。`;
+      }
+      if (els.homePlanMix && dailyPlan) {
+        els.homePlanMix.innerHTML = `<strong>${escapeHTML(dailyPlan.title)}</strong>${dailyPlan.segments.map((segment) => `
+          <span data-plan-segment="${escapeAttr(segment.id)}"><b>${segment.count}题</b><em>${escapeHTML(segment.label)} ${segment.ratio}%</em></span>`).join("")}`;
       }
       if (els.homeCockpitMeter) {
         const quality = petLearningQuality(profile);
@@ -3392,7 +3434,17 @@
       }, count, preferred);
     }
     function buildSmartDailyQuestionSet(count = state.setSize, preferred = state.answerMode) {
-      return window.MathCampPracticeEngine.buildAdaptiveQuestionSet({
+      const profile = activeProfile();
+      const dailyPlan = window.MathCampDailyLearningPlan?.buildPlan?.({
+        profile,
+        grade: state.grade,
+        subject: activeSubjectId(),
+        setSize: count,
+        dueCount: dueWrongbook(profile, state.grade).length,
+        dateKey: todayKey()
+      }) || null;
+      if (dailyPlan) profile.learningPlan = dailyPlan;
+      return window.MathCampPracticeEngine.buildDailyQuestionSet({
         activeProfile,
         applyQuestionInteraction,
         availablePoints,
@@ -3413,10 +3465,12 @@
         shuffle,
         signature,
         state,
-        weakestPoints
-      }, count, preferred).map((question) => ({
+        weakestPoints,
+        dailyPlan
+      }, count, preferred, dailyPlan).map((question) => ({
         ...question,
         dailySmart: true,
+        diagnostic: dailyPlan?.mode === "diagnostic",
         reviewSource: question.reviewSource || "fresh"
       }));
     }
@@ -6631,12 +6685,13 @@
         const rate = attempts ? Math.round((Number(mastery.correct) || 0) / attempts * 100) : 0;
         const wrong = (profile.wrongbook || []).filter((item) => item.question?.pointId === point.id).length;
         const due = dueWrongbook(profile, grade).filter((item) => item.question?.pointId === point.id).length;
-        const level = attempts >= 8 && rate >= 85 && !wrong ? "mastered" : wrong || due || (attempts >= 3 && rate < 75) ? "weak" : attempts ? "learning" : "new";
+        const level = window.MathCampDailyLearningPlan?.masteryStatus?.(mastery, { wrongs: wrong, due })?.id
+          || (attempts >= 8 && rate >= 85 && !wrong ? "mastered" : wrong || due || (attempts >= 3 && rate < 75) ? "weak" : attempts ? "learning" : "new");
         return { point, attempts, rate, wrong, due, level };
       });
     }
     function knowledgeMapLevelLabel(level) {
-      return { mastered: "已掌握", learning: "学习中", weak: "需巩固", new: "待开启" }[level] || "学习中";
+      return { mastered: "已掌握", learning: "学习中", weak: "需要巩固", new: "未学习" }[level] || "学习中";
     }
     function renderLearningKnowledgeMap(profile = activeProfile()) {
       if (!els.learningKnowledgeMap) return;
@@ -7571,6 +7626,57 @@
       }
       startWrongbookPractice();
     }
+    function customBankStatusLabel(status) {
+      return { review: "待审核", published: "已发布", disabled: "已停用" }[status] || "待审核";
+    }
+    function allCurriculumPointsForBankEditor() {
+      const ids = SubjectRegistry.SUBJECT_IDS || ["math", "chinese", "english", "science"];
+      return ids.flatMap((subject) => {
+        const bank = SubjectRegistry.subjectBank?.(subject);
+        return (bank?.points || []).map((point) => ({ ...point, subject: point.subject || subject }));
+      }).sort((a, b) => Number(a.grade) - Number(b.grade) || String(a.label).localeCompare(String(b.label), "zh-CN"));
+    }
+    function syncBankBulkPointOptions() {
+      if (!els.bankBulkPointSelect) return;
+      const current = els.bankBulkPointSelect.value;
+      const grade = Number(els.bankBulkGradeSelect?.value) || 0;
+      const subject = els.bankBulkSubjectSelect?.value || "";
+      const options = allCurriculumPointsForBankEditor().filter((point) => {
+        return (!grade || Number(point.grade) === grade) && (!subject || point.subject === subject);
+      });
+      els.bankBulkPointSelect.innerHTML = `<option value="">知识点保持不变</option><option value="__clear__">取消知识点关联</option>`
+        + options.map((point) => `<option value="${escapeAttr(point.id)}">${escapeHTML(`${gradeNames[point.grade - 1]} · ${point.label}`)}</option>`).join("");
+      els.bankBulkPointSelect.value = options.some((point) => point.id === current) || current === "__clear__" ? current : "";
+      syncCustomSelects();
+    }
+    function renderBankReviewToolbar(bank, audit) {
+      if (!els.bankReviewToolbar) return;
+      if (!bank || !audit) {
+        els.bankReviewToolbar.hidden = true;
+        return;
+      }
+      els.bankReviewToolbar.hidden = false;
+      if (els.bankAuditSummary) {
+        els.bankAuditSummary.innerHTML = `<strong>${escapeHTML(customBankStatusLabel(bank.status))} · v${Number(bank.version) || 1}</strong>
+          <span>质量均分 ${audit.averageScore} · 硬问题 ${audit.counts.high} · 提醒 ${audit.counts.medium} · 可直接使用 ${audit.counts.ok}</span>`;
+        els.bankAuditSummary.className = `bank-audit-summary ${audit.canPublish ? "is-ready" : "has-risk"}`;
+      }
+      if (els.publishCustomBankBtn) {
+        els.publishCustomBankBtn.hidden = bank.status === "published";
+        els.publishCustomBankBtn.disabled = !audit.canPublish;
+        els.publishCustomBankBtn.title = audit.canPublish ? "审核通过并加入智能练习" : `请先处理 ${audit.counts.high} 道硬规则问题`;
+      }
+      if (els.disableCustomBankBtn) els.disableCustomBankBtn.hidden = bank.status === "disabled";
+      if (els.reviewCustomBankBtn) els.reviewCustomBankBtn.hidden = bank.status === "review";
+      if (els.bankVersionHistory) {
+        const history = (bank.history || []).slice(-5).reverse();
+        els.bankVersionHistory.innerHTML = history.length
+          ? history.map((item) => `<span><b>v${Number(item.version) || 1}</b>${escapeHTML(item.summary || item.action || "更新")}<em>${escapeHTML(String(item.at || "").slice(0, 10))}</em></span>`).join("")
+          : `<span class="muted">尚无版本记录。</span>`;
+      }
+      if (els.bankSelectAllQuestions) els.bankSelectAllQuestions.checked = false;
+      syncBankBulkPointOptions();
+    }
     function renderCustomBankList() {
       const CustomBank = window.MathCampCustomBank;
       if (!els.customBankList || !CustomBank) return;
@@ -7588,14 +7694,21 @@
         const when = bank.importedAt ? String(bank.importedAt).slice(0, 10) : "";
         const fmt = bank.sourceFormat ? bank.sourceFormat.toUpperCase() : "";
         const active = bank.id === state.selectedBankId;
+        const status = customBankStatusLabel(bank.status);
+        const statusAction = bank.status === "published"
+          ? `<button class="secondary" type="button" data-custom-bank-disable="${escapeAttr(bank.id)}">停用</button>`
+          : bank.status === "disabled"
+            ? `<button class="secondary" type="button" data-custom-bank-review="${escapeAttr(bank.id)}">退回审核</button>`
+            : `<button class="primary" type="button" data-custom-bank-publish="${escapeAttr(bank.id)}">审核发布</button>`;
         return `<div class="report-item ${active ? "report-item-active" : ""}" data-custom-bank-id="${escapeAttr(bank.id)}">
           <div>
-            <strong>${escapeHTML(bank.name)}</strong>
-            <div class="muted">${bank.count} 题${fmt ? ` · ${fmt}` : ""}${when ? ` · ${when}` : ""}</div>
+            <strong>${escapeHTML(bank.name)} <span class="bank-status-badge" data-status="${escapeAttr(bank.status)}">${escapeHTML(status)}</span></strong>
+            <div class="muted">${bank.enabledCount}/${bank.count} 题启用 · v${bank.version}${fmt ? ` · ${fmt}` : ""}${when ? ` · ${when}` : ""}</div>
           </div>
           <div class="row-actions">
             <button class="${active ? "primary" : "secondary"}" type="button" data-custom-bank-view="${escapeAttr(bank.id)}">查看题目</button>
             <button class="primary" type="button" data-custom-bank-practice="${escapeAttr(bank.id)}">整批练习</button>
+            ${statusAction}
             <button class="secondary" type="button" data-custom-bank-rename="${escapeAttr(bank.id)}">重命名</button>
             <button class="danger" type="button" data-custom-bank-delete="${escapeAttr(bank.id)}">删除</button>
           </div>
@@ -7614,9 +7727,12 @@
         if (els.bankDetailTitle) els.bankDetailTitle.textContent = "题目详情";
         if (els.bankDetailMeta) els.bankDetailMeta.textContent = "点击左侧「校内题库」中某个批次的「查看题目」，这里会显示该批次的全部题目。";
         els.bankDetailBody.innerHTML = `<p class="bank-detail-empty muted">还没有选择题库批次。</p>`;
+        renderBankReviewToolbar(null, null);
         return;
       }
       const questions = Array.isArray(bank.questions) ? bank.questions : [];
+      const audit = CustomBank.auditBank?.(bankId) || { counts: { high: 0, medium: 0, low: 0, ok: questions.length }, averageScore: 100, canPublish: true, rows: [] };
+      renderBankReviewToolbar(bank, audit);
       // 有图片则先解析
       if (bank.hasImages && typeof CustomBank.resolveBankImages === "function") {
         await CustomBank.resolveBankImages(bankId);
@@ -7640,6 +7756,7 @@
       }
       els.bankDetailBody.innerHTML = questions.map((q, index) => {
         const type = q.answerType || "text";
+        const auditRow = audit.rows?.[index] || { highestSeverity: "ok", score: 100, issues: [] };
         const pointBadge = q.pointId
           ? `<span class="bank-q-badge is-point">${escapeHTML(pointLabel(q.pointId))}</span>`
           : `<span class="bank-q-badge is-loose">未关联知识点</span>`;
@@ -7673,12 +7790,17 @@
         const explanation = q.explanation
           ? `<div class="bank-q-explain"><span class="bank-q-label">解析</span>${escapeHTML(String(q.explanation))}</div>`
           : "";
-        return `<article class="bank-q-item">
+        const qualityLabel = auditRow.highestSeverity === "high" ? "硬问题" : auditRow.highestSeverity === "medium" ? "需完善" : auditRow.highestSeverity === "low" ? "小提醒" : "质量通过";
+        const issueText = auditRow.issues?.length ? auditRow.issues.map((item) => item.message).join("；") : "答案、题型和元数据检查通过";
+        return `<article class="bank-q-item ${q.enabled === false ? "is-disabled" : ""}">
           <div class="bank-q-top">
+            <label class="bank-q-select"><input type="checkbox" data-bank-q-select="${escapeAttr(q.id)}" aria-label="选择第 ${index + 1} 题" /></label>
             <span class="bank-q-index">${index + 1}</span>
             <span class="bank-q-type">${bankAnswerTypeLabel(type)}</span>
             ${pointBadge}
             ${imageBadge}
+            <span class="bank-q-badge quality-${escapeAttr(auditRow.highestSeverity)}" title="${escapeAttr(issueText)}">${escapeHTML(qualityLabel)} ${auditRow.score}</span>
+            <label class="bank-q-enable"><input type="checkbox" data-bank-q-enabled="${escapeAttr(q.id)}" ${q.enabled !== false ? "checked" : ""} /><span>${q.enabled !== false ? "启用" : "停用"}</span></label>
           </div>
           ${imageHtml}
           ${stem}
@@ -7703,29 +7825,79 @@
         }
       });
     }
-    async function importCustomBankFromUI() {
-      const Excel = window.MathCampQuestionBankExcel;
-      const CustomBank = window.MathCampCustomBank;
-      const status = els.customBankImportStatus;
-      if (!Excel || !CustomBank) {
-        if (status) status.textContent = "导入模块未加载。";
+    function renderCustomBankImportPreview(preview) {
+      if (!els.customBankPreview) return;
+      if (!preview?.result) {
+        els.customBankPreview.hidden = true;
+        els.customBankPreview.innerHTML = "";
+        if (els.importCustomBankBtn) els.importCustomBankBtn.disabled = true;
         return;
       }
+      const { result, audit } = preview;
+      const issues = (audit.rows || []).flatMap((row, index) => row.issues.map((item) => ({ ...item, index: index + 1 }))).slice(0, 8);
+      els.customBankPreview.hidden = false;
+      els.customBankPreview.innerHTML = `<div class="bank-preview-summary">
+          <strong>解析完成：${result.questions.length} 题</strong>
+          <span>质量均分 ${audit.averageScore} · 硬问题 ${audit.counts.high} · 提醒 ${audit.counts.medium} · 跳过 ${result.skipped.length} 行</span>
+        </div>
+        ${issues.length ? `<ul>${issues.map((item) => `<li><b>第 ${item.index} 题</b>${escapeHTML(item.message)}</li>`).join("")}</ul>` : `<p>当前预览未发现答案、题型或元数据问题。</p>`}
+        <p class="muted">确认后只会进入待审核区，不会立即混入学生的智能练习。</p>`;
+      if (els.importCustomBankBtn) els.importCustomBankBtn.disabled = false;
+    }
+    async function prepareCustomBankImportFromUI() {
+      const Excel = window.MathCampQuestionBankExcel;
+      const Audit = window.MathCampQuestionQualityAudit;
+      const status = els.customBankImportStatus;
       const file = els.customBankFileInput?.files?.[0];
+      if (!Excel || !Audit) {
+        if (status) status.textContent = "导入预览模块未加载。";
+        return;
+      }
       if (!file) {
         if (status) status.textContent = "请先选择一个 .xlsx 或 .csv 文件。";
         return;
       }
-      if (status) status.textContent = "正在导入...";
+      if (status) status.textContent = "正在解析并检查题目...";
       try {
         const input = await readFileForImport(file);
         const nameFromFile = String(file.name || "").replace(/\.(xlsx|csv)$/i, "");
         const bankName = (els.customBankNameInput?.value || "").trim() || nameFromFile || "校内题库";
         const result = Excel.parseImportFile(input, { bankName });
         if (!result.questions.length) {
-          if (status) status.textContent = `没有导入任何题目（共 ${result.totalRows} 行，跳过 ${result.skipped.length} 行）。请检查文件格式。`;
+          state.customBankImportPreview = null;
+          renderCustomBankImportPreview(null);
+          if (status) status.textContent = `没有解析出题目（共 ${result.totalRows} 行，跳过 ${result.skipped.length} 行）。`;
           return;
         }
+        const audit = Audit.auditQuestions(result.questions);
+        state.customBankImportPreview = { fileName: file.name, bankName, result, audit };
+        renderCustomBankImportPreview(state.customBankImportPreview);
+        if (status) status.textContent = audit.canPublish
+          ? "预览完成。确认后进入待审核，可继续批量维护后发布。"
+          : `预览完成，发现 ${audit.counts.high} 道硬规则问题；导入后需修正才能发布。`;
+      } catch (error) {
+        state.customBankImportPreview = null;
+        renderCustomBankImportPreview(null);
+        if (status) status.textContent = `解析失败：${error?.message || error}`;
+      }
+    }
+    async function importCustomBankFromUI() {
+      const CustomBank = window.MathCampCustomBank;
+      const status = els.customBankImportStatus;
+      if (!CustomBank) {
+        if (status) status.textContent = "导入模块未加载。";
+        return;
+      }
+      const preview = state.customBankImportPreview;
+      const file = els.customBankFileInput?.files?.[0];
+      if (!preview?.result || !file || preview.fileName !== file.name) {
+        if (status) status.textContent = "请先解析并预览当前文件。";
+        return;
+      }
+      if (status) status.textContent = "正在导入...";
+      try {
+        const result = preview.result;
+        const bankName = (els.customBankNameInput?.value || "").trim() || preview.bankName;
         // 处理关联图片：按文件名匹配用户选择的图片，存入 IndexedDB
         const Images = window.MathCampBankImages;
         const neededImages = Array.isArray(result.imageNames) ? result.imageNames : [];
@@ -7738,7 +7910,8 @@
           name: bankName,
           questions: result.questions,
           sourceFormat: result.sourceFormat,
-          hasImages: neededImages.length > 0
+          hasImages: neededImages.length > 0,
+          status: "review"
         });
         if (neededImages.length && Images) {
           for (const imageName of neededImages) {
@@ -7759,11 +7932,13 @@
         if (els.customBankImageInput) els.customBankImageInput.value = "";
         if (els.customBankImageName) els.customBankImageName.textContent = "未选择图片";
         if (els.customBankNameInput) els.customBankNameInput.value = "";
+        state.customBankImportPreview = null;
+        renderCustomBankImportPreview(null);
         const skipNote = result.skipped.length ? `，跳过 ${result.skipped.length} 行（格式不全）` : "";
         const imgNote = neededImages.length
           ? `，图片 ${matchedImages}/${neededImages.length} 张已关联${missingImages ? `（${missingImages} 张缺文件）` : ""}`
           : "";
-        if (status) status.textContent = `已导入「${bankName}」：${result.questions.length} 题${skipNote}${imgNote}。`;
+        if (status) status.textContent = `已导入待审核批次「${bankName}」：${result.questions.length} 题${skipNote}${imgNote}。审核发布前不会混入日常练习。`;
       } catch (error) {
         if (status) status.textContent = `导入失败：${error?.message || error}`;
       }
@@ -7804,6 +7979,30 @@
       renderPracticeQuestion();
       enterPracticeFocus();
       startRoundTimer();
+    }
+    function publishCustomBankFromUI(bankId = state.selectedBankId) {
+      const CustomBank = window.MathCampCustomBank;
+      const result = CustomBank?.publishBank?.(bankId);
+      if (!result?.ok) {
+        UI.notify(result?.reason || "题库暂时不能发布。", { tone: "bad", duration: 4200 });
+        if (bankId) {
+          state.selectedBankId = bankId;
+          renderCustomBankList();
+        }
+        return false;
+      }
+      state.selectedBankId = bankId;
+      renderCustomBankList();
+      UI.notify("题库审核通过，已加入日常智能练习。", { tone: "good" });
+      return true;
+    }
+    function setCustomBankWorkflowStatus(bankId, status) {
+      const CustomBank = window.MathCampCustomBank;
+      if (!CustomBank?.setBankStatus?.(bankId, status)) return false;
+      state.selectedBankId = bankId;
+      renderCustomBankList();
+      UI.notify(status === "disabled" ? "题库已停用，不再混入智能练习。" : "题库已退回待审核。", { tone: "good" });
+      return true;
     }
     function challengeDraftPayload() {
       if (state.mode !== "challenge" || !state.challengeMeta || state.setFinished) return null;
@@ -8156,7 +8355,7 @@
       const families = (questions || []).map((question) => question?.learningMeta?.familyKey || LearningQuality.questionFamilyKey?.(question)).filter(Boolean);
       state.recentQuestionFamilyKeys = [...new Set([...(state.recentQuestionFamilyKeys || []), ...families])].slice(-limit);
     }
-    const REVIEW_STAGE_OFFSETS = [0, 1, 3, 7];
+    const REVIEW_STAGE_OFFSETS = [1, 3, 7, 14];
     function nextReviewDueDate(stage) {
       const offset = REVIEW_STAGE_OFFSETS[clamp(Number(stage) || 0, 0, REVIEW_STAGE_OFFSETS.length - 1)] ?? 7;
       return addDaysToKey(todayKey(), offset);
@@ -8181,7 +8380,7 @@
         found.wrongCount += 1;
         found.correctStreak = 0;
         found.reviewStage = 0;
-        found.dueDate = todayKey();
+        found.dueDate = nextReviewDueDate(0);
         found.lastReviewedAt = Date.now();
         found.lastResult = "wrong";
         found.cause = cause || found.cause || "未标记";
@@ -8205,7 +8404,7 @@
         recentDiagnostic: LearningQuality.normalizeDiagnostic?.(evidence.diagnostic) || "uncertain",
         confidence: LearningQuality.normalizeConfidence?.(evidence.confidence) || "",
         hintLevel: clamp(Number(evidence.hintLevel) || 0, 0, 3),
-        dueDate: todayKey(),
+        dueDate: nextReviewDueDate(0),
         lastReviewedAt: Date.now(),
         lastResult: "wrong",
         updatedAt: Date.now()
@@ -8234,7 +8433,7 @@
       if (!item) return false;
       if (correct) {
         const stable = LearningQuality.isStableEvidence ? LearningQuality.isStableEvidence({ ...evidence, correct }) : true;
-        item.correctStreak = clamp((Number(item.correctStreak) || 0) + 1, 0, 3);
+        item.correctStreak = clamp((Number(item.correctStreak) || 0) + 1, 0, 4);
         item.reviewStage = clamp((Number(item.reviewStage) || 0) + 1, 0, 4);
         item.chainStage = LearningQuality.nextChainStage?.(item.chainStage || "scaffold", { correct, stable }) || item.chainStage || "scaffold";
         item.dueDate = nextReviewDueDate(item.reviewStage);
@@ -8246,15 +8445,15 @@
         pet.bond = clamp(pet.bond + 1, 0, 100);
         if (hasWrongbookBuddy) pet.bond = clamp(pet.bond + 1, 0, 100);
         pet.mood = clamp(pet.mood + 1, 0, 100);
-        if (item.correctStreak >= 3 && item.chainStage === "delayed") {
+        if (item.correctStreak >= 4 && item.chainStage === "delayed") {
           markWrongAsMastered(profile, item);
           profile.wrongbook.splice(itemIndex, 1);
           if (!profile.rewards) profile.rewards = {};
           profile.rewards.clearedWrong = (profile.rewards.clearedWrong || 0) + 1;
           awardCoins(8, "掌握错题");
           pet.bond = clamp(pet.bond + 3, 0, 100);
-          els.companionTalk.textContent = petCopy('这道错题已经连续做对 3 次，移入"已掌握错题"记录了。招财额外奖励 8 金币。');
-          showRewardRibbon({ title: "错题掌握", copy: "连续做对 3 次，招财把它收进已掌握记录。", coins: 8 });
+          els.companionTalk.textContent = petCopy('这道错题已经完成 1、3、7、14 天四次复习，移入"已掌握错题"记录了。招财额外奖励 8 金币。');
+          showRewardRibbon({ title: "错题掌握", copy: "完成四次间隔复习，招财把它收进已掌握记录。", coins: 8 });
         }
       } else {
         item.correctStreak = 0;
@@ -8263,7 +8462,7 @@
         item.recentDiagnostic = LearningQuality.normalizeDiagnostic?.(evidence.diagnostic) || item.recentDiagnostic || "uncertain";
         item.confidence = LearningQuality.normalizeConfidence?.(evidence.confidence) || "";
         item.hintLevel = clamp(Number(evidence.hintLevel) || 0, 0, 3);
-        item.dueDate = todayKey();
+        item.dueDate = nextReviewDueDate(0);
         item.lastReviewedAt = Date.now();
         item.wrongCount += 1;
         item.lastResult = "wrong";
@@ -9063,7 +9262,7 @@
       const recent = mastered.slice(0, 3).map((item) => `${pointLabel(item.question.pointId)} · ${normalizeCause(item.cause)}`).join("；");
       return `<div class="report-item">
         <div class="item-top"><h3>已掌握错题</h3><span class="mastered-chip">${mastered.length} 题</span></div>
-        <p>这些题已经连续做对 3 次，从错题本移入掌握记录。最近掌握：${escapeHTML(recent)}。</p>
+        <p>这些题已经完成四次间隔复习，从错题本移入掌握记录。最近掌握：${escapeHTML(recent)}。</p>
       </div>`;
     }
     function causeSelectHTML(selected, id) {
@@ -10578,11 +10777,14 @@
     els.customBankChooseBtn?.addEventListener("click", () => els.customBankFileInput?.click());
     els.customBankFileInput?.addEventListener("change", () => {
       const file = els.customBankFileInput.files?.[0];
+      state.customBankImportPreview = null;
+      renderCustomBankImportPreview(null);
       if (els.customBankFileName) els.customBankFileName.textContent = file ? file.name : "未选择任何文件";
       if (file && els.customBankNameInput && !els.customBankNameInput.value.trim()) {
         els.customBankNameInput.value = String(file.name || "").replace(/\.(xlsx|csv)$/i, "");
       }
     });
+    els.previewCustomBankBtn?.addEventListener("click", prepareCustomBankImportFromUI);
     els.importCustomBankBtn?.addEventListener("click", importCustomBankFromUI);
     els.customBankImageBtn?.addEventListener("click", () => els.customBankImageInput?.click());
     els.customBankImageInput?.addEventListener("change", () => {
@@ -10603,6 +10805,21 @@
       const practiceBtn = event.target.closest("[data-custom-bank-practice]");
       if (practiceBtn) {
         startCustomBankPractice(practiceBtn.dataset.customBankPractice);
+        return;
+      }
+      const publishBtn = event.target.closest("[data-custom-bank-publish]");
+      if (publishBtn) {
+        publishCustomBankFromUI(publishBtn.dataset.customBankPublish);
+        return;
+      }
+      const disableBtn = event.target.closest("[data-custom-bank-disable]");
+      if (disableBtn) {
+        setCustomBankWorkflowStatus(disableBtn.dataset.customBankDisable, "disabled");
+        return;
+      }
+      const reviewBtn = event.target.closest("[data-custom-bank-review]");
+      if (reviewBtn) {
+        setCustomBankWorkflowStatus(reviewBtn.dataset.customBankReview, "review");
         return;
       }
       const renameBtn = event.target.closest("[data-custom-bank-rename]");
@@ -10631,6 +10848,47 @@
           if (els.customBankImportStatus) els.customBankImportStatus.textContent = "已删除该题库。";
         }
       }
+    });
+    [els.bankBulkGradeSelect, els.bankBulkSubjectSelect].forEach((select) => select?.addEventListener("change", syncBankBulkPointOptions));
+    els.publishCustomBankBtn?.addEventListener("click", () => publishCustomBankFromUI());
+    els.disableCustomBankBtn?.addEventListener("click", () => setCustomBankWorkflowStatus(state.selectedBankId, "disabled"));
+    els.reviewCustomBankBtn?.addEventListener("click", () => setCustomBankWorkflowStatus(state.selectedBankId, "review"));
+    els.auditCustomBankBtn?.addEventListener("click", () => {
+      if (!state.selectedBankId) return;
+      renderBankDetail(state.selectedBankId);
+      UI.notify("题库质量审查已刷新。", { tone: "good" });
+    });
+    els.bankSelectAllQuestions?.addEventListener("change", () => {
+      els.bankDetailBody?.querySelectorAll("[data-bank-q-select]").forEach((input) => { input.checked = els.bankSelectAllQuestions.checked; });
+    });
+    els.bankDetailBody?.addEventListener("change", (event) => {
+      const input = event.target.closest("[data-bank-q-enabled]");
+      if (!input || !state.selectedBankId) return;
+      if (window.MathCampCustomBank?.setQuestionEnabled?.(state.selectedBankId, input.dataset.bankQEnabled, input.checked)) {
+        renderCustomBankList();
+      }
+    });
+    els.applyBankBulkEditBtn?.addEventListener("click", () => {
+      const CustomBank = window.MathCampCustomBank;
+      const ids = [...(els.bankDetailBody?.querySelectorAll("[data-bank-q-select]:checked") || [])].map((input) => input.dataset.bankQSelect);
+      if (!ids.length) {
+        UI.notify("请先选择需要批量修改的题目。", { tone: "bad" });
+        return;
+      }
+      const pointValue = els.bankBulkPointSelect?.value || "";
+      const patch = {};
+      if (els.bankBulkGradeSelect?.value) patch.grade = Number(els.bankBulkGradeSelect.value);
+      if (els.bankBulkSubjectSelect?.value) patch.subject = els.bankBulkSubjectSelect.value;
+      if (els.bankBulkTermSelect?.value) patch.term = els.bankBulkTermSelect.value;
+      if (pointValue) patch.pointId = pointValue === "__clear__" ? "" : pointValue;
+      if (els.bankBulkDifficultySelect?.value) patch.difficultyScore = Number(els.bankBulkDifficultySelect.value);
+      if (!Object.keys(patch).length) {
+        UI.notify("请选择至少一个要修改的字段。", { tone: "bad" });
+        return;
+      }
+      const changed = CustomBank?.batchUpdateQuestions?.(state.selectedBankId, ids, patch) || 0;
+      renderCustomBankList();
+      UI.notify(`已批量修改 ${changed} 题，并退回待审核。`, { tone: "good" });
     });
     els.clearAllBtn.addEventListener("click", async () => {
       const confirmed = await UI.confirm("确定清空所有学生档案、错题和学习记录吗？", {
@@ -10909,6 +11167,8 @@
         startChallengeSet,
         challengeDifficultyForLevel,
         recordReviewSourceAttempt,
+        nextReviewDueDate,
+        reviewStageOffsets: REVIEW_STAGE_OFFSETS.slice(),
         buildParentWeeklyPrompt,
         roundPetSummary,
         hasAudioPrompt,

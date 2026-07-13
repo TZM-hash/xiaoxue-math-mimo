@@ -1,7 +1,7 @@
 {
   "name": "喵喵学习",
   "short_name": "喵喵学习",
-  "description": "给小学生练习数学的互动程序",
+  "description": "面向小学生的数学、语文、英语和科学智能练习程序",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
