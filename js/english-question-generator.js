@@ -2318,12 +2318,41 @@
     }
   };
 
+  function unitReviewSpecs(point) {
+    if (!/^e\d-unit-/.test(String(point?.id || ""))) return [];
+    const knowledge = point.curriculum?.knowledge || {};
+    const word = (knowledge.words || [])[0];
+    const pattern = (knowledge.patterns || [])[0];
+    const specs = [];
+    if (word) {
+      specs.push({
+        questionType: "单元词汇",
+        prompt: `【Read and choose】Which word or phrase is a core word in ${point.curriculum.unit}?`,
+        correct: word,
+        wrongs: ["yesterday morning", "because of", "quickly and quietly"].filter((item) => item !== word),
+        explanation: `${word} is one of the core words in ${point.curriculum.unit}. Review it together with the unit context.`,
+        commonPitfalls: ["混淆不同单元的核心词汇"]
+      });
+    }
+    if (pattern) {
+      specs.push({
+        questionType: "单元句型",
+        prompt: `【Read and choose】Which sentence pattern is practised in ${point.curriculum.unit}?`,
+        correct: pattern,
+        wrongs: ["How old is the blue book?", "Yesterday will be sunny.", "There am three pencils."].filter((item) => item !== pattern),
+        explanation: `${pattern} is a core sentence pattern in this unit. Match the sentence purpose with the unit topic.`,
+        commonPitfalls: ["只看单个词，没有判断句型用途"]
+      });
+    }
+    return specs;
+  }
+
   function specsForPoint(point) {
     const topicSpec = TOPIC_SPECS[point.topic] || TOPIC_SPECS.vocabulary;
     const pointSpec = POINT_SPECS[point.id] || {};
     const unitInput = /^e\d-unit-/.test(point.id) ? unitInputSpec(point) : null;
     // 专属选择题在前，topic 选择题在后作为补充
-    const choices = [...(pointSpec.choices || []), ...topicSpec.choices]
+    const choices = [...(pointSpec.choices || []), ...unitReviewSpecs(point), ...topicSpec.choices]
       .map((spec) => ({ ...spec, format: "choice" }));
     const topicInputs = [unitInput || topicSpec.inputs[0], ...topicSpec.inputs.slice(unitInput ? 0 : 1)]
       .filter(Boolean);

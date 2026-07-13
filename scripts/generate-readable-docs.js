@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
+const { buildAudit } = require("./question-bank-audit");
 
 const root = path.resolve(__dirname, "..");
 const docsDir = path.join(root, "docs");
@@ -254,6 +255,18 @@ function collectTemplateQuestions(context, pointMap) {
   return entries;
 }
 
+function effectiveQuestionCountForPoint(context, point) {
+  const subject = subjectOfPoint(point.id, point);
+  const generators = {
+    chinese: context.MathCampChineseQuestionGenerator,
+    english: context.MathCampEnglishQuestionGenerator,
+    science: context.MathCampScienceQuestionGenerator
+  };
+  const externalCount = context.MathCampExternalQuestionSeeds?.forPoint?.(point)?.length || 0;
+  const localCount = generators[subject]?.questionTemplateCountForPoint?.(point) || 0;
+  return externalCount + localCount;
+}
+
 function sortedPoints(points) {
   return points.slice().sort((a, b) => (a.grade - b.grade) || String(a.id).localeCompare(String(b.id)));
 }
@@ -369,13 +382,13 @@ function renderStats(context, pointMap, seedEntries, templateEntries) {
   lines.push("");
   lines.push("## 抽题比例说明");
   lines.push("");
-  lines.push("普通练习中，扩展题不再使用固定概率，而是按知识点库存比例抽取：");
+  lines.push("普通练习中，扩展题按去重后的知识点库存比例抽取，并封顶为 65%：");
   lines.push("");
   lines.push("```text");
-  lines.push("扩展题抽取概率 = 扩展题数量 / (扩展题数量 + 本地基础模板数量)");
+  lines.push("扩展题抽取概率 = min(65%, 有效扩展题数量 / (有效扩展题数量 + 本地基础模板数量))");
   lines.push("```");
   lines.push("");
-  lines.push("因此某个知识点的参考资料派生题越多，练习中抽到这些题的比例也越高。语文写作/看图写话类知识点保持文字输入题型，不混入选择型扩展题。");
+  lines.push("运行时会先按完整题面、答案、选项和图示去重，避免不同 ID 的相同内容反复出现。语文写作/看图写话类知识点保持文字输入题型，不混入选择型扩展题。");
   lines.push("");
   return lines.join("\n");
 }
@@ -401,6 +414,8 @@ function renderQuestionIndexDoc(context) {
   const commonSeeds = collectCommonExternalSeeds(context, pointMap, seenSeedIds);
   const templateEntries = collectTemplateQuestions(context, pointMap);
   const entries = [...moduleSeeds, ...commonSeeds, ...templateEntries];
+  const audit = buildAudit();
+  const auditRows = new Map(audit.rows.map((row) => [`${row.subject}-${row.grade}`, row]));
   const lines = [];
 
   lines.push("# 喵喵学习题库索引");
@@ -411,21 +426,22 @@ function renderQuestionIndexDoc(context) {
   lines.push("");
   lines.push("## 总览");
   lines.push("");
-  lines.push("| 学科 | 年级范围 | 知识点数 | 静态题数 | 参考资料派生 | 原创扩展 | 公共扩展 | 本地模板 |");
-  lines.push("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |");
+  lines.push("| 学科 | 年级范围 | 知识点数 | 原始静态条目 | 运行时有效题 | 参考资料派生 | 原创扩展 | 公共扩展 | 本地模板 |");
+  lines.push("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
   ["math", "chinese", "english", "science"].forEach((subject) => {
     const points = Object.values(pointMap).filter((point) => point.subject === subject);
     const grades = [...new Set(points.map((point) => point.grade).filter(Boolean))].sort((a, b) => a - b);
     const subjectEntries = entries.filter((entry) => subjectOfPoint(entry.pointId, pointMap[entry.pointId]) === subject);
     const count = (category) => subjectEntries.filter((entry) => entry.category === category).length;
-    lines.push(`| ${subjectLabels[subject]} | ${grades.join("、")} | ${points.length} | ${subjectEntries.length} | ${count("reference")} | ${count("original")} | ${count("common")} | ${count("template")} |`);
+    const effective = grades.reduce((total, grade) => total + (auditRows.get(`${subject}-${grade}`)?.effectiveUnique || 0), 0);
+    lines.push(`| ${subjectLabels[subject]} | ${grades.join("、")} | ${points.length} | ${subjectEntries.length} | ${effective} | ${count("reference")} | ${count("original")} | ${count("common")} | ${count("template")} |`);
   });
 
   lines.push("");
   lines.push("## 年级与来源分布");
   lines.push("");
-  lines.push("| 年级 | 学科 | 参考资料派生 | 原创扩展 | 公共扩展 | 本地模板 | 合计 |");
-  lines.push("| ---: | --- | ---: | ---: | ---: | ---: | ---: |");
+  lines.push("| 年级 | 学科 | 参考资料派生 | 原创扩展 | 公共扩展 | 本地模板 | 原始合计 | 有效合计 |");
+  lines.push("| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |");
   [1, 2, 3, 4, 5, 6].forEach((grade) => {
     ["math", "chinese", "english", "science"].forEach((subject) => {
       const subjectEntries = entries.filter((entry) => {
@@ -434,15 +450,16 @@ function renderQuestionIndexDoc(context) {
       });
       if (!subjectEntries.length) return;
       const count = (category) => subjectEntries.filter((entry) => entry.category === category).length;
-      lines.push(`| ${grade} | ${subjectLabels[subject]} | ${count("reference")} | ${count("original")} | ${count("common")} | ${count("template")} | ${subjectEntries.length} |`);
+      const effective = auditRows.get(`${subject}-${grade}`)?.effectiveUnique || 0;
+      lines.push(`| ${grade} | ${subjectLabels[subject]} | ${count("reference")} | ${count("original")} | ${count("common")} | ${count("template")} | ${subjectEntries.length} | ${effective} |`);
     });
   });
 
   lines.push("");
   lines.push("## 题量最多的知识点");
   lines.push("");
-  lines.push("| 排名 | 年级 | 学科 | 知识点 | 题数 | 来源构成 |");
-  lines.push("| ---: | ---: | --- | --- | ---: | --- |");
+  lines.push("| 排名 | 年级 | 学科 | 知识点 | 原始题数 | 有效题数 | 来源构成 |");
+  lines.push("| ---: | ---: | --- | --- | ---: | ---: | --- |");
   const byPoint = Array.from(groupBy(entries, (entry) => entry.pointId).entries())
     .map(([pointId, pointEntries]) => {
       const point = pointMap[pointId] || {};
@@ -451,6 +468,7 @@ function renderQuestionIndexDoc(context) {
         pointId,
         point,
         total: pointEntries.length,
+        effective: effectiveQuestionCountForPoint(context, point),
         sourceText: [
           `参考 ${count("reference")}`,
           `原创 ${count("original")}`,
@@ -459,10 +477,10 @@ function renderQuestionIndexDoc(context) {
         ].join(" / ")
       };
     })
-    .sort((a, b) => b.total - a.total || String(a.pointId).localeCompare(String(b.pointId)))
+    .sort((a, b) => b.effective - a.effective || b.total - a.total || String(a.pointId).localeCompare(String(b.pointId)))
     .slice(0, 40);
   byPoint.forEach((item, index) => {
-    lines.push(`| ${index + 1} | ${item.point.grade || ""} | ${subjectLabels[item.point.subject] || subjectOfPoint(item.pointId, item.point)} | ${mdEscape(item.point.label || item.pointId)}（${mdEscape(item.pointId)}） | ${item.total} | ${mdEscape(item.sourceText)} |`);
+    lines.push(`| ${index + 1} | ${item.point.grade || ""} | ${subjectLabels[item.point.subject] || subjectOfPoint(item.pointId, item.point)} | ${mdEscape(item.point.label || item.pointId)}（${mdEscape(item.pointId)}） | ${item.total} | ${item.effective} | ${mdEscape(item.sourceText)} |`);
   });
 
   lines.push("");
@@ -618,10 +636,10 @@ npm run sync:android:check
 
 ## 扩展题抽取规则
 
-扩展题现在按知识点库存比例抽取：
+扩展题先按完整内容去重，再按知识点有效库存比例抽取，并封顶为 65%：
 
 \`\`\`text
-扩展题抽取概率 = 扩展题数量 / (扩展题数量 + 本地基础模板数量)
+扩展题抽取概率 = min(65%, 有效扩展题数量 / (有效扩展题数量 + 本地基础模板数量))
 \`\`\`
 
 维护点：

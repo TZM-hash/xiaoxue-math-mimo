@@ -22,7 +22,9 @@
       word: ["读题理解", "不会做", "概念单位"],
       reading: ["读题理解", "不会做", "计算粗心"],
       thinking: ["读题理解", "概念单位", "不会做"],
-      appendix: ["读题理解", "不会做", "概念单位"]
+      appendix: ["读题理解", "不会做", "概念单位"],
+      factor: ["概念单位", "计算粗心", "不会做"],
+      negative: ["概念单位", "读题理解", "不会做"]
     };
     const rawPoints = [
       { id: "g1-10-add", grade: 1, topic: "addsub", label: "10 以内加减", short: "10以内", helper: "数数、凑数、基础加减" },
@@ -36,6 +38,9 @@
       { id: "g1-reading", grade: 1, topic: "reading", label: "一年级思维阅读训练", short: "思维阅读", helper: "读懂问什么、找有用数字、排除背景信息" },
       { id: "g1-thinking", grade: 1, topic: "thinking", label: "一年级思维精进题型", short: "精进", helper: "量感、规律、表达、干扰条件" },
       { id: "g1-appendix", grade: 1, topic: "appendix", label: "一年级附加题", short: "附加", helper: "找规律、数感、简单排队问题" },
+      { id: "g1-100-number", grade: 1, topic: "compare", label: "100 以内数的认识", short: "百以内数", helper: "数位、数序、大小比较和整十数" },
+      { id: "g1-money", grade: 1, topic: "unit", label: "认识人民币", short: "人民币", helper: "元角分换算、付钱和找零" },
+      { id: "g1-statistics", grade: 1, topic: "statistics", label: "分类与整理", short: "分类统计", helper: "按标准分类、数数量、比较多少" },
       { id: "g2-100-add", grade: 2, topic: "addsub", label: "100 以内进退位", short: "100以内", helper: "两位数加减、进位退位" },
       { id: "g2-vertical", grade: 2, topic: "vertical", label: "100 以内竖式计算", short: "竖式", helper: "数位对齐、进位退位、写清过程" },
       { id: "g2-two-step", grade: 2, topic: "twostep", label: "100 以内两步运算", short: "两步运算", helper: "连加连减、加减混合、表内乘除两步" },
@@ -49,6 +54,10 @@
       { id: "g2-reading", grade: 2, topic: "reading", label: "二年级思维阅读训练", short: "思维阅读", helper: "筛条件、看关键词、判断第一步" },
       { id: "g2-thinking", grade: 2, topic: "thinking", label: "二年级思维精进题型", short: "精进", helper: "估算、策略、找错、干扰条件" },
       { id: "g2-appendix", grade: 2, topic: "appendix", label: "二年级附加题", short: "附加", helper: "周期规律、简单倍数、平均分思维" },
+      { id: "g2-remainder", grade: 2, topic: "remainder", label: "有余数的除法", short: "余数", helper: "商和余数、余数小于除数、生活应用" },
+      { id: "g2-ten-thousand", grade: 2, topic: "large", label: "万以内数的认识", short: "万以内数", helper: "数位、组成、读写和大小比较" },
+      { id: "g2-mass", grade: 2, topic: "unit", label: "克和千克", short: "质量单位", helper: "克千克换算、估测和生活应用" },
+      { id: "g2-statistics", grade: 2, topic: "statistics", label: "数据收集整理", short: "数据整理", helper: "调查记录、分类计数和比较" },
       { id: "g3-multi-add", grade: 3, topic: "addsub", label: "多位数加减", short: "多位加减", helper: "三四位数计算" },
       { id: "g3-vertical", grade: 3, topic: "vertical", label: "多位数竖式计算", short: "竖式", helper: "三位数加减、乘一位数、除一位数" },
       { id: "g3-mul-div", grade: 3, topic: "muldiv", label: "多位数乘除", short: "乘除", helper: "两位数乘一位数、除法" },
@@ -62,6 +71,8 @@
       { id: "g3-reading", grade: 3, topic: "reading", label: "三年级思维阅读训练", short: "思维阅读", helper: "找关系、识别干扰、分清先后步骤" },
       { id: "g3-thinking", grade: 3, topic: "thinking", label: "三年级思维精进题型", short: "精进", helper: "估算、改错、表格阅读、干扰条件" },
       { id: "g3-appendix", grade: 3, topic: "appendix", label: "三年级附加题", short: "附加", helper: "和差倍、植树雏形、有余数综合" },
+      { id: "g3-position-area", grade: 3, topic: "geometry", label: "位置方向与面积", short: "方向面积", helper: "东南西北、长方形正方形面积和面积单位" },
+      { id: "g3-decimal-intro", grade: 3, topic: "decimal", label: "小数的初步认识", short: "小数初步", helper: "小数读写、大小比较和一位小数加减" },
       { id: "g4-mixed", grade: 4, topic: "mixed", label: "四则混合运算", short: "混合", helper: "先乘除后加减、括号" },
       { id: "g4-vertical", grade: 4, topic: "vertical", label: "多位乘除竖式", short: "乘除竖式", helper: "多位乘法、除法试商、数位对齐" },
       { id: "g4-two-step", grade: 4, topic: "twostep", label: "两步混合计算", short: "两步混合", helper: "括号、乘除优先、两步竖式" },
@@ -74,6 +85,8 @@
       { id: "g4-reading", grade: 4, topic: "reading", label: "四年级思维阅读训练", short: "思维阅读", helper: "条件推理、真假判断、表格阅读" },
       { id: "g4-thinking", grade: 4, topic: "thinking", label: "四年级思维精进题型", short: "精进", helper: "策略选择、估算、量感、干扰条件" },
       { id: "g4-appendix", grade: 4, topic: "appendix", label: "四年级附加题", short: "附加", helper: "植树、和差倍、年龄与盈亏入门" },
+      { id: "g4-decimal", grade: 4, topic: "decimal", label: "小数的意义与加减", short: "小数", helper: "小数意义、性质、大小比较和加减法" },
+      { id: "g4-observation", grade: 4, topic: "geometry", label: "观察物体与图形运动", short: "观察运动", helper: "三视图、轴对称和平移" },
       { id: "g5-decimal-add", grade: 5, topic: "decimal", label: "小数加减", short: "小数加减", helper: "小数点对齐、位数补零" },
       { id: "g5-vertical", grade: 5, topic: "vertical", label: "小数竖式计算", short: "小数竖式", helper: "小数点对齐、补 0、按整数方法计算" },
       { id: "g5-decimal", grade: 5, topic: "decimal", label: "小数运算", short: "小数", helper: "小数加减乘除" },
@@ -89,6 +102,8 @@
       { id: "g5-reading", grade: 5, topic: "reading", label: "五年级思维阅读训练", short: "思维阅读", helper: "多条件推理、比例语境、结论判断" },
       { id: "g5-thinking", grade: 5, topic: "thinking", label: "五年级思维精进题型", short: "精进", helper: "开放题、可能性、找错、干扰条件" },
       { id: "g5-appendix", grade: 5, topic: "appendix", label: "五年级附加题", short: "附加", helper: "鸡兔同笼、行程、工程、平均数" },
+      { id: "g5-factor-multiple", grade: 5, topic: "factor", label: "因数与倍数", short: "因数倍数", helper: "因数、倍数、质数合数和整除特征" },
+      { id: "g5-line-statistics", grade: 5, topic: "statistics", label: "折线统计图", short: "折线统计", helper: "读变化趋势、找极值和比较增减" },
       { id: "g6-ratio", grade: 6, topic: "ratio", label: "比和比例", short: "比例", helper: "按比例分配" },
       { id: "g6-vertical", grade: 6, topic: "vertical", label: "综合竖式计算", short: "综合竖式", helper: "小数、百分数和多位数竖式计算" },
       { id: "g6-fraction-percent", grade: 6, topic: "fraction", label: "分数百分数综合", short: "综合", helper: "分数、小数、百分数互通" },
@@ -101,7 +116,9 @@
       { id: "g6-complex-word", grade: 6, topic: "word", label: "综合应用题", short: "综合应用", helper: "多步列式、单位与关系" },
       { id: "g6-reading", grade: 6, topic: "reading", label: "六年级思维阅读训练", short: "思维阅读", helper: "综合阅读、必要条件、逻辑结论" },
       { id: "g6-thinking", grade: 6, topic: "thinking", label: "六年级思维精进题型", short: "精进", helper: "综合估算、分类讨论、生活阅读、干扰条件" },
-      { id: "g6-appendix", grade: 6, topic: "appendix", label: "六年级附加题", short: "附加", helper: "浓度、比例、复杂行程、分数百分数综合" }
+      { id: "g6-appendix", grade: 6, topic: "appendix", label: "六年级附加题", short: "附加", helper: "浓度、比例、复杂行程、分数百分数综合" },
+      { id: "g6-negative", grade: 6, topic: "negative", label: "负数的认识", short: "负数", helper: "正负数意义、数轴、温度和海拔" },
+      { id: "g6-cylinder-cone", grade: 6, topic: "geometry", label: "圆柱与圆锥", short: "圆柱圆锥", helper: "表面积、体积、底面半径和高" }
     ];
     const curriculumProfile = {
       id: "hangzhou-pep-primary-math",
@@ -154,6 +171,9 @@
       "g1-reading": { term: "一上/一下", unit: "解决问题读题训练", stage: "专项能力", focus: "把题目问什么和哪些数字有用分开看。", questionTypes: ["找问题", "筛条件", "排除背景数", "干扰条件"] },
       "g1-thinking": { term: "一上/一下", unit: "分类与整理、找规律、认识图形", stage: "专项能力", focus: "用量感、规律和算式表达训练低年级数学语言。", questionTypes: ["量感判断", "规律数列", "干扰条件", "数学表达"] },
       "g1-appendix": { term: "一下", unit: "找规律、数学乐园", stage: "拓展思维", focus: "用数列、排队、图形规律做轻量思维训练。", questionTypes: ["找规律", "排队", "简单数感"] },
+      "g1-100-number": { term: "一下", unit: "100 以内数的认识", stage: "当前核心", focus: "理解个位、十位和百位，能读写、组成和比较 100 以内的数。", questionTypes: ["数的组成", "数序", "大小比较"] },
+      "g1-money": { term: "一下", unit: "认识人民币", stage: "生活应用", focus: "认识元、角、分，并在购物情境中进行简单换算。", questionTypes: ["元角换算", "付钱", "找零"] },
+      "g1-statistics": { term: "一下", unit: "分类与整理", stage: "当前基础", focus: "按一个清楚的标准分类、计数并比较数量。", questionTypes: ["分类标准", "分类计数", "数量比较"] },
       "g2-100-add": { term: "二上", unit: "100 以内加法和减法（二）", stage: "当前核心", focus: "掌握两位数进位加、退位减和验算意识。", questionTypes: ["进位加", "退位减", "笔算验算"] },
       "g2-vertical": { term: "二上", unit: "100 以内加法和减法（二）", stage: "当前核心", focus: "相同数位对齐，从个位算起，写清进位和退位。", questionTypes: ["加法竖式", "减法竖式", "缺数竖式"] },
       "g2-two-step": { term: "二下", unit: "混合运算", stage: "核心巩固", focus: "从一步应用过渡到两步，先求中间量再回答。", questionTypes: ["连加连减", "加减混合", "乘除加减"] },
@@ -167,6 +187,10 @@
       "g2-reading": { term: "二下", unit: "数学广角-推理、解决问题", stage: "专项能力", focus: "先筛有用条件，再判断第一步该算什么。", questionTypes: ["条件筛选", "第一步判断", "干扰条件", "简单推理"] },
       "g2-thinking": { term: "二上/二下", unit: "长度单位、认识时间、数学广角-搭配（一）、推理", stage: "专项能力", focus: "把估算、策略选择、找错和生活阅读放在二年级可读情境中练。", questionTypes: ["估算合理性", "策略选择", "找错改错", "干扰条件"] },
       "g2-appendix": { term: "二上/二下", unit: "数学广角-搭配（一）、推理", stage: "拓展思维", focus: "用列表、画图和排除法做轻量拓展。", questionTypes: ["搭配", "推理", "周期规律"] },
+      "g2-remainder": { term: "二下", unit: "有余数的除法", stage: "当前核心", focus: "理解商和余数，知道余数必须小于除数，并解决装袋、坐车问题。", questionTypes: ["商和余数", "余数规律", "进一法"] },
+      "g2-ten-thousand": { term: "二下", unit: "万以内数的认识", stage: "当前核心", focus: "理解千位和万位，能读写、组成并比较万以内的数。", questionTypes: ["数的组成", "读写数", "大小比较"] },
+      "g2-mass": { term: "二下", unit: "克和千克", stage: "生活应用", focus: "根据物品选择克或千克，并完成简单换算。", questionTypes: ["单位选择", "克千克换算", "质量估测"] },
+      "g2-statistics": { term: "二下", unit: "数据收集整理", stage: "当前基础", focus: "用调查表记录数据，按类别计数并比较。", questionTypes: ["调查记录", "分类计数", "数据比较"] },
       "g3-multi-add": { term: "三上", unit: "万以内的加法和减法（一）（二）", stage: "当前核心", focus: "把三四位数加减的估算、笔算和验算连起来。", questionTypes: ["多位加减", "估算", "验算"] },
       "g3-vertical": { term: "三上/三下", unit: "多位数乘一位数、除数是一位数的除法、两位数乘两位数", stage: "当前核心", focus: "竖式中重点看进位、退位、试商和数位位置。", questionTypes: ["乘法竖式", "除法竖式", "多位加减竖式"] },
       "g3-mul-div": { term: "三上/三下", unit: "多位数乘一位数、除数是一位数的除法", stage: "当前核心", focus: "把乘法意义、除法平均分和竖式步骤连接起来。", questionTypes: ["多位乘一位", "一位数除法", "乘除应用"] },
@@ -180,6 +204,8 @@
       "g3-reading": { term: "三上/三下", unit: "数学广角-集合、搭配（二）", stage: "专项能力", focus: "通过表格、集合和条件句训练读题顺序。", questionTypes: ["表格阅读", "关系推理", "条件排除", "干扰条件"] },
       "g3-thinking": { term: "三上/三下", unit: "测量、复式统计表、长方形和正方形、数学广角", stage: "专项能力", focus: "估算、改错、表格阅读和分类讨论用于训练检查与建模。", questionTypes: ["估算合理性", "找错改错", "干扰条件", "分类讨论"] },
       "g3-appendix": { term: "三上/三下", unit: "数学广角-集合、搭配（二）", stage: "拓展思维", focus: "用画图、枚举、余数和倍的关系处理拓展题。", questionTypes: ["集合", "搭配", "和差倍雏形"] },
+      "g3-position-area": { term: "三下", unit: "位置与方向（一）、面积", stage: "当前核心", focus: "辨认东南西北，掌握长方形和正方形面积及常用面积单位。", questionTypes: ["方向判断", "长方形面积", "面积单位"] },
+      "g3-decimal-intro": { term: "三下", unit: "小数的初步认识", stage: "当前核心", focus: "从元角分和长度理解一位小数，进行读写、比较和简单加减。", questionTypes: ["小数读写", "小数比较", "一位小数加减"] },
       "g4-mixed": { term: "四下", unit: "四则运算、运算定律", stage: "当前核心", focus: "先看括号，再看乘除优先，最后加减；能用运算定律简算。", questionTypes: ["四则混合", "括号", "简便计算"] },
       "g4-vertical": { term: "四上", unit: "三位数乘两位数、除数是两位数的除法", stage: "当前核心", focus: "多位乘除竖式要写清试商、进位和部分积。", questionTypes: ["三位乘两位", "除数两位", "试商"] },
       "g4-two-step": { term: "四下", unit: "四则运算", stage: "核心巩固", focus: "把两步混合算式写成清楚的中间过程。", questionTypes: ["两步混合", "括号两步", "乘除优先"] },
@@ -192,6 +218,8 @@
       "g4-reading": { term: "四上/四下", unit: "条形统计图、数学广角-优化", stage: "专项能力", focus: "在表格、统计图和真假条件中练读题判断。", questionTypes: ["统计阅读", "真假判断", "条件排序", "干扰条件"] },
       "g4-thinking": { term: "四上/四下", unit: "运算定律、角的度量、平均数与条形统计图、数学广角-优化", stage: "专项能力", focus: "重点训练选择策略、估算合理性、量感和生活表格阅读。", questionTypes: ["策略选择", "估算合理性", "量感判断", "干扰条件"] },
       "g4-appendix": { term: "四上/四下", unit: "数学广角-优化、鸡兔同笼", stage: "拓展思维", focus: "把复杂题先转成表格、假设或画图模型。", questionTypes: ["优化", "鸡兔同笼", "和差倍"] },
+      "g4-decimal": { term: "四下", unit: "小数的意义和性质、小数加减法", stage: "当前核心", focus: "理解小数数位和性质，能比较大小并完成小数加减。", questionTypes: ["小数意义", "小数性质", "小数加减"] },
+      "g4-observation": { term: "四下", unit: "观察物体（二）、图形的运动（二）", stage: "当前基础", focus: "从不同方向观察立体图形，理解轴对称和平移。", questionTypes: ["三视图", "轴对称", "平移"] },
       "g5-decimal-add": { term: "四下复习/五上衔接", unit: "小数的加法和减法、小数乘除法前置", stage: "衔接巩固", focus: "小数加减先把小数点对齐，为五上小数乘除打基础。", questionTypes: ["小数加法", "小数减法", "补零对齐"] },
       "g5-vertical": { term: "五上", unit: "小数乘法、小数除法", stage: "当前核心", focus: "小数竖式先按整数算，再处理小数点位置。", questionTypes: ["小数乘法竖式", "小数除法竖式", "验算"] },
       "g5-decimal": { term: "五上", unit: "小数乘法、小数除法", stage: "当前核心", focus: "掌握小数乘除的意义、计算和生活应用。", questionTypes: ["小数乘法", "小数除法", "单价数量总价"] },
@@ -207,6 +235,8 @@
       "g5-reading": { term: "五上/五下", unit: "简易方程、统计与分数应用", stage: "专项能力", focus: "多条件题先找单位“1”、未知数和必要条件。", questionTypes: ["多条件筛选", "方程阅读", "统计结论", "干扰条件"] },
       "g5-thinking": { term: "五上/五下", unit: "简易方程、多边形面积、可能性、折线统计图、数学广角", stage: "专项能力", focus: "开放题、可能性、找错和策略表达帮助孩子从会算走向会解释。", questionTypes: ["开放多答案", "可能性", "找错改错", "干扰条件"] },
       "g5-appendix": { term: "五上/五下", unit: "数学广角-植树问题、找次品", stage: "拓展思维", focus: "用模型识别植树、找次品、行程和平均数拓展。", questionTypes: ["植树问题", "找次品", "平均数拓展"] },
+      "g5-factor-multiple": { term: "五下", unit: "因数与倍数", stage: "当前核心", focus: "理解因数和倍数关系，掌握 2、3、5 的倍数特征并辨析质数合数。", questionTypes: ["找因数", "倍数特征", "质数合数"] },
+      "g5-line-statistics": { term: "五下", unit: "折线统计图", stage: "当前基础", focus: "读折线统计图的变化趋势、极值和增减幅度。", questionTypes: ["变化趋势", "极值", "增减比较"] },
       "g6-ratio": { term: "六上/六下", unit: "比、比例", stage: "当前核心", focus: "先求总份数或对应量，再做按比例分配和正反比例判断。", questionTypes: ["比的意义", "按比分配", "正比例"] },
       "g6-vertical": { term: "六下", unit: "整理和复习-数与代数", stage: "综合复习", focus: "综合竖式用于检查多位数、小数、百分数计算稳定性。", questionTypes: ["小数竖式", "多位乘除", "综合验算"] },
       "g6-fraction-percent": { term: "六上", unit: "分数乘法、分数除法、百分数（一）", stage: "当前核心", focus: "分数、百分数和小数互化后再解决实际问题。", questionTypes: ["分数乘除", "百分数互化", "单位1判断"] },
@@ -219,7 +249,9 @@
       "g6-complex-word": { term: "六上/六下", unit: "分数、百分数、比和比例综合应用", stage: "综合复习", focus: "复杂应用题先画数量关系，再拆成两到三步。", questionTypes: ["分数应用", "百分数应用", "比例应用"] },
       "g6-reading": { term: "六上/六下", unit: "数与形、鸽巢问题、综合实践", stage: "专项能力", focus: "综合阅读题重点判断必要条件、隐藏关系和结论是否必然。", questionTypes: ["必要条件", "逻辑结论", "综合推理", "干扰条件"] },
       "g6-thinking": { term: "六上/六下", unit: "数与形、百分数、比和比例、整理和复习", stage: "专项能力", focus: "综合估算、分类讨论、生活阅读和数学表达用于小升初前的思维整合。", questionTypes: ["综合估算", "分类讨论", "生活阅读", "干扰条件"] },
-      "g6-appendix": { term: "六上/六下", unit: "数学广角-数与形、鸽巢问题", stage: "拓展思维", focus: "把浓度、行程、比例和抽屉原理转成模型。", questionTypes: ["数与形", "鸽巢问题", "比例拓展"] }
+      "g6-appendix": { term: "六上/六下", unit: "数学广角-数与形、鸽巢问题", stage: "拓展思维", focus: "把浓度、行程、比例和抽屉原理转成模型。", questionTypes: ["数与形", "鸽巢问题", "比例拓展"] },
+      "g6-negative": { term: "六下", unit: "负数", stage: "当前基础", focus: "在温度、海拔和收支中理解正负数，能在数轴上比较大小。", questionTypes: ["正负数意义", "数轴比较", "生活负数"] },
+      "g6-cylinder-cone": { term: "六下", unit: "圆柱与圆锥", stage: "当前核心", focus: "理解圆柱表面积、圆柱体积和圆锥体积，正确使用底面积和高。", questionTypes: ["圆柱表面积", "圆柱体积", "圆锥体积"] }
     };
     function fallbackCurriculum(point) {
       const grade = Number(point.grade) || 1;

@@ -18,7 +18,30 @@
     var pick = typeof deps.createRoundQuestionPicker === "function" ? deps.createRoundQuestionPicker(preferred) : null;
     var due = deps.dueWrongbook(profile, grade);
     var dueVariantCount = Math.min(due.length, Math.max(0, Math.floor(total * 0.25)));
-    var gradePoints = typeof deps.availablePoints === "function" ? deps.availablePoints(grade) : [];
+    function termBucket(point) {
+      var term = String(point && point.curriculum && point.curriculum.term || "");
+      var upper = term.indexOf("上") >= 0;
+      var lower = term.indexOf("下") >= 0;
+      if (upper && !lower) return "upper";
+      if (lower && !upper) return "lower";
+      return "year";
+    }
+    function interleaveTerms(points) {
+      var pools = { upper: [], lower: [], year: [] };
+      (points || []).forEach(function (point) { pools[termBucket(point)].push(point); });
+      if (!pools.upper.length || !pools.lower.length) return (points || []).slice();
+      var ordered = [];
+      var index = 0;
+      while (index < pools.upper.length || index < pools.lower.length || index < pools.year.length) {
+        if (index < pools.upper.length) ordered.push(pools.upper[index]);
+        if (index < pools.lower.length) ordered.push(pools.lower[index]);
+        if (index % 2 === 0 && index / 2 < pools.year.length) ordered.push(pools.year[index / 2]);
+        index += 1;
+      }
+      pools.year.slice(Math.ceil(index / 2)).forEach(function (point) { ordered.push(point); });
+      return ordered;
+    }
+    var gradePoints = interleaveTerms(typeof deps.availablePoints === "function" ? deps.availablePoints(grade) : []);
     var freshGradePoints = gradePoints.filter(function (point) { return !recentPointIds.has(point.id); });
     var freshFillOffset = 0;
     function addQuestion(question) {
@@ -75,7 +98,7 @@
       });
     });
 
-    var weak = deps.weakestPoints(Math.max(4, total)).filter(function (point) { return point.grade === grade; });
+    var weak = interleaveTerms(deps.weakestPoints(Math.max(4, total)).filter(function (point) { return point.grade === grade; }));
     if (recentPointIds.size && weak.length > 1) {
       weak = weak.filter(function (point) { return !recentPointIds.has(point.id); })
         .concat(weak.filter(function (point) { return recentPointIds.has(point.id); }));

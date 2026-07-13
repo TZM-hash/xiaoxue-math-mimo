@@ -611,8 +611,8 @@ function runSetSizeAndExternalMixTests() {
     assert.strictEqual(localCount, 1, "数学严格生成器应按 1 个基础模板参与比例计算");
     assert.strictEqual(
       debug.externalQuestionChanceForPoint(ratioPoint),
-      externalCount / (externalCount + localCount),
-      "扩展题抽取概率应等于扩展题库存占总库存的比例"
+      Math.min(0.65, externalCount / (externalCount + localCount)),
+      "扩展题抽取概率应按有效库存比例计算，并封顶为 65%"
     );
 
     vm.runInContext("Math.random = () => 0.01", context);

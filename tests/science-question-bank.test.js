@@ -47,6 +47,10 @@ assert(context.window.MathCampQuestionSpec, "选择题规格工具应暴露为 M
 vm.runInContext(fs.readFileSync(path.join(root, "js/science-question-generator.js"), "utf8"), context, { filename: "js/science-question-generator.js" });
 const generator = context.window.MathCampScienceQuestionGenerator;
 assert(generator, "科学生成器应暴露为 MathCampScienceQuestionGenerator");
+for (const grade of [1, 2, 3, 4, 5, 6]) {
+  const unitPoints = bank.points.filter((point) => point.grade === grade && /unit/.test(point.id));
+  assert(unitPoints.every((point) => generator.questionTemplateCountForPoint(point) >= 10), `${grade} 年级每个科学单元应至少有 10 个本地模板`);
+}
 
 function hasChoiceOptions(question) {
   return /\nA\. .+\nB\. .+\nC\. .+\nD\. /s.test(question.text || "");
@@ -118,12 +122,12 @@ bank.points.forEach((point) => {
 
 const types = new Set();
 bank.points.forEach((point) => {
-  for (let index = 0; index < 6; index += 1) {
+  for (let index = 0; index < 10; index += 1) {
     const question = generator.makeQuestion({ uid: () => `sq-${point.id}-type-${index}`, pick: (items) => items[index % items.length] }, point, {});
     types.add(question.questionType);
   }
 });
-["现象判断", "实验设计", "证据推理", "概念填空"].forEach((type) => {
+["现象判断", "实验设计", "证据推理", "概念填空", "数据分析", "步骤排序", "变量识别", "模型检验", "误差修正", "工程优化"].forEach((type) => {
   assert(types.has(type), `科学题库应覆盖“${type}”题型`);
 });
 

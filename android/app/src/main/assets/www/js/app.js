@@ -3184,7 +3184,7 @@
       const externalCount = externalQuestionCountForPoint(point);
       if (!externalCount) return 0;
       const localCount = localQuestionTemplateCountForPoint(point);
-      return externalCount / Math.max(1, externalCount + localCount);
+      return Math.min(0.65, externalCount / Math.max(1, externalCount + localCount));
     }
     function externalQuestionCountForPoint(point) {
       return window.MathCampExternalQuestionSeeds?.forPoint?.(point || {})?.length || 0;
@@ -3335,13 +3335,26 @@
       const recentFamilyKeys = recentQuestionFamilyKeySet(activeProfile(), state.grade);
       const pick = createRoundQuestionPicker(preferred);
       let previousSignature = "";
+      function pointTermBucket(point) {
+        const term = String(point?.curriculum?.term || "");
+        const upper = term.includes("上");
+        const lower = term.includes("下");
+        if (upper && !lower) return "upper";
+        if (lower && !upper) return "lower";
+        return "year";
+      }
       return plan.map((sourceType) => {
         const pool = pointsForGrade.filter((point) => point.sourceType === sourceType);
         const fallbackPool = pointsForGrade.filter((point) => point.sourceType !== "abilityLine");
-        const candidates = pool.length ? pool : fallbackPool.length ? fallbackPool : pointsForGrade;
+        let candidates = pool.length ? pool : fallbackPool.length ? fallbackPool : pointsForGrade;
         const offset = sourceOffsets[sourceType] || 0;
         sourceOffsets[sourceType] = offset + 1;
-        const point = candidates[offset % candidates.length] || choosePoint();
+        if (sourceType === "inTextbook") {
+          const preferredTerm = offset % 2 === 0 ? "upper" : "lower";
+          const termCandidates = candidates.filter((point) => pointTermBucket(point) === preferredTerm);
+          if (termCandidates.length) candidates = termCandidates;
+        }
+        const point = candidates[Math.floor(offset / (sourceType === "inTextbook" ? 2 : 1)) % candidates.length] || choosePoint();
         const question = makeDistinctQuestionForPoint(point, preferred, { usedSignatures, usedFamilyKeys, previousSignature, pick, avoidRepeatKeys, recentFamilyKeys, targetDifficulty: targetDifficultyForPoint(point), externalChance: externalQuestionChanceForPoint(point) });
         if (!question) return null;
         previousSignature = signature(question);

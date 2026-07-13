@@ -553,6 +553,167 @@
     });
   }
 
+  function balanceTextSeed(id, prompt, answer, questionType, explanation, steps) {
+    const value = String(answer);
+    return {
+      id,
+      answerType: "text",
+      text: prompt,
+      answer: value,
+      acceptedAnswers: [value],
+      explanation,
+      steps,
+      questionType,
+      sourceMeta: {
+        ...SOURCE.hangzhouEdu,
+        name: "杭州教材单元平衡原创题",
+        note: "用于补齐上下册有效题量的原创同步题，不对应参考资料原题。"
+      }
+    };
+  }
+
+  function balanceSeries(pointId, count, build) {
+    return Array.from({ length: count }, (_, index) => build(index + 1, `${pointId}-balance-${index + 1}`));
+  }
+
+  const CURRICULUM_BALANCE_BANK = {
+    "g1-10-add": balanceSeries("g1-10-add", 12, (n, id) => {
+      const a = 2 + n % 7;
+      const b = 1 + n % Math.max(1, 10 - a);
+      return balanceTextSeed(id, `${a} + ${b} = ?`, a + b, "10以内口算", `把 ${a} 和 ${b} 合起来，得到 ${a + b}。`, [`从 ${a} 开始。`, `再加 ${b}。`, `结果是 ${a + b}。`]);
+    }),
+    "g1-100-number": balanceSeries("g1-100-number", 4, (n, id) => {
+      const number = 24 + n * 13;
+      return balanceTextSeed(id, `${number} 的十位上是几？`, Math.floor(number / 10), "百以内数位", `${number} 的十位数字是 ${Math.floor(number / 10)}。`, ["从右边找到个位。", "左边一位是十位。", `十位上是 ${Math.floor(number / 10)}。`]);
+    }),
+    "g1-money": balanceSeries("g1-money", 4, (n, id) => {
+      const yuan = n + 1;
+      const jiao = n + 2;
+      return balanceTextSeed(id, `${yuan} 元 ${jiao} 角一共是多少角？`, yuan * 10 + jiao, "元角换算", `1 元是 10 角，${yuan} 元 ${jiao} 角是 ${yuan * 10 + jiao} 角。`, [`${yuan} 元换成 ${yuan * 10} 角。`, `再加 ${jiao} 角。`, `共 ${yuan * 10 + jiao} 角。`]);
+    }),
+    "g1-statistics": balanceSeries("g1-statistics", 4, (n, id) => {
+      const circle = n + 3;
+      const square = n + 5;
+      return balanceTextSeed(id, `分类统计：圆形有 ${circle} 个，正方形有 ${square} 个。正方形比圆形多几个？`, square - circle, "分类比较", `用正方形数量减圆形数量，${square} - ${circle} = ${square - circle}。`, [`正方形有 ${square} 个。`, `圆形有 ${circle} 个。`, `相差 ${square - circle} 个。`]);
+    }),
+    "g2-100-add": balanceSeries("g2-100-add", 30, (n, id) => {
+      const a = 20 + n;
+      const b = 11 + n % 19;
+      return balanceTextSeed(id, `${a} + ${b} = ?`, a + b, "100以内加法", `按数位相加，${a} + ${b} = ${a + b}。`, ["个位相加。", "十位相加并处理进位。", `结果是 ${a + b}。`]);
+    }),
+    "g2-vertical": balanceSeries("g2-vertical", 28, (n, id) => {
+      const a = 70 + n;
+      const b = 12 + n % 17;
+      return balanceTextSeed(id, `用竖式计算：${a} - ${b} = ?`, a - b, "100以内减法竖式", `相同数位对齐，从个位减起，${a} - ${b} = ${a - b}。`, ["把个位和十位分别对齐。", "从个位减起，不够减时向十位退 1。", `结果是 ${a - b}。`]);
+    }),
+    "g2-length-measure": balanceSeries("g2-length-measure", 28, (n, id) => {
+      const meters = 1 + n % 8;
+      const centimeters = 5 + n * 2;
+      return balanceTextSeed(id, `${meters} 米 ${centimeters} 厘米一共是多少厘米？`, meters * 100 + centimeters, "米厘米换算", `1 米是 100 厘米，合计 ${meters * 100 + centimeters} 厘米。`, [`${meters} 米换成 ${meters * 100} 厘米。`, `再加 ${centimeters} 厘米。`, `共 ${meters * 100 + centimeters} 厘米。`]);
+    }),
+    "g2-table": balanceSeries("g2-table", 28, (n, id) => {
+      const a = 2 + n % 8;
+      const b = 2 + Math.floor(n / 4) % 8;
+      return balanceTextSeed(id, `${a} × ${b} = ?`, a * b, "乘法口诀", `根据乘法口诀，${a} × ${b} = ${a * b}。`, [`确定两个乘数 ${a} 和 ${b}。`, "回忆对应口诀。", `积是 ${a * b}。`]);
+    }),
+    "g3-decimal-intro": balanceSeries("g3-decimal-intro", 20, (n, id) => {
+      const a = (10 + n) / 10;
+      const b = (2 + n % 7) / 10;
+      const answer = (a + b).toFixed(1);
+      return balanceTextSeed(id, `${a.toFixed(1)} + ${b.toFixed(1)} = ?`, answer, "一位小数加法", `小数点对齐后相加，结果是 ${answer}。`, ["把小数点对齐。", "按整数加法计算。", `结果写成 ${answer}。`]);
+    }),
+    "g3-position-area": balanceSeries("g3-position-area", 20, (n, id) => {
+      const length = 4 + n % 9;
+      const width = 2 + Math.floor(n / 3) % 7;
+      return balanceTextSeed(id, `长方形长 ${length} 米、宽 ${width} 米，面积是多少平方米？`, length * width, "长方形面积", `长方形面积是长乘宽，${length} × ${width} = ${length * width}。`, ["写出面积公式。", `代入 ${length} 和 ${width}。`, `面积是 ${length * width} 平方米。`]);
+    }),
+    "g3-statistics": balanceSeries("g3-statistics", 15, (n, id) => {
+      const a = 8 + n;
+      const b = 5 + n % 9;
+      const c = 6 + n % 7;
+      return balanceTextSeed(id, `统计表中三组数量分别是 ${a}、${b}、${c}，合计是多少？`, a + b + c, "统计合计", `把三组数据相加，得到 ${a + b + c}。`, [`读出 ${a}、${b}、${c}。`, "求合计使用加法。", `合计 ${a + b + c}。`]);
+    }),
+    "g4-large": balanceSeries("g4-large", 12, (n, id) => {
+      const a = 12000 + n * 137;
+      const b = 2100 + n * 29;
+      return balanceTextSeed(id, `${a} + ${b} = ?`, a + b, "大数加法", `相同数位对齐相加，结果是 ${a + b}。`, ["先对齐数位。", "从个位依次相加。", `结果是 ${a + b}。`]);
+    }),
+    "g4-vertical": balanceSeries("g4-vertical", 12, (n, id) => {
+      const a = 120 + n;
+      const b = 11 + n % 9;
+      return balanceTextSeed(id, `${a} × ${b} = ?`, a * b, "三位数乘两位数", `按竖式计算，${a} × ${b} = ${a * b}。`, ["先乘个位。", "再乘十位并错开一位。", `相加得到 ${a * b}。`]);
+    }),
+    "g5-factor-multiple": balanceSeries("g5-factor-multiple", 28, (n, id) => {
+      const factor = 2 + n % 8;
+      const multiple = factor * (3 + n);
+      return balanceTextSeed(id, `${multiple} ÷ ${factor} = ?`, multiple / factor, "倍数特征", `${multiple} 能被 ${factor} 整除，商是 ${multiple / factor}。`, [`确认 ${multiple} 是 ${factor} 的倍数。`, `计算 ${multiple} ÷ ${factor}。`, `商是 ${multiple / factor}。`]);
+    }),
+    "g5-fraction": balanceSeries("g5-fraction", 18, (n, id) => {
+      const denominator = 6 + n % 7;
+      const a = 1 + n % 2;
+      const b = 2 + n % 3;
+      return balanceTextSeed(id, `${a}/${denominator} + ${b}/${denominator} 的分子相加后是多少？`, a + b, "同分母分数加法", `同分母分数相加时分母不变，分子 ${a} + ${b} = ${a + b}。`, ["确认分母相同。", "分母保持不变。", `分子相加得 ${a + b}。`]);
+    }),
+    "g5-volume": balanceSeries("g5-volume", 18, (n, id) => {
+      const length = 3 + n % 7;
+      const width = 2 + n % 5;
+      const height = 2 + Math.floor(n / 3) % 6;
+      return balanceTextSeed(id, `长方体长 ${length} cm、宽 ${width} cm、高 ${height} cm，体积是多少立方厘米？`, length * width * height, "长方体体积", `体积 = 长 × 宽 × 高，结果是 ${length * width * height}。`, ["写出体积公式。", `代入 ${length}、${width}、${height}。`, `体积是 ${length * width * height} 立方厘米。`]);
+    }),
+    "g5-line-statistics": balanceSeries("g5-line-statistics", 18, (n, id) => {
+      const values = [8 + n, 10 + n, 14 + n, 11 + n];
+      return balanceTextSeed(id, `折线统计图四个时段的数据是 ${values.join("、")}，最大值是多少？`, Math.max(...values), "折线统计图极值", `比较四个数据，最大值是 ${Math.max(...values)}。`, ["读出四个数据。", "逐一比较大小。", `最大值是 ${Math.max(...values)}。`]);
+    }),
+    "g6-negative": balanceSeries("g6-negative", 3, (n, id) => {
+      const depth = 4 + n * 3;
+      return balanceTextSeed(id, `海平面以下 ${depth} 米记作多少米？`, -depth, "生活负数", `海平面以下使用负数，记作 -${depth} 米。`, ["以海平面为 0。", "海平面以下使用负号。", `记作 -${depth} 米。`]);
+    }),
+    "g6-cylinder-cone": balanceSeries("g6-cylinder-cone", 3, (n, id) => {
+      const radius = 2 + n;
+      const height = 3 + n;
+      const answer = (3.14 * radius * radius * height).toFixed(2).replace(/\.00$/, "");
+      return balanceTextSeed(id, `圆柱底面半径 ${radius} cm、高 ${height} cm，体积约是多少立方厘米？（π取3.14）`, answer, "圆柱体积", `圆柱体积 = 3.14 × ${radius} × ${radius} × ${height} = ${answer}。`, [`底面积是 3.14 × ${radius} × ${radius}。`, `再乘高 ${height}。`, `体积约 ${answer} 立方厘米。`]);
+    })
+  };
+
+  function normalizedContent(value) {
+    return String(value === undefined || value === null ? "" : value)
+      .replace(/\r\n/g, "\n")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function stableValue(value) {
+    if (Array.isArray(value)) return value.map(stableValue);
+    if (!value || typeof value !== "object") return value;
+    return Object.keys(value).sort().reduce((result, key) => {
+      result[key] = stableValue(value[key]);
+      return result;
+    }, {});
+  }
+
+  function seedContentKey(seed) {
+    const item = seed || {};
+    return JSON.stringify(stableValue({
+      prompt: normalizedContent(item.prompt || item.text || item.title),
+      answer: normalizedContent(item.answer !== undefined ? item.answer : item.correct),
+      answerType: item.answerType || (item.correct !== undefined ? "choice" : "text"),
+      wrongs: compactList(item.wrongs || item.options || []).slice().sort(),
+      diagram: item.diagram || null,
+      sourceImage: item.sourceImage || null
+    }));
+  }
+
+  function uniqueSeeds(items) {
+    const seen = new Set();
+    return (items || []).filter((seed) => {
+      const key = seedContentKey(seed);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
   [
     window.MathCampGrade2ReferenceQuestionSeeds,
     window.MathCampGrade2OriginalQuestionSeeds,
@@ -565,6 +726,7 @@
     window.MathCampGrade6ReferenceQuestionSeeds,
     window.MathCampGrade6OriginalQuestionSeeds
   ].forEach((module) => mergeSeedBank(module && module.BANK));
+  mergeSeedBank(CURRICULUM_BALANCE_BANK);
 
   function subjectForPoint(point) {
     const id = String(point?.id || "");
@@ -649,6 +811,10 @@
   }
 
   function forPoint(point) {
+    return uniqueSeeds(BANK[String(point?.id || "")] || []);
+  }
+
+  function rawForPoint(point) {
     return (BANK[String(point?.id || "")] || []).slice();
   }
 
@@ -695,6 +861,8 @@
   window.MathCampExternalQuestionSeeds = {
     sources: SOURCE,
     forPoint,
+    rawForPoint,
+    seedContentKey,
     makeQuestion,
     registerExtraSeeds,
     rebuildExtraSeeds,
