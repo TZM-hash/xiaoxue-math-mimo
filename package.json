@@ -1,19 +1,20 @@
 {
   "name": "miaomiao-math-opus",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.2.0",
   "scripts": {
     "test": "npm run test:questions && npm run test:rules && npm run test:layout && npm run test:browser",
-    "test:questions": "node tests/chinese-question-bank.test.js && node tests/english-question-bank.test.js && node tests/science-question-bank.test.js && node tests/external-question-seeds.test.js && node tests/answer-modes.test.js && node tests/subject-isolation.test.js && node tests/handwriting-input.test.js && node tests/question-bank-excel.test.js && node tests/custom-bank-import.test.js && node scripts/question-bank-coverage.js",
+    "test:questions": "node tests/chinese-question-bank.test.js && node tests/english-question-bank.test.js && node tests/science-question-bank.test.js && node tests/external-question-seeds.test.js && node tests/answer-modes.test.js && node tests/subject-isolation.test.js && node tests/handwriting-input.test.js && node tests/daily-learning-plan.test.js && node tests/question-quality-audit.test.js && node tests/question-bank-excel.test.js && node tests/custom-bank-import.test.js && node scripts/question-bank-coverage.js && node scripts/question-bank-audit.js --strict",
     "test:rules": "node tests/question-rules.test.js",
     "test:layout": "node tests/frontend-layout.test.js",
     "test:browser": "node tests/browser-smoke.test.js",
     "test:browser:required": "node tests/browser-smoke.test.js --required",
     "coverage:questions": "node scripts/question-bank-coverage.js",
+    "audit:questions": "node scripts/question-bank-audit.js --strict",
     "docs:generate": "node scripts/generate-readable-docs.js",
     "reference:inventory": "node scripts/reference-inventory.js",
     "assets:report": "node scripts/asset-size-report.js",
     "sync:android:check": "node scripts/check-android-assets.js",
-    "release:apk": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/release-apk.ps1"
+    "release:apk": "pwsh -NoProfile -File scripts/release-apk.ps1"
   }
 }

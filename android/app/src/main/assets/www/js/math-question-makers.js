@@ -12,6 +12,7 @@
       state,
       verticalSpecFromText
     } = deps;
+    const templateOffsets = {};
 
     function makeSupplementalQuestion(point, level) {
       const grade = clamp(Number(point.grade) || state.grade, 1, 6);
@@ -690,6 +691,43 @@
       });
     }
     function makeCompare(point, level) {
+      if (point.id === "g1-100-number") {
+        const tens = rand(2, 9);
+        const ones = rand(0, 9);
+        const number = tens * 10 + ones;
+        const variants = [
+          () => baseQuestion(point, {
+            text: `${number} 里面有几个十？`,
+            answer: tens,
+            explanation: `${number} 的十位是 ${tens}，表示 ${tens} 个十。`,
+            steps: ["先找到十位。", `十位上的数字是 ${tens}。`, `所以有 ${tens} 个十。`],
+            templateType: "数的组成"
+          }),
+          () => {
+            const next = Math.min(100, number + 1);
+            return baseQuestion(point, {
+              text: `${number} 后面的一个数是多少？`,
+              answer: next,
+              explanation: `相邻的后一个数比 ${number} 多 1，所以是 ${next}。`,
+              steps: [`从 ${number} 开始。`, "向后数一个。", `得到 ${next}。`],
+              templateType: "数序"
+            });
+          },
+          () => {
+            const other = rand(10, 99);
+            return baseQuestion(point, {
+              text: `${number} 和 ${other} 中较大的数是多少？`,
+              answer: Math.max(number, other),
+              explanation: "比较两位数先看十位，十位相同再看个位。",
+              steps: ["先比较十位。", "十位相同再比较个位。", `较大的数是 ${Math.max(number, other)}。`],
+              templateType: "大小比较"
+            });
+          }
+        ];
+        const offset = templateOffsets[point.id] || 0;
+        templateOffsets[point.id] = offset + 1;
+        return variants[offset % variants.length]();
+      }
       const a = rand(6, 24 + level * 10);
       const diff = rand(2, 8 + level * 4);
       const b = a + diff;
@@ -1226,6 +1264,40 @@
       return pick([makeDecimal, makeMul, makeDiv, () => makeAdd(100000), () => makeSub(100000)])();
     }
     function makeLarge(point, level) {
+      if (point.id === "g2-ten-thousand") {
+        const thousands = rand(1, 9);
+        const hundreds = rand(0, 9);
+        const tens = rand(0, 9);
+        const ones = rand(0, 9);
+        const number = thousands * 1000 + hundreds * 100 + tens * 10 + ones;
+        const variants = [
+          () => baseQuestion(point, {
+            text: `${number} 的千位上是几？`,
+            answer: thousands,
+            explanation: `从右往左依次是个位、十位、百位、千位，千位上是 ${thousands}。`,
+            steps: ["从右往左找数位。", "第四位是千位。", `千位数字是 ${thousands}。`],
+            templateType: "数位"
+          }),
+          () => baseQuestion(point, {
+            text: `${thousands} 个千、${hundreds} 个百、${tens} 个十和 ${ones} 个一组成的数是多少？`,
+            answer: number,
+            explanation: `按千、百、十、个依次写出 ${thousands}${hundreds}${tens}${ones}，得到 ${number}。`,
+            steps: ["先写千位和百位。", "再写十位和个位。", `组成的数是 ${number}。`],
+            templateType: "数的组成"
+          }),
+          () => {
+            const other = rand(1000, 9999);
+            return baseQuestion(point, {
+              text: `${number} 和 ${other} 中较大的数是多少？`,
+              answer: Math.max(number, other),
+              explanation: "比较四位数从最高位开始，最高位相同再依次向右比较。",
+              steps: ["先比较千位。", "相同就继续比较百位、十位和个位。", `较大的数是 ${Math.max(number, other)}。`],
+              templateType: "万以内数比较"
+            });
+          }
+        ];
+        return pick(variants)();
+      }
       const variants = [
         () => {
           const a = rand(1200, 9000 + level * 18000);
@@ -1547,6 +1619,74 @@
       });
     }
     function makeGeometry(point, level) {
+      if (point.id === "g3-position-area") {
+        if (Math.random() > 0.5) {
+          const length = rand(4, 12);
+          const width = rand(3, 9);
+          return baseQuestion(point, {
+            text: `长方形长 ${length} 米、宽 ${width} 米，面积是多少平方米？`,
+            answer: length * width,
+            word: true,
+            diagram: { type: "rectangle", length, width, unit: "m", caption: "面积表示铺满里面的大小" },
+            explanation: `长方形面积 = 长 × 宽，${length} × ${width} = ${length * width} 平方米。`,
+            steps: ["写出长方形面积公式。", `代入 ${length} × ${width}。`, `面积是 ${length * width} 平方米。`],
+            templateType: "长方形面积"
+          });
+        }
+        const direction = pick([
+          { name: "东", answer: 1, east: 3, north: 0 },
+          { name: "南", answer: 2, east: 0, north: -3 },
+          { name: "西", answer: 3, east: -3, north: 0 },
+          { name: "北", answer: 4, east: 0, north: 3 }
+        ]);
+        return baseQuestion(point, {
+          text: `地图上通常按“上北、下南、左西、右东”表示方向。${direction.name}方对应哪个序号？1=东，2=南，3=西，4=北。`,
+          answer: direction.answer,
+          diagram: { type: "route-map", east: direction.east, north: direction.north, caption: `从起点向${direction.name}移动` },
+          explanation: `按照题目给出的方向序号，${direction.name}方对应 ${direction.answer}。`,
+          steps: ["先记上北下南、左西右东。", `找到${direction.name}方。`, `选择序号 ${direction.answer}。`],
+          templateType: "方向判断"
+        });
+      }
+      if (point.id === "g4-observation") {
+        const columns = Array.from({ length: rand(3, 5) }, () => rand(1, 4));
+        const answer = Math.max(...columns);
+        return baseQuestion(point, {
+          text: "从正面观察小正方体搭成的图形，最高的一列有几层？",
+          answer,
+          word: true,
+          diagram: { type: "block-view", columns, caption: "从正面观察时按列比较高度" },
+          explanation: `从正面看到的各列高度是 ${columns.join("、")}，最高是 ${answer} 层。`,
+          steps: [`读出各列高度：${columns.join("、")}。`, "比较每一列。", `最高是 ${answer} 层。`],
+          templateType: "观察物体"
+        });
+      }
+      if (point.id === "g6-cylinder-cone") {
+        const radius = rand(2, 8);
+        const height = rand(3, 12);
+        if (Math.random() > 0.45) {
+          const answer = round1(3.14 * radius * radius * height);
+          return baseQuestion(point, {
+            text: `圆柱底面半径 ${radius} cm，高 ${height} cm，体积约是多少立方厘米？（π取3.14）`,
+            answer,
+            word: true,
+            diagram: { type: "cylinder-cone", shape: "cylinder", radius, height, caption: "圆柱体积 = 底面积 × 高" },
+            explanation: `圆柱体积 = 3.14 × ${radius} × ${radius} × ${height} = ${formatAnswer(answer)}。`,
+            steps: [`底面积：3.14 × ${radius} × ${radius}。`, `再乘高 ${height}。`, `体积约 ${formatAnswer(answer)} 立方厘米。`],
+            templateType: "圆柱体积"
+          });
+        }
+        const answer = round1(3.14 * radius * radius * height / 3);
+        return baseQuestion(point, {
+          text: `圆锥底面半径 ${radius} cm，高 ${height} cm，体积约是多少立方厘米？（π取3.14）`,
+          answer,
+          word: true,
+          diagram: { type: "cylinder-cone", shape: "cone", radius, height, caption: "圆锥体积 = 底面积 × 高 ÷ 3" },
+          explanation: `圆锥体积 = 3.14 × ${radius} × ${radius} × ${height} ÷ 3 = ${formatAnswer(answer)}。`,
+          steps: [`底面积：3.14 × ${radius} × ${radius}。`, `乘高 ${height} 后再除以 3。`, `体积约 ${formatAnswer(answer)} 立方厘米。`],
+          templateType: "圆锥体积"
+        });
+      }
       if (point.id === "g4-angle-triangle") return makeAngleTriangleGeometry(point, level);
       if (point.id === "g5-geometry-motion") return makeMotionAreaGeometry(point, level);
       if (point.id === "g6-solid-position") return makeSolidPositionGeometry(point, level);
@@ -2155,6 +2295,28 @@
       });
     }
     function makeUnit(point, level) {
+      if (point.id === "g1-money") {
+        const yuan = rand(1, 9);
+        const jiao = rand(1, 9);
+        return baseQuestion(point, {
+          text: `${yuan} 元 ${jiao} 角一共是多少角？`,
+          answer: yuan * 10 + jiao,
+          explanation: `1 元 = 10 角，${yuan} 元是 ${yuan * 10} 角，再加 ${jiao} 角。`,
+          steps: [`${yuan} 元 = ${yuan * 10} 角。`, `再加 ${jiao} 角。`, `一共 ${yuan * 10 + jiao} 角。`],
+          templateType: "元角换算"
+        });
+      }
+      if (point.id === "g2-mass") {
+        const kg = rand(1, 8);
+        const grams = rand(1, 9) * 100;
+        return baseQuestion(point, {
+          text: `${kg} 千克 ${grams} 克一共是多少克？`,
+          answer: kg * 1000 + grams,
+          explanation: `1 千克 = 1000 克，先把 ${kg} 千克换成 ${kg * 1000} 克，再加 ${grams} 克。`,
+          steps: [`${kg} 千克 = ${kg * 1000} 克。`, `加上 ${grams} 克。`, `一共 ${kg * 1000 + grams} 克。`],
+          templateType: "克千克换算"
+        });
+      }
       if (point.id === "g2-time-money") {
         if (Math.random() > 0.5) {
           const yuan = rand(2, 18);
@@ -2347,6 +2509,75 @@
       return pick(variants)();
     }
     function makeStatistics(point, level) {
+      if (point.id === "g1-statistics" || point.id === "g2-statistics") {
+        const categories = point.grade === 1 ? ["圆形", "三角形", "正方形"] : ["步行", "公交", "骑车"];
+        const values = categories.map(() => rand(3, 12));
+        const max = Math.max(...values);
+        const min = Math.min(...values);
+        const maxIndex = values.indexOf(max);
+        const minIndex = values.indexOf(min);
+        const variants = [
+          () => baseQuestion(point, {
+            text: `${categories.map((item, index) => `${item}${values[index]}个`).join("，")}。数量最多的一类有几个？`,
+            answer: max,
+            explanation: `把三类数量逐一比较，${categories[maxIndex]}的 ${max} 个最多。`,
+            steps: [`读出三类数量：${values.join("、")}。`, "从中找到最大数。", `最多的一类有 ${max} 个。`],
+            templateType: point.grade === 1 ? "分类计数" : "数据比较"
+          }),
+          () => baseQuestion(point, {
+            text: `${categories.map((item, index) => `${item}${values[index]}个`).join("，")}。最多的一类比最少的一类多几个？`,
+            answer: max - min,
+            explanation: `${categories[maxIndex]}最多，有 ${max} 个；${categories[minIndex]}最少，有 ${min} 个，相差 ${max - min} 个。`,
+            steps: [`最大数是 ${max}。`, `最小数是 ${min}。`, `${max} - ${min} = ${max - min}。`],
+            templateType: "分类比较"
+          }),
+          () => {
+            const target = rand(0, categories.length - 1);
+            return baseQuestion(point, {
+              text: `分类统计记录为：${categories.map((item, index) => `${item}${values[index]}个`).join("，")}。${categories[target]}有几个？`,
+              answer: values[target],
+              explanation: `在分类记录中找到${categories[target]}，对应数量是 ${values[target]} 个。`,
+              steps: [`找到${categories[target]}这一类。`, `读取对应数量 ${values[target]}。`, `答案是 ${values[target]} 个。`],
+              templateType: "分类读数"
+            });
+          }
+        ];
+        const offset = templateOffsets[point.id] || 0;
+        templateOffsets[point.id] = offset + 1;
+        return variants[offset % variants.length]();
+      }
+      if (point.id === "g5-line-statistics") {
+        const start = rand(8, 20);
+        const values = [start, start + rand(2, 6), start + rand(7, 12), start + rand(3, 6)];
+        const max = Math.max(...values);
+        const maxIndex = values.indexOf(max);
+        const variants = [
+          () => baseQuestion(point, {
+            text: `折线统计图中四个月的数据依次是 ${values.join("、")}。最高点表示多少？`,
+            answer: max,
+            explanation: `折线统计图的最高点对应最大数据。四个数据中最大的是 ${max}。`,
+            steps: [`读出四个数据：${values.join("、")}。`, "比较数据大小。", `最高点表示 ${max}。`],
+            templateType: "折线统计图极值"
+          }),
+          () => baseQuestion(point, {
+            text: `折线统计图四个月的数据是 ${values.join("、")}。从第一个月到第三个月增加了多少？`,
+            answer: values[2] - values[0],
+            explanation: `第三个月是 ${values[2]}，第一个月是 ${values[0]}，增加 ${values[2] - values[0]}。`,
+            steps: [`找到第一个月 ${values[0]}。`, `找到第三个月 ${values[2]}。`, `${values[2]} - ${values[0]} = ${values[2] - values[0]}。`],
+            templateType: "折线统计图增减"
+          }),
+          () => baseQuestion(point, {
+            text: `折线统计图四个月的数据依次是 ${values.join("、")}。最高点出现在第几个月？`,
+            answer: maxIndex + 1,
+            explanation: `最大数据 ${max} 位于第 ${maxIndex + 1} 个位置，所以最高点在第 ${maxIndex + 1} 个月。`,
+            steps: [`比较四个数据。`, `最大数是 ${max}。`, `它在第 ${maxIndex + 1} 个月。`],
+            templateType: "折线统计图趋势"
+          })
+        ];
+        const offset = templateOffsets[point.id] || 0;
+        templateOffsets[point.id] = offset + 1;
+        return variants[offset % variants.length]();
+      }
       if (point.id === "g3-statistics") {
         const a = rand(8, 24);
         const b = rand(6, 22);
@@ -2438,6 +2669,76 @@
             answer: x,
             explanation: `先把加上的 ${add} 去掉，再除以 ${factor}。`,
             steps: [`两边减 ${add}：${total} - ${add} = ${factor * x}。`, `再除以 ${factor}：${factor * x} ÷ ${factor} = ${x}。`]
+          });
+        }
+      ];
+      return pick(variants)();
+    }
+
+    function makeFactor(point, level) {
+      const variants = [
+        () => {
+          const factor = pick([2, 3, 4, 5, 6, 8, 9]);
+          const multiple = factor * rand(3, 12);
+          return baseQuestion(point, {
+            text: `${multiple} 是 ${factor} 的倍数吗？是填1，不是填0。`,
+            answer: 1,
+            explanation: `${multiple} ÷ ${factor} 能得到整数，所以 ${multiple} 是 ${factor} 的倍数。`,
+            steps: [`计算 ${multiple} ÷ ${factor}。`, "商是整数，没有余数。", "所以填 1。"],
+            templateType: "倍数判断"
+          });
+        },
+        () => {
+          const number = pick([12, 18, 20, 24, 30, 36]);
+          const factors = Array.from({ length: number }, (_, index) => index + 1).filter((item) => number % item === 0);
+          return baseQuestion(point, {
+            text: `${number} 一共有多少个因数？`,
+            answer: factors.length,
+            explanation: `${number} 的因数是 ${factors.join("、")}，一共 ${factors.length} 个。`,
+            steps: ["从 1 开始成对找因数。", `列出 ${factors.join("、")}。`, `一共 ${factors.length} 个。`],
+            templateType: "找因数"
+          });
+        },
+        () => {
+          const prime = pick([2, 3, 5, 7, 11, 13, 17, 19]);
+          return baseQuestion(point, {
+            text: `${prime} 是质数吗？是填1，不是填0。`,
+            answer: 1,
+            explanation: `${prime} 只有 1 和它本身两个因数，所以是质数。`,
+            steps: [`检查 ${prime} 的因数。`, "只有 1 和它本身。", "所以填 1。"],
+            templateType: "质数判断"
+          });
+        }
+      ];
+      return pick(variants)();
+    }
+
+    function makeNegative(point, level) {
+      const below = rand(1, 12);
+      const above = rand(1, 15);
+      const variants = [
+        () => baseQuestion(point, {
+          text: `气温零下 ${below} 摄氏度记作多少摄氏度？`,
+          answer: -below,
+          explanation: `零下温度用负数表示，所以零下 ${below} 摄氏度记作 -${below} 摄氏度。`,
+          steps: ["确定以 0 摄氏度为分界。", "零下用负号。", `记作 -${below} 摄氏度。`],
+          templateType: "生活负数"
+        }),
+        () => baseQuestion(point, {
+          text: `在 -${below} 和 ${above} 中，较大的数是多少？`,
+          answer: above,
+          explanation: `正数都大于负数，所以 ${above} 大于 -${below}。`,
+          steps: ["判断两个数的正负。", "正数大于负数。", `较大的数是 ${above}。`],
+          templateType: "负数比较"
+        }),
+        () => {
+          const depth = rand(2, 20);
+          return baseQuestion(point, {
+            text: `海平面记作 0 米，潜水员在海平面以下 ${depth} 米，他的位置记作多少米？`,
+            answer: -depth,
+            explanation: `海平面以下用负数表示，所以海平面以下 ${depth} 米记作 -${depth} 米。`,
+            steps: ["以海平面为 0 米。", "海平面以下使用负号。", `位置记作 -${depth} 米。`],
+            templateType: "海拔负数"
           });
         }
       ];
@@ -3651,6 +3952,8 @@
       makeRatio,
       makeStatistics,
       makeEquation,
+      makeFactor,
+      makeNegative,
       makeWord,
       makeReading,
       makeAppendix,
@@ -3671,6 +3974,8 @@
         ratio: makeRatio,
         statistics: makeStatistics,
         equation: makeEquation,
+        factor: makeFactor,
+        negative: makeNegative,
         word: makeWord,
         reading: makeReading,
         thinking: makeThinking,

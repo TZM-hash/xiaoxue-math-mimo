@@ -1,6 +1,6 @@
 ﻿param(
   # 版本名升级方式：none=只升 versionCode（默认，适合改题库/规则的小更新）；
-  # patch=1.1.0->1.1.1；minor=1.1.0->1.2.0。versionCode 永远自动 +1。
+  # patch=1.2.0->1.2.1；minor=1.2.0->1.3.0。versionCode 永远自动 +1。
   [ValidateSet("none", "patch", "minor")]
   [string]$Bump = "none",
   # 跳过 npm 测试（默认会先跑测试兜底）。
@@ -35,7 +35,7 @@ Write-Host "==> [2/5] 同步 Android 资源镜像..." -ForegroundColor Cyan
 
 # 3. 升版本号
 Write-Host "==> [3/5] 更新版本号..." -ForegroundColor Cyan
-$gradle = Get-Content -LiteralPath $gradleFile -Raw
+$gradle = Get-Content -LiteralPath $gradleFile -Raw -Encoding UTF8
 
 # versionCode 永远 +1
 $codeMatch = [regex]::Match($gradle, 'versionCode\s+(\d+)')
@@ -59,17 +59,20 @@ $newName = "$major.$minor.$patch"
 
 $gradle = $gradle -replace "versionCode\s+$oldCode", "versionCode $newCode"
 $gradle = $gradle -replace 'versionName\s+"[0-9]+\.[0-9]+\.[0-9]+"', "versionName `"$newName`""
-Set-Content -LiteralPath $gradleFile -Value $gradle -NoNewline
+Set-Content -LiteralPath $gradleFile -Value $gradle -NoNewline -Encoding UTF8
 
 # package.json 的 version 与 versionName 保持一致
-$pkg = Get-Content -LiteralPath $pkgFile -Raw
+$pkg = Get-Content -LiteralPath $pkgFile -Raw -Encoding UTF8
 $pkg = $pkg -replace '"version":\s*"[0-9]+\.[0-9]+\.[0-9]+"', "`"version`": `"$newName`""
-Set-Content -LiteralPath $pkgFile -Value $pkg -NoNewline
+Set-Content -LiteralPath $pkgFile -Value $pkg -NoNewline -Encoding UTF8
 
 Write-Host ("    versionCode {0} -> {1}；versionName {2} -> {3}" -f $oldCode, $newCode, $oldName, $newName)
 
 # 4. 构建签名 release APK
 Write-Host "==> [4/5] 构建签名 release APK（约 1-2 分钟）..." -ForegroundColor Cyan
+if (-not $env:KEYSTORE_PASSWORD -or -not $env:KEY_PASSWORD) {
+  throw "缺少 KEYSTORE_PASSWORD 或 KEY_PASSWORD 环境变量，拒绝使用源码中的默认口令构建。"
+}
 Push-Location (Join-Path $root "android")
 try {
   & ".\gradlew.bat" assembleRelease --no-daemon

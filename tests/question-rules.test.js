@@ -3,6 +3,8 @@ const path = require("path");
 const vm = require("vm");
 const assert = require("assert");
 
+require("./learning-quality-engine.test.js");
+
 const root = path.resolve(__dirname, "..");
 
 class FakeElement {
@@ -41,6 +43,10 @@ class FakeElement {
     this.children.push(child);
     child.parentElement = this;
     return child;
+  }
+  replaceChildren(...children) {
+    this.children = [];
+    children.forEach((child) => this.appendChild(child));
   }
   remove() {}
   click() {
@@ -167,6 +173,7 @@ vm.createContext(context);
   "js/question-bank-coverage.js",
   "js/learning-insights.js",
   "js/pet-economy.js",
+  "js/pet-experience.js",
   "js/question-spec-utils.js",
   "js/grade2-reference-source-meta.js",
   "js/grade2-reference-scan-index.js",
@@ -185,6 +192,8 @@ vm.createContext(context);
   "js/english-question-generator.js",
   "js/science-question-generator.js",
   "js/question-generator.js",
+  "js/learning-quality-engine.js",
+  "js/daily-learning-plan.js",
   "js/handwriting-input.js",
   "js/practice-engine.js",
   "js/question-rules-engine.js",
@@ -201,6 +210,7 @@ vm.createContext(context);
   "js/bank-images.js",
   "js/custom-bank.js",
   "js/app-utils.js",
+  "js/app-format-utils.js",
   "js/app.js"
 ].forEach((file) => {
   const source = fs.readFileSync(path.join(root, file), "utf8");
@@ -294,7 +304,11 @@ function runUpgradeFeatureTests() {
 
   const pet = legacy.rewards.pet;
   assert.strictEqual(pet.name, "招财", "新宠物默认名应为招财");
-  assert.strictEqual(pet.coins, 0, "新宠物初始金币应为 0");
+  assert.strictEqual(pet.coins, 12, "新宠物应获得开局金币");
+  assert.strictEqual(pet.inventory.basicFood, 1, "新宠物应获得一份基础猫粮");
+  assert.strictEqual(pet.inventory.towel, 1, "新宠物应获得一条小毛巾");
+  assert.strictEqual(pet.inventory.yarnBall, 1, "新宠物应获得一个毛线球");
+  assert.strictEqual(pet.starterClaimed, true, "开局礼包应标记为已领取");
   assert.strictEqual(pet.inventory.renameCard, 0, "改名卡背包数量应初始化");
   assert.strictEqual(pet.mood, 70, "宠物心情初始值应为 70");
   assert.strictEqual(pet.hunger, 70, "宠物饥饿初始值应为 70");
@@ -466,10 +480,11 @@ function runPetEconomyTests() {
   debug.state.profiles = [rewardProfile];
   debug.state.activeId = rewardProfile.id;
   debug.state.roundCoins = 0;
+  const starterCoins = debug.petState(rewardProfile).coins;
   assert.strictEqual(debug.awardQuestionReward(false, {}), 0, "答错题目不应奖励金币");
-  assert.strictEqual(debug.petState(rewardProfile).coins, 0, "答错后宠物金币不应增加");
+  assert.strictEqual(debug.petState(rewardProfile).coins, starterCoins, "答错后宠物金币不应增加");
   assert.strictEqual(debug.awardQuestionReward(true, {}), 2, "答对普通题应奖励 2 金币");
-  assert.strictEqual(debug.petState(rewardProfile).coins, 2, "答对后宠物金币应增加");
+  assert.strictEqual(debug.petState(rewardProfile).coins, starterCoins + 2, "答对后宠物金币应增加");
 
   const pet = debug.petState(debug.normalizeProfile({ id: "pet-care", name: "Care", grade: 2 }));
   assert.strictEqual(pet.level, 1, "New pet initial level should be 1");
@@ -598,8 +613,8 @@ function runSetSizeAndExternalMixTests() {
     assert.strictEqual(localCount, 1, "数学严格生成器应按 1 个基础模板参与比例计算");
     assert.strictEqual(
       debug.externalQuestionChanceForPoint(ratioPoint),
-      externalCount / (externalCount + localCount),
-      "扩展题抽取概率应等于扩展题库存占总库存的比例"
+      Math.min(0.65, externalCount / (externalCount + localCount)),
+      "扩展题抽取概率应按有效库存比例计算，并封顶为 65%"
     );
 
     vm.runInContext("Math.random = () => 0.01", context);
@@ -1546,10 +1561,10 @@ function runQuestionSetDedupeTests() {
 function runArchiveVersionTests() {
   const debug = context.mathCampDebug;
   const archive = debug.buildArchiveData();
-  assert.strictEqual(archive.version, 6, "archive version should advance after migration");
+  assert.strictEqual(archive.version, 7, "archive version should advance after migration");
   debug.els.importText.value = JSON.stringify({ ...archive, version: 5 });
   const parsed = debug.parseImportBackup();
-  assert(parsed.repairNotes.some((note) => /v5|v6/.test(note)), "older archives should report an upgrade note");
+  assert(parsed.repairNotes.some((note) => /v5|v7/.test(note)), "older archives should report an upgrade note");
 }
 
 function runCoverageAndInsightTests() {
@@ -1666,8 +1681,9 @@ function runLightSmartExperienceTests() {
       question: { id: "smart-q", grade: 3, subject: "math", pointId: "g3-mul-div", topic: "muldiv", text: "7 × 8 = ?", answer: 56 },
       cause: "计算粗心",
       wrongCount: 2,
-      correctStreak: 2,
-      reviewStage: 2,
+      correctStreak: 3,
+      reviewStage: 3,
+      chainStage: "delayed",
       dueDate: debug.todayKey(),
       updatedAt: Date.now()
     }],
@@ -1688,10 +1704,13 @@ function runLightSmartExperienceTests() {
   assert.strictEqual(smartSet.length, 8, "今日一键练应保持用户设置的题量");
   assert(smartSet.some((question) => question.reviewSource === "due" && question.reviewSourceWrongId === "smart-due"), "今日一键练应自动混入到期错题变式");
   assert(smartSet.some((question) => question.reviewSource === "weak"), "今日一键练应自动混入薄弱点练习");
+  assert(smartSet.some((question) => question.planSegment === "current"), "今日一键练应包含当前学期知识");
+  assert(smartSet.some((question) => question.planSegment === "challenge"), "今日一键练应包含综合挑战");
+  assert.deepStrictEqual([...debug.reviewStageOffsets], [1, 3, 7, 14], "错题应按 1、3、7、14 天间隔复习");
 
   debug.recordReviewSourceAttempt({ reviewSourceWrongId: "smart-due" }, true);
   const activeSmartProfile = debug.activeProfile();
-  assert(!activeSmartProfile.wrongbook.some((item) => item.id === "smart-due"), "到期错题变式做对后应自动推进原错题并可移入已掌握");
+  assert(!activeSmartProfile.wrongbook.some((item) => item.id === "smart-due"), "完成四次间隔复习后应自动推进原错题并移入已掌握");
   assert(activeSmartProfile.masteredWrong.some((item) => item.signature === "smart-due-sig"), "连续达标的原错题应自动进入已掌握记录");
 
   const prompt = debug.buildParentWeeklyPrompt(activeSmartProfile);
@@ -1927,8 +1946,8 @@ function runChineseSubjectIntegrationTests() {
   assert.strictEqual(debug.els.answerModePanel.hidden, false, "语文选择题应弹出选择面板");
   assert(debug.els.answerModePanel.innerHTML.includes("选择题"), "语文选择题面板应显示选择题标题");
   assert.strictEqual(debug.els.numberPad.hidden, true, "语文选择题不应同时显示数字键盘");
-  assert(debug.els.questionText.innerHTML.includes("question-options"), "题干中的 A/B/C 选项应拆成独立选项区");
-  assert(debug.els.questionText.innerHTML.includes("question-option"), "题干中的每个选项应独立成行，便于读题");
+  assert(!debug.els.questionText.innerHTML.includes("question-options"), "选择作答时题干不应重复显示 A/B/C 选项");
+  assert.strictEqual((debug.els.answerModePanel.innerHTML.match(/class="answer-option"/g) || []).length, 4, "四个选项应只在可点击作答区显示一次");
 
   debug.state.answerMode = "judge";
   debug.els.answerModeSelect.value = "judge";
@@ -2145,6 +2164,149 @@ function runQuestionSourceSummaryTests() {
   assert(audit.items.every((item) => item.subject === "math" && Number(item.grade) === 2), "题源巡检应按学科和年级过滤");
 }
 
+function runPetExperienceTests() {
+  const Experience = context.MathCampPetExperience;
+  assert(Experience, "宠物体验模块应加载");
+  const today = "2026-07-11";
+  const pet = {
+    coins: 0,
+    mood: 48,
+    hunger: 30,
+    clean: 55,
+    bond: 40,
+    inventory: { basicFood: 0, towel: 0, yarnBall: 0 },
+    experience: {}
+  };
+  assert.strictEqual(Experience.ensureStarterKit(pet), true, "首次进入应发放开局礼包");
+  assert.strictEqual(Experience.ensureStarterKit(pet), false, "开局礼包不能重复发放");
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(pet.inventory)), { basicFood: 1, towel: 1, yarnBall: 1 }, "礼包应包含三种基础用品");
+  assert.strictEqual(pet.coins, 12, "礼包应包含少量启动金币");
+  const freeCare = Experience.applyDailyFreeCare(pet, today);
+  assert.strictEqual(freeCare.applied, true, "每日免费照料首次应生效");
+  assert.strictEqual(Experience.applyDailyFreeCare(pet, today).applied, false, "每日免费照料当天不能重复");
+  assert.strictEqual(freeCare.stat, "hunger", "免费照料应优先补最低状态");
+  const progress = Experience.shopProgress(7, 24);
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(progress)), { gap: 17, pct: 29, practiceSets: 2 }, "商店应给出金币和练习进度");
+  const choices = Experience.dailyChoices();
+  assert.strictEqual(choices.length, 3, "每日陪伴应提供三个轻量选择");
+  assert.strictEqual(Experience.applyDailyChoice(pet, "walk", today).applied, true, "每日选择首次应生效");
+  assert.strictEqual(Experience.applyDailyChoice(pet, "rest", today).applied, false, "每日选择当天只能完成一次");
+  const game = Experience.playBellGame(pet, 1, today);
+  assert.strictEqual(game.played, true, "找铃铛小游戏首次应可完成");
+  assert.strictEqual(Experience.playBellGame(pet, 2, today).played, false, "找铃铛小游戏当天不能重复领奖");
+  const message = Experience.contextMessage({ history: [{ subject: "chinese", correct: true }] }, pet, { chinese: "语文" });
+  assert(message.includes("语文"), "宠物记忆文案应关联最近学习学科");
+}
+
+function runVisibleQuestionQualityTests() {
+  const debug = context.mathCampDebug;
+  assert.strictEqual(typeof debug.questionQualityWarnings, "function", "quality audit should expose visible-question warnings");
+  const mathPoint = debug.bankPointMap()["g4-angle-triangle"];
+  const productionCopy = debug.questionQualityWarnings(mathPoint, {
+    text: "参考截图来自培优图形题。改写题：三角形第三个角是多少度？",
+    explanation: "三角形内角和是 180°。",
+    steps: ["写出内角和。", "计算第三个角。"]
+  });
+  assert(productionCopy.includes("题干含学生不需要看到的制作说明"), "quality audit should reject production-language leakage");
+
+  const chinesePoint = { grade: 3, topic: "reading", label: "段落阅读" };
+  const genericDistractors = debug.questionQualityWarnings(chinesePoint, {
+    text: "下面哪一项最符合训练目标？\nA. 抓关键词\nB. 只看字面随便猜\nC. 不读题目直接选\nD. 答案和题目无关",
+    explanation: "根据训练目标判断。",
+    steps: ["读题。", "选择。"]
+  });
+  assert(genericDistractors.includes("干扰项使用固定万能错误话术"), "quality audit should flag generic distractors");
+
+  const sciencePoint = { grade: 3, topic: "earth", label: "空气和天气" };
+  const mixedScience = debug.questionQualityWarnings(sciencePoint, {
+    subject: "science",
+    text: "连续记录天气或模型位置，再根据变化寻找规律。",
+    explanation: "天气和宇宙现象需要长期观察或模型模拟。",
+    steps: ["观察。", "解释。"]
+  });
+  assert(mixedScience.includes("科学题混合了不相关的概念范围"), "quality audit should flag cross-topic science explanations");
+}
+
+function runBalancedSelectionAndAnswerCopyTests() {
+  const debug = context.mathCampDebug;
+  assert.strictEqual(typeof debug.createRoundQuestionPicker, "function", "round picker should be testable");
+  assert.strictEqual(typeof debug.questionSpecBucket, "function", "question bucket should be testable");
+  const picker = debug.createRoundQuestionPicker("auto");
+  const specs = [
+    { format: "choice", questionType: "现象判断" },
+    { format: "choice", questionType: "实验设计" },
+    { format: "input", questionType: "概念填空" }
+  ];
+  const firstBuckets = Array.from({ length: 3 }, () => debug.questionSpecBucket(picker(specs)));
+  assert.strictEqual(new Set(firstBuckets).size, 3, "a round should cover underrepresented question buckets before repeating one");
+
+  assert.strictEqual(debug.answerPlaceholderForQuestion({ subject: "math", answerType: "formula" }), "输入算式和答案，如 23+15=38", "math formula prompt should request an equation and result");
+  assert.strictEqual(debug.answerPlaceholderForQuestion({ subject: "math", answerType: "number" }), "输入数值，注意单位", "math numeric prompt should mention values and units");
+  assert.strictEqual(debug.answerPlaceholderForQuestion({ subject: "chinese", answerType: "text" }), "根据语境输入词语或简短答案", "Chinese prompt should ask for a context-based answer");
+  assert.strictEqual(debug.answerPlaceholderForQuestion({ subject: "english", answerType: "text" }), "输入英文单词或短语，注意拼写", "English prompt should mention spelling");
+  assert.strictEqual(debug.answerPlaceholderForQuestion({ subject: "science", answerType: "text" }), "输入科学概念、现象或证据", "science prompt should request scientific evidence or concepts");
+}
+
+function runAdaptiveLearningQualityIntegrationTests() {
+  const debug = context.mathCampDebug;
+  assert.strictEqual(typeof debug.hintForLevel, "function", "staged hint helper should be testable");
+  const hintQuestion = {
+    subject: "math",
+    pointId: "g3-word-two-step",
+    topic: "word",
+    text: "两步应用题",
+    steps: ["先求第一步。", "再求最终结果。"]
+  };
+  const hints = [1, 2, 3].map((level) => debug.hintForLevel(hintQuestion, level));
+  assert.strictEqual(new Set(hints).size, 3, "three hint levels should reveal progressively different guidance");
+  assert(hints[2].includes("先求第一步"), "level-three hint should expose a key intermediate step without the final answer");
+
+  const migrated = debug.normalizeProfile({
+    id: "quality-old-profile",
+    name: "旧档案",
+    grade: 3,
+    mastery: { "g3-word-two-step": { attempts: 4, correct: 3, level: 2, streak: 1 } },
+    history: [{ date: "2026-07-11", time: 1, grade: 3, pointId: "g3-word-two-step", correct: true, text: "旧题" }],
+    wrongbook: []
+  });
+  assert(Number.isFinite(migrated.mastery["g3-word-two-step"].score), "old mastery data should gain a compatible continuous score");
+  assert.strictEqual(migrated.history[0].confidence, "", "old history should default to neutral confidence");
+  assert.strictEqual(migrated.history[0].hintLevel, 0, "old history should default to no hints");
+
+  debug.selectSubject("math");
+  debug.state.grade = 3;
+  const point = debug.pointMap["g3-word-two-step"];
+  const question = debug.makeStrictQuestionForPoint(point, "auto");
+  assert(question.learningMeta && question.learningMeta.qualityScore >= 60, "generated practice questions should pass the runtime quality gate");
+  assert(question.learningMeta.familyKey, "generated questions should carry an internal semantic family key");
+  assert(question.learningMeta.difficultyScore >= 1 && question.learningMeta.difficultyScore <= 5, "generated questions should carry calibrated difficulty");
+  const teachingChoice = debug.makeStrictQuestionForPoint(debug.pointMap["g3-reading"], "choice");
+  assert(/易错提醒|检查方法/.test(teachingChoice.explanation), "generated explanations should include a pitfall or next-check strategy");
+
+  assert.strictEqual(typeof debug.buildWeeklyReviewQuestionSet, "function", "weekly review builder should be exposed");
+  const profile = debug.activeProfile();
+  const originalHistory = profile.history;
+  profile.history = [
+    { date: debug.todayKey(), time: 1, grade: 3, subject: "math", pointId: "g3-word-two-step", correct: false, hintLevel: 2, confidence: "unsure", text: "两步应用题" },
+    ...originalHistory
+  ];
+  const weeklySet = debug.buildWeeklyReviewQuestionSet(6, "auto");
+  profile.history = originalHistory;
+  assert.strictEqual(weeklySet.length, 6, "weekly review should build the requested number of questions");
+  assert(weeklySet.every((item) => item.weeklyReview), "weekly review questions should be marked internally");
+  assert(weeklySet.some((item) => item.pointId === "g3-word-two-step"), "weekly review should include this week's weak point");
+}
+
+function runGlassThemeTests() {
+  const debug = context.mathCampDebug;
+  ["glass-clear", "glass-pop"].forEach((themeId) => {
+    assert(debug.themeRegistry[themeId], `${themeId} should be registered`);
+    assert.strictEqual(debug.themeRegistry[themeId].initial, true, `${themeId} should be available from the start`);
+    assert.strictEqual(debug.systemThemeOwned(themeId), true, `${themeId} should not require levels or coins`);
+    assert.strictEqual(debug.safeThemeId(themeId), themeId, `${themeId} should be accepted as a safe theme id`);
+  });
+}
+
 const result = context.mathCampSelfTest(32);
 if (result.failed) {
   console.error(JSON.stringify(result.failures.slice(0, 10), null, 2));
@@ -2184,6 +2346,11 @@ runChineseSubjectIntegrationTests();
 runEnglishSubjectIntegrationTests();
 runScienceSubjectIntegrationTests();
 runQuestionSourceSummaryTests();
+runVisibleQuestionQualityTests();
+runBalancedSelectionAndAnswerCopyTests();
+runAdaptiveLearningQualityIntegrationTests();
+runGlassThemeTests();
+runPetExperienceTests();
 
 console.log(`Question rule self-test passed: ${result.total} samples, 0 failures.`);
 console.log("Data boundary tests passed.");
@@ -2214,3 +2381,8 @@ console.log("Chinese subject integration tests passed.");
 console.log("English subject integration tests passed.");
 console.log("Science subject integration tests passed.");
 console.log("Question source summary tests passed.");
+console.log("Visible question quality tests passed.");
+console.log("Balanced selection and answer copy tests passed.");
+console.log("Adaptive learning quality integration tests passed.");
+console.log("Glass theme tests passed.");
+console.log("Pet experience tests passed.");

@@ -208,16 +208,12 @@
       display: inline-flex;
       align-items: baseline;
       gap: 8px;
-      width: max-content;
+      width: 100%;
       max-width: 100%;
-      white-space: nowrap;
-      word-break: keep-all;
-      overflow-x: auto;
-      overflow-y: hidden;
-      scrollbar-width: none;
-    }
-    .question-option::-webkit-scrollbar {
-      display: none;
+      min-width: 0;
+      white-space: normal;
+      word-break: break-word;
+      overflow-wrap: anywhere;
     }
     .question-option b {
       flex: 0 0 auto;
@@ -362,6 +358,44 @@
       font-size: clamp(18px, 2.2vw, 24px);
       font-weight: 950;
       text-align: center;
+    }
+    .confidence-control {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-width: 0;
+      padding: 7px 9px;
+      border: 1px solid color-mix(in oklch, var(--subject-line), transparent 20%);
+      border-radius: 8px;
+      background: color-mix(in oklch, var(--subject-soft), white 48%);
+    }
+    .confidence-control > span {
+      flex: 0 0 auto;
+      color: color-mix(in oklch, var(--fg), white 18%);
+      font-size: 12px;
+      font-weight: 850;
+    }
+    .confidence-options {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 5px;
+      width: min(270px, 62%);
+    }
+    .confidence-options button {
+      min-height: 32px;
+      padding: 4px 8px;
+      border-radius: 7px;
+      background: rgba(255,255,255,.82);
+      color: color-mix(in oklch, var(--fg), white 8%);
+      box-shadow: none;
+      font-size: 12px;
+      font-weight: 850;
+    }
+    .confidence-options button[aria-pressed="true"] {
+      border-color: color-mix(in oklch, var(--subject-accent), black 5%);
+      background: color-mix(in oklch, var(--subject-soft), white 12%);
+      color: color-mix(in oklch, var(--subject-ink), black 5%);
     }
     .number-pad {
       margin-top: 10px;
@@ -663,6 +697,7 @@
       font-size: 15px;
     }
     .answer-option {
+      min-width: 0;
       min-height: 54px;
       padding: 10px 12px;
       border-radius: 12px;
@@ -673,6 +708,9 @@
       font-weight: 950;
       box-shadow: none;
       touch-action: manipulation;
+      white-space: normal;
+      word-break: break-word;
+      overflow-wrap: anywhere;
     }
     .answer-option:hover {
       transform: translateY(-1px) scale(1.01);

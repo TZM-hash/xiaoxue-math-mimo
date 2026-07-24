@@ -36,6 +36,7 @@
   <link rel="stylesheet" href="css/animations.css" />
   <link rel="stylesheet" href="css/animations-enhanced.css" />
   <link rel="stylesheet" href="css/effects-settings.css" />
+  <link rel="stylesheet" href="css/visual-polish.css" />
   <style id="printPageStyle"></style>
 </head>
 <body>
@@ -72,6 +73,7 @@
         <h1 id="heroTitle">今日学习路线</h1>
         <p class="lead" id="homePlanCopy">先补最需要的一小块：系统会根据错题、正确率和用时，推荐今天最该练的知识点。</p>
         <div class="home-cockpit-meter" id="homeCockpitMeter" aria-label="今日任务舱状态"></div>
+        <div class="home-plan-mix" id="homePlanMix" aria-label="今日智能组卷结构"></div>
         <div class="weak-point-list" id="homeWeakList" aria-label="今日推荐知识点"></div>
         <div class="home-route-list" id="homeRouteList" aria-label="今日学习路线"></div>
         <div class="hero-actions">
@@ -320,13 +322,20 @@
                 <span class="tag" id="gradeTag">一年级</span>
                 <span class="tag topic" id="pointTag">20 以内加减</span>
                 <span class="tag" id="modeTag">普通练习</span>
-                <button class="secondary read-aloud-btn" type="button" id="readAloudBtn" aria-label="朗读题目">🔊 读题</button>
               </div>
               <h2 class="question" id="questionText">8 + 5 = ?</h2>
               <div class="question-diagram" id="questionDiagram" hidden aria-label="题目图形"></div>
               <div class="answer-row">
                 <input class="answer-input" id="answerInput" inputmode="decimal" autocomplete="off" placeholder="在这里输入答案" aria-label="输入答案" />
                 <button class="primary" type="button" id="checkBtn">🔍 检查答案</button>
+              </div>
+              <div class="confidence-control" id="confidenceControl" aria-label="本题答题信心，可不选择">
+                <span>答题信心（可选）</span>
+                <div class="confidence-options">
+                  <button type="button" data-confidence="sure" aria-pressed="false">确定</button>
+                  <button type="button" data-confidence="unsure" aria-pressed="false">不确定</button>
+                  <button type="button" data-confidence="guess" aria-pressed="false">猜的</button>
+                </div>
               </div>
               <div class="answer-mode-panel" id="answerModePanel" hidden></div>
               <div class="answer-control-slot" id="answerControlSlot">
@@ -688,7 +697,7 @@
         <div class="wrong-top">
           <div>
             <h2>错题本</h2>
-            <p class="muted">做错的题会自动进入错题本。每道错题会保存知识点、错因和讲解；连续做对 3 次后自动删除，也可以手动删除。</p>
+            <p class="muted">做错的题会自动进入错题本。系统会在第 1、3、7、14 天安排复习；四次稳定答对后移入已掌握记录，也可以手动删除。</p>
           </div>
           <div class="wrong-actions">
             <button class="primary" type="button" id="practiceWrongAllBtn">练习全部错题</button>
@@ -718,7 +727,7 @@
               <p class="muted">保留能指导下一轮练习的重点信息，删掉奖励、徽章和流水记录。</p>
             </div>
             <div class="row-actions">
-              <button class="primary" type="button" id="startWeakReportBtn">按薄弱点出题</button>
+              <button class="primary" type="button" id="startWeakReportBtn">生成周复习</button>
               <button class="secondary" type="button" id="clearTodayBtn">清空今日记录</button>
             </div>
           </div>
@@ -920,9 +929,11 @@
           </div>
           <p class="muted mini-hint">图片题：在 Excel/CSV 的 <b>image</b> 列填图片文件名，再在此选择对应图片文件（按文件名自动关联）。有答案的图片题可看图作答判分，无答案的作为展示题。</p>
           <div class="row-actions">
-            <button class="primary" type="button" id="importCustomBankBtn">导入题库</button>
+            <button class="secondary" type="button" id="previewCustomBankBtn">解析并预览</button>
+            <button class="primary" type="button" id="importCustomBankBtn" disabled>确认进入待审核</button>
           </div>
           <div class="save-status" id="customBankImportStatus">尚未导入校内题库。</div>
+          <div class="bank-import-preview" id="customBankPreview" hidden></div>
           <div class="report-list" id="customBankList"></div>
         </article>
         </div>
@@ -930,6 +941,40 @@
           <div class="bank-detail-head">
             <h2 id="bankDetailTitle">题目详情</h2>
             <span class="muted" id="bankDetailMeta">点击左侧「校内题库」中某个批次的「查看题目」，这里会显示该批次的全部题目。</span>
+          </div>
+          <div class="bank-review-toolbar" id="bankReviewToolbar" hidden>
+            <div class="bank-audit-summary" id="bankAuditSummary"></div>
+            <div class="row-actions">
+              <button class="primary" type="button" id="publishCustomBankBtn">审核并发布</button>
+              <button class="secondary" type="button" id="disableCustomBankBtn">停用</button>
+              <button class="secondary" type="button" id="reviewCustomBankBtn">退回待审核</button>
+              <button class="secondary" type="button" id="auditCustomBankBtn">重新审查</button>
+            </div>
+            <div class="bank-bulk-editor" aria-label="批量修改题目">
+              <label class="checkline"><input id="bankSelectAllQuestions" type="checkbox" /><span>选择全部题目</span></label>
+              <select id="bankBulkGradeSelect" aria-label="批量设置年级">
+                <option value="">年级保持不变</option>
+                <option value="1">一年级</option><option value="2">二年级</option><option value="3">三年级</option>
+                <option value="4">四年级</option><option value="5">五年级</option><option value="6">六年级</option>
+              </select>
+              <select id="bankBulkSubjectSelect" aria-label="批量设置学科">
+                <option value="">学科保持不变</option>
+                <option value="math">数学</option><option value="chinese">语文</option>
+                <option value="english">英语</option><option value="science">科学</option>
+              </select>
+              <select id="bankBulkTermSelect" aria-label="批量设置学期">
+                <option value="">学期保持不变</option>
+                <option value="upper">上册</option><option value="lower">下册</option><option value="year">全年综合</option>
+              </select>
+              <select id="bankBulkPointSelect" aria-label="批量设置知识点"><option value="">知识点保持不变</option></select>
+              <select id="bankBulkDifficultySelect" aria-label="批量设置难度">
+                <option value="">难度保持不变</option>
+                <option value="1">难度 1</option><option value="2">难度 2</option><option value="3">难度 3</option>
+                <option value="4">难度 4</option><option value="5">难度 5</option>
+              </select>
+              <button class="secondary" type="button" id="applyBankBulkEditBtn">应用到所选题目</button>
+            </div>
+            <div class="bank-version-history" id="bankVersionHistory"></div>
           </div>
           <div class="bank-detail-body" id="bankDetailBody">
             <p class="bank-detail-empty muted">还没有选择题库批次。</p>
@@ -951,7 +996,7 @@
           <button class="hub-action-card" type="button" data-jump="wrongbook" data-close-learning>
             <span>📒</span>
             <strong>错题本</strong>
-            <small>复习错题，连续做对 3 次自动移出。</small>
+            <small>按 1、3、7、14 天间隔复习，稳定后自动移出。</small>
           </button>
           <button class="hub-action-card" type="button" data-jump="report" data-close-learning>
             <span>📊</span>
@@ -1035,6 +1080,8 @@
                   <option value="classic">🌿 经典</option>
                   <option value="eye-care">🍃 护眼</option>
                   <option value="anime">🌸 二次元</option>
+                  <option value="glass-clear">🫧 清透玻璃</option>
+                  <option value="glass-pop">🎨 缤纷玻璃</option>
                   <option value="purple">💜 紫色</option>
                   <option value="rainbow">🌈 彩虹</option>
                   <option value="star">🌙 星空</option>
@@ -1357,6 +1404,7 @@ CREATE POLICY "allow_all_user_settings" ON user_settings FOR ALL USING (true) WI
   <script src="js/question-bank-coverage.js"></script>
   <script src="js/learning-insights.js"></script>
   <script src="js/pet-economy.js"></script>
+  <script src="js/pet-experience.js"></script>
   <script src="js/question-spec-utils.js"></script>
   <script src="js/grade2-reference-source-meta.js"></script>
   <script src="js/grade2-reference-scan-index.js"></script>
@@ -1383,6 +1431,8 @@ CREATE POLICY "allow_all_user_settings" ON user_settings FOR ALL USING (true) WI
   <script src="js/english-question-generator.js"></script>
   <script src="js/science-question-generator.js"></script>
   <script src="js/question-generator.js"></script>
+  <script src="js/learning-quality-engine.js"></script>
+  <script src="js/daily-learning-plan.js"></script>
   <script src="js/practice-engine.js"></script>
   <script src="js/question-rules-engine.js"></script>
   <script src="js/question-interaction.js"></script>
@@ -1405,10 +1455,12 @@ CREATE POLICY "allow_all_user_settings" ON user_settings FOR ALL USING (true) WI
   <script src="js/question-source-summary.js"></script>
   <script src="js/question-bank-excel.js"></script>
   <script src="js/bank-images.js"></script>
+  <script src="js/question-quality-audit.js"></script>
   <script src="js/custom-bank.js"></script>
   <script src="js/app-utils.js"></script>
+  <script src="js/app-format-utils.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/visual-polish.js"></script>
 </body>
 </html>
-
 

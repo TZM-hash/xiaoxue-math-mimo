@@ -316,6 +316,13 @@
     grades.forEach((grade) => {
       const gradeData = curriculumData.grades && curriculumData.grades[grade];
       if (!gradeData) return;
+      (gradeData.terms || []).forEach((term, termIndex) => {
+        (term.units || []).forEach((unit, unitIndex) => {
+          (unit.lessons || []).forEach((lesson, lessonIndex) => {
+            result.push(textbookPoint(grade, termIndex, unitIndex, lessonIndex, term, unit, lesson));
+          });
+        });
+      });
       (textbookKnowledge[grade] || []).forEach((item) => result.push(textbookKnowledgePoint(grade, item)));
       (gradeData.recommendedReadings || []).forEach((book, index) => result.push(readingPoint(grade, index, book)));
       (gradeData.extraOriginal || []).forEach((item, index) => result.push(extraPoint(grade, index, item)));

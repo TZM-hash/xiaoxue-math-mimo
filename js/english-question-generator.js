@@ -470,6 +470,36 @@
             "最后选择 To the park."
           ],
           commonPitfalls: ["把交通方式当地点", "只听到人物名没有定位地点"]
+        },
+        {
+          questionType: "阅读理解",
+          prompt: "【阅读理解】Read and choose.\nLily gets up at seven. She has breakfast and then goes to school.\nWhat does Lily do after breakfast?",
+          correct: "She goes to school.",
+          wrongs: ["She gets up.", "She has dinner.", "She plays games."],
+          explanation: "短文说 has breakfast and then goes to school，早饭后去上学。",
+          commonPitfalls: ["忽略 then 表示的先后顺序", "把起床当成早饭后的事"]
+        },
+        {
+          questionType: "阅读判断",
+          prompt: "【阅读判断】Read and choose.\nBen likes animals. He has a dog and two cats at home.\nWhich sentence is right?",
+          correct: "Ben has three pets.",
+          wrongs: ["Ben has no pets.", "Ben likes only dogs.", "Ben has two dogs."],
+          explanation: "一只狗加两只猫，一共 3 只宠物，所以 Ben has three pets 正确。",
+          commonPitfalls: ["只数一种动物", "没有把狗和猫的数量相加"]
+        },
+        {
+          questionType: "听短文选择",
+          prompt: "【听短文选择】点击播放录音，选择正确答案。\nHow many pets does Ben have?",
+          audioPrompt: { type: "tts", lang: "en-US", text: "Ben likes animals. He has a dog and two cats at home." },
+          correct: "Three.",
+          wrongs: ["One.", "Two.", "Four."],
+          explanation: "录音说 a dog and two cats，1 + 2 = 3，所以选 Three.",
+          steps: [
+            "先听问题 How many pets，知道要数宠物总数。",
+            "再听 a dog and two cats。",
+            "把 1 只狗和 2 只猫相加得到 Three."
+          ],
+          commonPitfalls: ["只听到一种动物", "没有把数量相加"]
         }
       ],
       inputs: [
@@ -2318,12 +2348,41 @@
     }
   };
 
+  function unitReviewSpecs(point) {
+    if (!/^e\d-unit-/.test(String(point?.id || ""))) return [];
+    const knowledge = point.curriculum?.knowledge || {};
+    const word = (knowledge.words || [])[0];
+    const pattern = (knowledge.patterns || [])[0];
+    const specs = [];
+    if (word) {
+      specs.push({
+        questionType: "单元词汇",
+        prompt: `【Read and choose】Which word or phrase is a core word in ${point.curriculum.unit}?`,
+        correct: word,
+        wrongs: ["yesterday morning", "because of", "quickly and quietly"].filter((item) => item !== word),
+        explanation: `${word} is one of the core words in ${point.curriculum.unit}. Review it together with the unit context.`,
+        commonPitfalls: ["混淆不同单元的核心词汇"]
+      });
+    }
+    if (pattern) {
+      specs.push({
+        questionType: "单元句型",
+        prompt: `【Read and choose】Which sentence pattern is practised in ${point.curriculum.unit}?`,
+        correct: pattern,
+        wrongs: ["How old is the blue book?", "Yesterday will be sunny.", "There am three pencils."].filter((item) => item !== pattern),
+        explanation: `${pattern} is a core sentence pattern in this unit. Match the sentence purpose with the unit topic.`,
+        commonPitfalls: ["只看单个词，没有判断句型用途"]
+      });
+    }
+    return specs;
+  }
+
   function specsForPoint(point) {
     const topicSpec = TOPIC_SPECS[point.topic] || TOPIC_SPECS.vocabulary;
     const pointSpec = POINT_SPECS[point.id] || {};
     const unitInput = /^e\d-unit-/.test(point.id) ? unitInputSpec(point) : null;
     // 专属选择题在前，topic 选择题在后作为补充
-    const choices = [...(pointSpec.choices || []), ...topicSpec.choices]
+    const choices = [...(pointSpec.choices || []), ...unitReviewSpecs(point), ...topicSpec.choices]
       .map((spec) => ({ ...spec, format: "choice" }));
     const topicInputs = [unitInput || topicSpec.inputs[0], ...topicSpec.inputs.slice(unitInput ? 0 : 1)]
       .filter(Boolean);

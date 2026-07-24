@@ -9,7 +9,17 @@
       system: "mathcamp-system-settings-v1"
     };
     const MAX_SET_SIZE = 100;
+    // 本地存储连续写入失败次数，用于在配额耗尽时触发一次自动备份引导。
+    const LOCAL_SAVE_FAILURE_ALERT_THRESHOLD = 2;
+    let localSaveFailureStreak = 0;
+    let localSaveBackupPromptShown = false;
+    // 本地档案改动计数：云同步用它检测“覆盖窗口”内是否有新的本地写入，避免整表替换丢数据。
+    let localProfileMutationVersion = 0;
+    // 高频保存防抖：答题等热点路径用 scheduleSaveProfiles 合并多次写入，减少主线程阻塞。
+    const SAVE_DEBOUNCE_MS = 400;
+    let saveProfilesTimer = null;
     const SubjectRegistry = window.MathCampSubjects || {};
+    const LearningQuality = window.MathCampLearningQuality || {};
     const SUBJECTS = Object.freeze(SubjectRegistry.SUBJECT_META || {
       chinese: { label: "语文", short: "语", icon: "文", metaColor: "#c66b3d", themeLabel: "纸页阅读", themeCopy: "阅读、写作、古诗文会使用更温暖的纸页色和文字符号。" },
       math: { label: "数学", short: "数", icon: "数", metaColor: "#3aa47c", themeLabel: "清爽计算", themeCopy: "计算、应用、图形保持清亮绿色和算式符号。" },
@@ -32,6 +42,8 @@
       classic: { label: "经典", icon: "🌿", metaColor: "#3aa47c", desc: "清爽稳定的默认主题。", initial: true },
       "eye-care": { label: "护眼", icon: "🍃", metaColor: "#6c9a57", desc: "柔和绿调，适合长时间练习。", initial: true },
       anime: { label: "二次元", icon: "🌸", metaColor: "#d85ca6", desc: "轻快明亮的卡通配色。", initial: true },
+      "glass-clear": { label: "清透玻璃", icon: "🫧", metaColor: "#43b9ad", desc: "浅青薄荷柔光，清透安静的毛玻璃。", initial: true },
+      "glass-pop": { label: "缤纷玻璃", icon: "🎨", metaColor: "#ef5f78", desc: "鲜艳卡通色彩与多层柔光毛玻璃。", initial: true },
       purple: { label: "紫色", icon: "💜", metaColor: "#8b5cf6", desc: "梦幻紫色学习桌。", unlockLevel: 3, price: 70 },
       rainbow: { label: "彩虹", icon: "🌈", metaColor: "#ff8a4c", desc: "多彩但不刺眼，适合低年级。", unlockLevel: 4, price: 95 },
       forest: { label: "森林", icon: "🌳", metaColor: "#287a55", desc: "像在小森林里安静做题。", unlockLevel: 5, price: 120 },
@@ -47,6 +59,7 @@
     const PrintLayout = window.MathCampPrintLayout;
     const UI = window.MathCampUIFeedback;
     const PetEconomy = window.MathCampPetEconomy || {};
+    const PetExperience = window.MathCampPetExperience || {};
     const HomeRoute = window.MathCampHomeRoute || {};
     const PetDressupMeta = window.MathCampPetDressupMeta || {};
     const LearningInsights = window.MathCampLearningInsights || {};
@@ -105,7 +118,7 @@
       { id: "daily-goal", title: "今日达标", desc: "当天完成每日目标题数。", test: (p) => todayItems(p).length >= dailyGoal(p) },
       { id: "accuracy-80", title: "稳定 80%", desc: "累计 30 题后正确率达到 80%。", test: (p) => p.history.length >= 30 && accuracyOf(p.history) >= 80 },
       { id: "streak-3", title: "连续学习 3 天", desc: "连续 3 天都有练习记录。", test: (p) => learningDaysFor(p) >= 3 },
-      { id: "wrong-cleaner", title: "错题清理员", desc: "至少一题连续做对 3 次后自动移除。", test: (p) => (p.rewards?.clearedWrong || 0) >= 1 },
+      { id: "wrong-cleaner", title: "错题清理员", desc: "至少一题完成四次间隔复习后自动移除。", test: (p) => (p.rewards?.clearedWrong || 0) >= 1 },
       { id: "challenge-pass", title: "闯关小勇士", desc: "通过任意一个闯关关卡。", test: (p) => Object.values(p.rewards?.challenge?.gradeLevels || {}).some((item) => (item.passed || 0) >= 1) },
       { id: "hundred", title: "百题里程碑", desc: "累计完成 100 道题。", test: (p) => p.history.length >= 100 },
       { id: "five-points", title: "知识点探索", desc: "练过 5 个不同知识点。", test: (p) => new Set(p.history.map((item) => item.pointId)).size >= 5 },
@@ -204,6 +217,7 @@
       petCoinPill: document.getElementById("petCoinPill"),
       homePlanCopy: document.getElementById("homePlanCopy"),
       homeCockpitMeter: document.getElementById("homeCockpitMeter"),
+      homePlanMix: document.getElementById("homePlanMix"),
       homeSettingsCard: document.getElementById("homeSettingsCard"),
       homeWeakList: document.getElementById("homeWeakList"),
       homeRouteList: document.getElementById("homeRouteList"),
@@ -297,13 +311,13 @@
       gradeTag: document.getElementById("gradeTag"),
       pointTag: document.getElementById("pointTag"),
       modeTag: document.getElementById("modeTag"),
-      readAloudBtn: document.getElementById("readAloudBtn"),
       questionText: document.getElementById("questionText"),
       questionDiagram: document.getElementById("questionDiagram"),
       answerInput: document.getElementById("answerInput"),
       answerControlSlot: document.getElementById("answerControlSlot"),
       numberPad: document.getElementById("numberPad"),
       answerModePanel: document.getElementById("answerModePanel"),
+      confidenceControl: document.getElementById("confidenceControl"),
       checkBtn: document.getElementById("checkBtn"),
       nextBtn: document.getElementById("nextBtn"),
       skipBtn: document.getElementById("skipBtn"),
@@ -504,12 +518,28 @@
       customBankImageInput: document.getElementById("customBankImageInput"),
       customBankImageBtn: document.getElementById("customBankImageBtn"),
       customBankImageName: document.getElementById("customBankImageName"),
+      previewCustomBankBtn: document.getElementById("previewCustomBankBtn"),
       importCustomBankBtn: document.getElementById("importCustomBankBtn"),
       customBankImportStatus: document.getElementById("customBankImportStatus"),
+      customBankPreview: document.getElementById("customBankPreview"),
       customBankList: document.getElementById("customBankList"),
       bankDetailTitle: document.getElementById("bankDetailTitle"),
       bankDetailMeta: document.getElementById("bankDetailMeta"),
-      bankDetailBody: document.getElementById("bankDetailBody")
+      bankDetailBody: document.getElementById("bankDetailBody"),
+      bankReviewToolbar: document.getElementById("bankReviewToolbar"),
+      bankAuditSummary: document.getElementById("bankAuditSummary"),
+      publishCustomBankBtn: document.getElementById("publishCustomBankBtn"),
+      disableCustomBankBtn: document.getElementById("disableCustomBankBtn"),
+      reviewCustomBankBtn: document.getElementById("reviewCustomBankBtn"),
+      auditCustomBankBtn: document.getElementById("auditCustomBankBtn"),
+      bankSelectAllQuestions: document.getElementById("bankSelectAllQuestions"),
+      bankBulkGradeSelect: document.getElementById("bankBulkGradeSelect"),
+      bankBulkSubjectSelect: document.getElementById("bankBulkSubjectSelect"),
+      bankBulkTermSelect: document.getElementById("bankBulkTermSelect"),
+      bankBulkPointSelect: document.getElementById("bankBulkPointSelect"),
+      bankBulkDifficultySelect: document.getElementById("bankBulkDifficultySelect"),
+      applyBankBulkEditBtn: document.getElementById("applyBankBulkEditBtn"),
+      bankVersionHistory: document.getElementById("bankVersionHistory")
     };
 
     const {
@@ -538,6 +568,16 @@
       isLanguageQuestion,
       isNonMathQuestion
     } = window.MathCampUtils;
+    // 纯格式化 / 日期 / HTML 转义工具（从 app.js 抽到 app-format-utils.js，只搬不改）。
+    const {
+      escapeHTML,
+      escapeAttr,
+      isPlainObject,
+      todayKey,
+      dateKeyFromDayNumber,
+      dayNumber,
+      accuracyOf
+    } = window.MathCampFormatUtils;
     function hasAudioPrompt(question) {
       const prompt = question?.audioPrompt;
       return Boolean(isEnglishQuestion(question) && prompt && prompt.type === "tts" && String(prompt.text || "").trim());
@@ -563,56 +603,6 @@
       return true;
     }
     // 把题目整理成适合中文朗读的纯文本（含选择题选项）。
-    function questionReadText(question) {
-      if (!question) return "";
-      let base = "";
-      if (question.answerType === "choice") {
-        // choice 题的 text 形如 "题干\nA. x\nB. y"，直接朗读整段
-        base = String(question.text || question.prompt || "");
-      } else if (question.passage) {
-        base = `${question.passage}。${question.text || ""}`;
-      } else {
-        base = String(question.text || "");
-      }
-      return base
-        .replace(/\s*\n\s*/g, "，")
-        .replace(/_+/g, "几")
-        .replace(/×/g, "乘")
-        .replace(/÷/g, "除以")
-        .replace(/＝|=/g, "等于")
-        .replace(/(\d+(?:\.\d+)?)\s*[％%]/g, "百分之$1")
-        .replace(/[％%]/g, "百分之")
-        .replace(/\s{2,}/g, " ")
-        .trim();
-    }
-    function readQuestionAloud(question = state.currentSet[state.index]) {
-      // 英语听力题优先走原有英文朗读
-      if (hasAudioPrompt(question)) return speakQuestionPrompt(question);
-      const synth = window.speechSynthesis;
-      const Utterance = window.SpeechSynthesisUtterance || globalThis.SpeechSynthesisUtterance;
-      if (!synth || !Utterance) {
-        UI.notify("当前设备不支持语音朗读。", { tone: "bad" });
-        return false;
-      }
-      const text = questionReadText(question);
-      if (!text) {
-        UI.notify("这道题没有可朗读的文字（可能是纯图片题）。", { tone: "warn" });
-        return false;
-      }
-      const utterance = new Utterance(text);
-      const isEnglish = question && (question.subject === "english" || /^e\d-/.test(String(question.pointId || "")));
-      utterance.lang = isEnglish ? "en-US" : "zh-CN";
-      utterance.rate = 0.85;
-      utterance.pitch = 1;
-      const voices = typeof synth.getVoices === "function" ? synth.getVoices() : [];
-      const voice = isEnglish
-        ? voices.find((v) => /^en[-_]/i.test(v.lang || ""))
-        : voices.find((v) => /^zh[-_]/i.test(v.lang || "")) || voices.find((v) => /Chinese|中文|普通话/i.test(v.name || ""));
-      if (voice) utterance.voice = voice;
-      if (typeof synth.cancel === "function") synth.cancel();
-      synth.speak(utterance);
-      return true;
-    }
     function answerMatches(question, parsed) {      if (isSelfReviewQuestion(question)) return false;
       if (question?.answerType === "choice") return textAnswerMatches(parsed.raw, question) || answerLabelMatches(parsed.raw, question);
       if (question?.answerType === "formula") return formulaAnswerMatches(parsed.raw, question);
@@ -632,15 +622,6 @@
         [copy[i], copy[j]] = [copy[j], copy[i]];
       }
       return copy;
-    }
-    function escapeHTML(value) {
-      return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[char]));
-    }
-    function escapeAttr(value) {
-      return escapeHTML(value).replace(/`/g, "&#96;");
-    }
-    function isPlainObject(value) {
-      return Boolean(value) && typeof value === "object" && !Array.isArray(value);
     }
     function normalizeQuestionDiagram(diagram) {
       if (!isPlainObject(diagram)) return null;
@@ -1021,26 +1002,10 @@
         saveSystemSettingsSnapshot();
       }
     }
-    function todayKey(offset = 0) {
-      const date = new Date();
-      date.setDate(date.getDate() + offset);
-      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-    }
-    function dateKeyFromDayNumber(value) {
-      const day = Number(value);
-      if (!Number.isFinite(day)) return todayKey();
-      const date = new Date(day * 86400000);
-      return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
-    }
     function addDaysToKey(key, offset = 0) {
       const base = dayNumber(key || todayKey());
       if (!Number.isFinite(base)) return todayKey(offset);
       return dateKeyFromDayNumber(base + Number(offset || 0));
-    }
-    function dayNumber(key) {
-      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(key || ""));
-      if (!match) return NaN;
-      return Math.floor(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) / 86400000);
     }
     function daysBetween(from, to = todayKey()) {
       const a = dayNumber(from);
@@ -1205,6 +1170,7 @@
     }
     function createProfile(name = "小学生", grade = 1) {
       return {
+        schemaVersion: 2,
         id: uid("student"),
         name,
         grade: clamp(Number(grade) || 1, 1, 6),
@@ -1212,6 +1178,7 @@
         masteredWrong: [],
         history: [],
         mastery: {},
+        learningPlan: null,
         updatedAt: Date.now(),
         settings: { pointId: "auto", setSize: 10, adaptive: true, dailyGoal: 20, answerSpace: "auto", answerMode: "auto", printTemplate: "practice", printOutputMode: "answers" },
         rewards: {
@@ -1239,6 +1206,17 @@
         xp: 0,
         level: 1,
         inventory: defaultPetInventory(),
+        starterClaimed: false,
+        experience: {
+          starterClaimed: false,
+          freeCareDate: "",
+          dailyChoiceDate: "",
+          dailyChoiceId: "",
+          bellGameDate: "",
+          bellGameSlot: 0,
+          bellFound: false,
+          careSequence: 0
+        },
         careLog: { date: today, encourage: 0, feed: 0, clean: 0, play: 0 },
         tasks: { daily: {}, weekly: {} },
         wish: { date: today, id: "", itemId: "", progress: 0, fulfilled: false },
@@ -1342,6 +1320,16 @@
       Object.keys(pet.inventory).forEach((key) => {
         pet.inventory[key] = Math.max(0, Math.floor(Number(pet.inventory[key]) || 0));
       });
+      const starterEligible = !isPlainObject(raw) || Object.keys(raw).length === 0 || raw.starterClaimed === false || raw.experience?.starterClaimed === false;
+      pet.experience = typeof PetExperience.normalizeExperience === "function"
+        ? PetExperience.normalizeExperience(pet, todayKey())
+        : (isPlainObject(pet.experience) ? pet.experience : {});
+      if (starterEligible && typeof PetExperience.ensureStarterKit === "function") PetExperience.ensureStarterKit(pet);
+      else if (!pet.starterClaimed) {
+        pet.starterClaimed = true;
+        pet.experience.starterClaimed = true;
+      }
+      pet.starterClaimed = Boolean(pet.starterClaimed || pet.experience?.starterClaimed);
       pet.careLog = isPlainObject(pet.careLog) ? pet.careLog : {};
       if (pet.careLog.date !== todayKey()) {
         pet.careLog = { date: todayKey(), encourage: 0, feed: 0, clean: 0, play: 0 };
@@ -1428,6 +1416,7 @@
       normalized.id = safeRecordId(normalized.id, "student");
       normalized.name = String(normalized.name || "小学生").trim().slice(0, 24) || "小学生";
       normalized.grade = clamp(Number(normalized.grade) || 1, 1, 6);
+      normalized.schemaVersion = 2;
       normalized.updatedAt = Math.max(0, Number(normalized.updatedAt) || latestProfileActivityTime(normalized) || Date.now());
       normalized.wrongbook = Array.isArray(normalized.wrongbook)
         ? uniquifyRecordIds(normalized.wrongbook.map(normalizeWrongItem).filter(Boolean).slice(0, 300), "wrong")
@@ -1438,7 +1427,15 @@
       normalized.history = Array.isArray(normalized.history)
         ? normalized.history.map(normalizeHistoryItem).filter(Boolean).slice(0, 2500)
         : [];
-      normalized.mastery = normalized.mastery && typeof normalized.mastery === "object" ? normalized.mastery : {};
+      normalized.mastery = Object.fromEntries(Object.entries(normalized.mastery && typeof normalized.mastery === "object" ? normalized.mastery : {})
+        .map(([pointId, mastery]) => [pointId, LearningQuality.normalizeMasteryState?.(mastery) || mastery]));
+      normalized.learningPlan = window.MathCampDailyLearningPlan?.normalizeStoredPlan?.(normalized.learningPlan, {
+        profile: normalized,
+        grade: normalized.grade,
+        subject: normalized.activeSubject || "math",
+        setSize: normalized.settings?.setSize || 10,
+        dateKey: todayKey()
+      }) || null;
       normalized.settings = {
         pointId: "auto",
         setSize: 10,
@@ -1549,8 +1546,12 @@
         question,
         cause,
         wrongCount: clamp(Number(item.wrongCount) || 1, 1, 999),
-        correctStreak: clamp(Number(item.correctStreak) || 0, 0, 3),
+        correctStreak: clamp(Number(item.correctStreak) || 0, 0, 4),
         reviewStage,
+        chainStage: ["scaffold", "sameModel", "transfer", "delayed"].includes(item.chainStage) ? item.chainStage : "scaffold",
+        recentDiagnostic: LearningQuality.normalizeDiagnostic?.(item.recentDiagnostic) || "uncertain",
+        confidence: LearningQuality.normalizeConfidence?.(item.confidence) || "",
+        hintLevel: clamp(Number(item.hintLevel) || 0, 0, 3),
         dueDate,
         lastReviewedAt: Number(item.lastReviewedAt) || 0,
         lastResult: item.lastResult === "correct" ? "correct" : "wrong",
@@ -1568,7 +1569,7 @@
         cause: normalizeCause(item.cause),
         wrongCount: clamp(Number(item.wrongCount) || 1, 1, 999),
         masteredAt: Number(item.masteredAt || item.updatedAt) || Date.now(),
-        reviewCount: clamp(Number(item.reviewCount) || 3, 0, 999)
+        reviewCount: clamp(Number(item.reviewCount) || 4, 0, 999)
       };
     }
     function normalizeHistoryItem(item) {
@@ -1582,8 +1583,15 @@
         grade,
         correct: Boolean(item.correct),
         cause: normalizeCause(item.cause),
-        mode: ["practice", "daily-smart", "wrongbook", "due-review", "similar", "weak", "timed", "appendix", "hard-word", "logic-reading", "challenge"].includes(item.mode) ? item.mode : "practice",
-        text: String(item.text || "").slice(0, 160)
+        mode: ["practice", "daily-smart", "weekly-review", "wrongbook", "due-review", "similar", "weak", "timed", "appendix", "hard-word", "logic-reading", "challenge"].includes(item.mode) ? item.mode : "practice",
+        text: String(item.text || "").slice(0, 160),
+        confidence: LearningQuality.normalizeConfidence?.(item.confidence) || "",
+        elapsedMs: Math.max(0, Number(item.elapsedMs) || 0),
+        hintLevel: clamp(Number(item.hintLevel) || 0, 0, 3),
+        firstTryCorrect: item.firstTryCorrect === undefined ? Boolean(item.correct) : Boolean(item.firstTryCorrect),
+        diagnostic: LearningQuality.normalizeDiagnostic?.(item.diagnostic) || "uncertain",
+        difficultyScore: clamp(Number(item.difficultyScore) || 0, 0, 5),
+        masteryDelta: clamp(Number(item.masteryDelta) || 0, -20, 20)
       };
     }
     function migrateOldWrongbook() {
@@ -1640,6 +1648,7 @@
       answerMode: "auto",
       currentSet: [],
       recentQuestionKeys: [],
+      recentQuestionFamilyKeys: [],
       index: 0,
       checked: false,
       correct: 0,
@@ -1654,9 +1663,14 @@
       printBlockedReason: "",
       printSignature: "",
       pendingImport: null,
+      customBankImportPreview: null,
+      selectedBankId: "",
       practiceLayer: "setup",
       practiceReturnState: { layer: "setup", typeSettingsOpen: false },
       stepHintOpen: false,
+      hintLevel: 0,
+      selectedConfidence: "",
+      questionStartedAt: 0,
       setStartedAt: 0,
       setElapsedMs: 0,
       timerId: null,
@@ -1670,6 +1684,7 @@
       petRoomWalkMotionTimer: null,
       petTaskClaimLocks: new Set(),
       petItemActionLocks: new Set(),
+      petDressupPreview: null,
       theme: safeThemeId(storageGet(STORE.theme, document.documentElement.dataset.theme || "classic")),
       subject: safeSubjectId(storageGet(STORE.subject, "math")),
       musicOn: storageGet(STORE.music, "false") === "true",
@@ -1739,10 +1754,6 @@
     }
     function dailyGoal(profile = activeProfile()) {
       return clamp(Number(profile.settings?.dailyGoal) || 20, 5, 200);
-    }
-    function accuracyOf(items) {
-      if (!items.length) return 0;
-      return Math.round(items.filter((item) => item.correct).length / items.length * 100);
     }
     function learningDaysFor(profile = activeProfile()) {
       const days = new Set(profile.history.map((item) => item.date));
@@ -2099,11 +2110,24 @@
       const stage = petStageCopy(petGrowthStage(pet), profile);
       const done = todayItems(profile).length;
       const goal = dailyGoal(profile);
+      const dailyPlan = window.MathCampDailyLearningPlan?.buildPlan?.({
+        profile,
+        grade: profile.grade || state.grade,
+        subject: activeSubjectId(),
+        setSize: state.setSize || profile.settings?.setSize || 10,
+        dueCount: dueWrongbook(profile, profile.grade || state.grade).length,
+        dateKey: todayKey()
+      });
       if (els.homePlanCopy) {
         const first = weak[0];
+        const prefix = dailyPlan?.mode === "diagnostic" ? "学习数据还不够，今天先完成起始诊断" : "今天按掌握情况智能组卷";
         els.homePlanCopy.textContent = first
-          ? `${subjectMeta.label} · ${subjectMeta.themeLabel}：先复习到期错题，再练"${first.label}"，最后用小测或闯关收尾。`
-          : `${subjectMeta.label} · ${subjectMeta.themeLabel}：先复习到期错题，再完成一组基础练习，最后用小测或闯关收尾。`;
+          ? `${subjectMeta.label} · ${prefix}，重点关注“${first.label}”。`
+          : `${subjectMeta.label} · ${prefix}，完成后会更新知识点掌握状态。`;
+      }
+      if (els.homePlanMix && dailyPlan) {
+        els.homePlanMix.innerHTML = `<strong>${escapeHTML(dailyPlan.title)}</strong>${dailyPlan.segments.map((segment) => `
+          <span data-plan-segment="${escapeAttr(segment.id)}"><b>${segment.count}题</b><em>${escapeHTML(segment.label)} ${segment.ratio}%</em></span>`).join("")}`;
       }
       if (els.homeCockpitMeter) {
         const quality = petLearningQuality(profile);
@@ -2267,7 +2291,7 @@
       if (profile) profile.updatedAt = Date.now();
       if (profile && SubjectRegistry.syncBoundSubject) SubjectRegistry.syncBoundSubject(profile, activeSubjectId());
       const profilesForSave = state.profiles
-        .map((item) => normalizeProfile(JSON.parse(JSON.stringify(item || {}))))
+        .map((item) => normalizeProfile(cloneForStorage(item)))
         .filter(Boolean);
       const payloadProfiles = profilesForSave.length ? profilesForSave : state.profiles;
       const payloadActiveId = payloadProfiles.some((item) => item.id === state.activeId)
@@ -2278,15 +2302,62 @@
       const ok = Boolean(savedProfiles && savedActive);
       if (!savedProfiles || !savedActive) {
         console.warn("学习数据暂时无法写入本地存储，请导出备份后再继续大量练习。");
-        updateSaveStatus(false);
+        handleSaveFailure();
       } else {
+        localSaveFailureStreak = 0;
         updateSaveStatus(true);
+        localProfileMutationVersion += 1;
         if (window.MathCampCloudSync && window.MathCampCloudSync.isSyncEnabled()) {
           window.MathCampCloudSync.scheduleSync(payloadProfiles, payloadActiveId);
         }
       }
       renderChrome();
       return ok;
+    }
+    // 防抖保存：合并短时间内的多次保存请求（如连续答题），减少对主线程和
+    // localStorage 的频繁写入。仅用于不依赖同步返回值的高频路径；关键操作
+    // （购买、领奖、改档案）仍直接调用 saveProfiles() 以便即时拿到成功与否。
+    function scheduleSaveProfiles() {
+      if (saveProfilesTimer) clearTimeout(saveProfilesTimer);
+      saveProfilesTimer = setTimeout(() => {
+        saveProfilesTimer = null;
+        saveProfiles();
+      }, SAVE_DEBOUNCE_MS);
+    }
+    // 立即写入任何挂起的防抖保存，用于页面隐藏/关闭前确保数据落盘。
+    function flushPendingSaveProfiles() {
+      if (!saveProfilesTimer) return;
+      clearTimeout(saveProfilesTimer);
+      saveProfilesTimer = null;
+      saveProfiles();
+    }
+    // 深拷贝档案用于写入：优先使用 structuredClone（更快、无需二次序列化），
+    // 在不支持的环境下回退到 JSON 方式。
+    function cloneForStorage(item) {
+      const source = item || {};
+      if (typeof structuredClone === "function") {
+        try {
+          return structuredClone(source);
+        } catch (_) {
+          // 含不可克隆字段时回退到 JSON。
+        }
+      }
+      return JSON.parse(JSON.stringify(source));
+    }
+    // 连续写入失败时，主动引导用户导出备份，避免学习记录默默丢失。
+    function handleSaveFailure() {
+      localSaveFailureStreak += 1;
+      updateSaveStatus(false);
+      if (localSaveFailureStreak < LOCAL_SAVE_FAILURE_ALERT_THRESHOLD) return;
+      if (localSaveBackupPromptShown) return;
+      localSaveBackupPromptShown = true;
+      if (UI && typeof UI.notify === "function") {
+        UI.notify("本地存储已满或不可写，正在为你自动导出备份，请妥善保存文件。", { tone: "bad", duration: 6000 });
+      }
+      // 自动触发一次导出，尽量抢救当前进度。
+      if (typeof exportData === "function") {
+        Promise.resolve().then(() => exportData()).catch(() => {});
+      }
     }
     async function initCloudSync() {
       if (!window.MathCampCloudSync) return;
@@ -2295,7 +2366,19 @@
       if (savedConfig && savedConfig.url && savedConfig.anonKey) {
         var ok = await CloudSync.initSupabase(savedConfig);
         if (ok) {
+          // 记录同步开始时的本地改动版本；若首轮同步的 await 期间用户又做了题，
+          // 直接整表替换会吞掉这些新记录，这里检测到后再用当前状态重新合并一次。
+          var mutationVersionBeforeSync = localProfileMutationVersion;
           var result = await CloudSync.fullSync(state.profiles, state.activeId, collectSystemSettings());
+          if (localProfileMutationVersion !== mutationVersionBeforeSync && typeof CloudSync.mergeProfiles === "function") {
+            // 用云端合并结果与“同步期间的最新本地档案”再合并一次，保留两边的新数据。
+            result = {
+              ...result,
+              profiles: CloudSync.mergeProfiles(state.profiles, result.profiles || []),
+              activeId: state.activeId || result.activeId,
+              changed: true
+            };
+          }
           renderCloudSyncSummary(result);
           if (result.settingsChanged && result.systemSettings) {
             applySystemSettings(result.systemSettings, { touch: false, sync: false });
@@ -2575,6 +2658,18 @@
       };
       return hints[question.topic] || hints.word;
     }
+    function hintForLevel(question, level = 1) {
+      const safeLevel = clamp(Number(level) || 1, 1, 3);
+      if (safeLevel === 1) {
+        if (isChineseQuestion(question)) return "先看题目问什么，再回到短文或原文圈出直接相关的词句，作答时注意完整表达。";
+        if (isEnglishQuestion(question)) return "先看疑问词、空格前后和句子的时间信息。";
+        if (isScienceQuestion(question)) return "先分清观察到的现象、改变的条件和要解释的结论。";
+        return question?.word ? "先分开看已知条件和问题，不要急着计算。" : "先确认运算符号、单位和计算顺序。";
+      }
+      if (safeLevel === 2) return methodHintFor(question);
+      const steps = (Array.isArray(question?.steps) ? question.steps : []).slice(0, 2).map((step, index) => `${index + 1}. ${step}`).join(" ");
+      return steps || methodHintFor(question);
+    }
     function verticalSpecFromText(text) {
       const match = String(text || "").match(/用竖式计算：(.+?)\s*([+\-×÷])\s*(.+?)\s*=\s*(.+?)(?:，|$)/);
       if (!match) return null;
@@ -2615,6 +2710,11 @@
             </span>`).join("")}
         </span>`;
     }
+    function objectiveQuestionPromptHTML(question) {
+      const split = splitInlineChoiceText(question?.text);
+      if (!split) return null;
+      return `<span class="question-prompt">${escapeHTML(split.prompt)}</span>`;
+    }
     function audioPromptHTML(question) {
       if (!hasAudioPrompt(question)) return "";
       return `
@@ -2650,16 +2750,19 @@
       els.questionText.classList.toggle("word", Boolean(question?.word));
       els.questionText.classList.toggle("vertical-question", question?.topic === "vertical");
       const choiceHTML = choiceQuestionTitleHTML(question);
+      const titleHTML = choiceHTML && question?.interaction?.mode === "choice"
+        ? objectiveQuestionPromptHTML(question)
+        : choiceHTML;
       const audioHTML = audioPromptHTML(question);
       els.questionText.classList.toggle("choice-question", Boolean(choiceHTML));
       if (question?.passage) {
         els.questionText.classList.add("word");
-        els.questionText.innerHTML = `${audioHTML}<span class="question-passage">${escapeHTML(question.passage)}</span>${choiceHTML || structuredQuestionTitleHTML(question)}`;
+        els.questionText.innerHTML = `${audioHTML}<span class="question-passage">${escapeHTML(question.passage)}</span>${titleHTML || structuredQuestionTitleHTML(question)}`;
         return;
       }
-      if (choiceHTML) {
+      if (titleHTML) {
         els.questionText.classList.add("word");
-        els.questionText.innerHTML = `${audioHTML}${choiceHTML}`;
+        els.questionText.innerHTML = `${audioHTML}${titleHTML}`;
         return;
       }
       if (question?.topic !== "vertical") {
@@ -3141,18 +3244,29 @@
     const numericDistractors = interactionEngine.numericDistractors;
     const chineseAnswerValue = interactionEngine.textAnswerValue;
     const chineseChoiceOptions = interactionEngine.textChoiceOptions;
+    function questionSpecBucket(spec) {
+      const format = spec?.format || "input";
+      const questionType = String(spec?.questionType || "通用题").trim() || "通用题";
+      return `${format}:${questionType}`;
+    }
     function createRoundQuestionPicker(preferred = state.answerMode) {
-      const counters = new Map();
+      const bucketCounts = new Map();
+      const tieOffsets = new Map();
       return function pickQuestionSpec(items) {
         const list = Array.isArray(items) ? items.filter(Boolean) : [];
         if (!list.length) return undefined;
         const preferredFormat = preferred === "input" ? "input" : preferred === "choice" ? "choice" : "";
         const pool = preferredFormat ? list.filter((item) => item.format === preferredFormat) : list;
         const candidates = pool.length ? pool : list;
-        const key = candidates.map((item) => `${item.format || ""}:${item.questionType || ""}:${item.prompt || ""}`).join("|");
-        const index = counters.get(key) || 0;
-        counters.set(key, index + 1);
-        return candidates[index % candidates.length];
+        const minimum = Math.min(...candidates.map((item) => bucketCounts.get(questionSpecBucket(item)) || 0));
+        const underrepresented = candidates.filter((item) => (bucketCounts.get(questionSpecBucket(item)) || 0) === minimum);
+        const tieKey = underrepresented.map(questionSpecBucket).join("|");
+        const offset = tieOffsets.get(tieKey) || 0;
+        tieOffsets.set(tieKey, offset + 1);
+        const selected = underrepresented[offset % underrepresented.length];
+        const bucket = questionSpecBucket(selected);
+        bucketCounts.set(bucket, (bucketCounts.get(bucket) || 0) + 1);
+        return selected;
       };
     }
     function externalQuestionChanceForPoint(point) {
@@ -3161,7 +3275,7 @@
       const externalCount = externalQuestionCountForPoint(point);
       if (!externalCount) return 0;
       const localCount = localQuestionTemplateCountForPoint(point);
-      return externalCount / Math.max(1, externalCount + localCount);
+      return Math.min(0.65, externalCount / Math.max(1, externalCount + localCount));
     }
     function externalQuestionCountForPoint(point) {
       return window.MathCampExternalQuestionSeeds?.forPoint?.(point || {})?.length || 0;
@@ -3183,13 +3297,47 @@
       const target = bankPointMap()[point?.id] || pointMap[point?.id] || point;
       const fallbackPoint = choosePoint();
       if (!target && !fallbackPoint) return null;
-      if (!target) return applyQuestionInteraction(makeQuestion(fallbackPoint), preferred);
+      if (!target) return applyQuestionInteraction(enrichQuestionLearningMeta(makeQuestion(fallbackPoint)), preferred);
+      let qualityFallback = null;
       for (let attempt = 0; attempt < 16; attempt += 1) {
-        const question = makeQuestion(target, { strict: true, ...generationOptions });
+        const question = enrichQuestionLearningMeta(makeQuestion(target, { strict: true, ...generationOptions }));
         const issues = questionRuleIssues(target, question, { strict: true });
-        if (!issues.length) return applyQuestionInteraction(question, preferred);
+        if (!qualityFallback || question.learningMeta.qualityScore > qualityFallback.learningMeta.qualityScore) qualityFallback = question;
+        if (!issues.length && question.learningMeta.qualityScore >= 60) return applyQuestionInteraction(question, preferred);
       }
-      return applyQuestionInteraction(makeQuestion(target, { strict: true, ...generationOptions }), preferred);
+      return applyQuestionInteraction(qualityFallback || enrichQuestionLearningMeta(makeQuestion(target, { strict: true, ...generationOptions })), preferred);
+    }
+    function enrichQuestionLearningMeta(question) {
+      if (!question) return question;
+      const supported = enhanceQuestionTeachingSupport(question);
+      const quality = LearningQuality.scoreQuestionQuality?.(supported) || { score: 100, reasons: [] };
+      const mastery = masteryFor(activeProfile(), supported.pointId);
+      return {
+        ...supported,
+        learningMeta: {
+          ...(supported.learningMeta || {}),
+          qualityScore: quality.score,
+          qualityReasons: quality.reasons,
+          familyKey: LearningQuality.questionFamilyKey?.(supported) || questionRepeatKey(supported),
+          difficultyScore: LearningQuality.estimateDifficulty?.(supported, mastery) || clamp(Number(mastery.level) || 1, 1, 5)
+        }
+      };
+    }
+    function enhanceQuestionTeachingSupport(question) {
+      const explanation = String(question?.explanation || "").trim();
+      if (/易错提醒|检查方法/.test(explanation)) return question;
+      const pitfall = (Array.isArray(question?.commonPitfalls) ? question.commonPitfalls : []).map((item) => String(item || "").trim()).find(Boolean);
+      const subject = subjectIdFromQuestion(question);
+      const check = {
+        math: "把结果代回条件，并检查运算符号、单位和数量关系",
+        chinese: "把答案放回原句或材料，确认表达完整且有依据",
+        english: "把答案放回句子，检查词义、语法和拼写",
+        science: "用观察记录、变量或证据重新核对结论"
+      }[subject] || "把答案放回题目条件重新核对";
+      return {
+        ...question,
+        explanation: `${explanation}${explanation ? " " : ""}易错提醒：${pitfall || "不要只凭第一印象作答"}。检查方法：${check}。`
+      };
     }
     function makeDistinctQuestionForPoint(point, preferred = state.answerMode, scope = {}) {
       const target = bankPointMap()[point?.id] || pointMap[point?.id] || point;
@@ -3198,40 +3346,70 @@
       if (!target) return applyQuestionInteraction(makeQuestion(fallbackPoint), preferred);
       const used = scope.usedSignatures instanceof Set ? scope.usedSignatures : new Set();
       const avoidRepeatKeys = scope.avoidRepeatKeys instanceof Set ? scope.avoidRepeatKeys : new Set();
+      const usedFamilyKeys = scope.usedFamilyKeys instanceof Set ? scope.usedFamilyKeys : new Set();
+      const recentFamilyKeys = scope.recentFamilyKeys instanceof Set ? scope.recentFamilyKeys : new Set();
+      const baseTargetDifficulty = Number(scope.targetDifficulty) || targetDifficultyForPoint(target);
+      const targetDifficulty = LearningQuality.chainDifficultyTarget?.(scope.chainStage, baseTargetDifficulty) || baseTargetDifficulty;
       const previous = String(scope.previousSignature || "");
       let fallback = null;
       let uniqueRecentFallback = null;
+      let bestCandidate = null;
+      let bestPriority = -Infinity;
       let last = null;
       for (let attempt = 0; attempt < 32; attempt += 1) {
         const generationOptions = {
           pick: scope.pick,
           ...(scope.preferExternal ? { preferExternal: true } : {}),
           ...(scope.disableExternal || (attempt > 0 && last?.enrichment) ? { disableExternal: true } : {}),
-          ...(typeof scope.externalChance === "number" ? { externalChance: scope.externalChance } : {})
+          ...(typeof scope.externalChance === "number" ? { externalChance: scope.externalChance } : {}),
+          ...(scope.chainStage ? { chainStage: scope.chainStage } : {}),
+          difficultyLevel: Math.round(targetDifficulty)
         };
         const question = makeStrictQuestionForPoint(target, preferred, generationOptions);
         const sig = signature(question);
         const repeatKey = questionRepeatKey(question);
+        const meta = question.learningMeta || {};
+        const priority = LearningQuality.candidatePriority?.(meta, {
+          targetDifficulty,
+          usedFamilyKeys,
+          recentFamilyKeys,
+          preferredFamilyKey: scope.preferredFamilyKey,
+          avoidFamilyKey: scope.avoidFamilyKey
+        }) || 0;
         last = question;
-        if (sig !== previous && !used.has(sig) && !avoidRepeatKeys.has(repeatKey)) return question;
+        if (sig !== previous && !used.has(sig) && !avoidRepeatKeys.has(repeatKey) && priority > bestPriority) {
+          bestCandidate = question;
+          bestPriority = priority;
+        }
+        const familyMatchesScope = (!scope.preferredFamilyKey || meta.familyKey === scope.preferredFamilyKey)
+          && (!scope.avoidFamilyKey || meta.familyKey !== scope.avoidFamilyKey);
+        if (sig !== previous && !used.has(sig) && !avoidRepeatKeys.has(repeatKey)
+          && !usedFamilyKeys.has(meta.familyKey) && !recentFamilyKeys.has(meta.familyKey)
+          && familyMatchesScope && meta.qualityScore >= 60 && Math.abs((meta.difficultyScore || targetDifficulty) - targetDifficulty) <= 0.9) return question;
         if (sig !== previous && !used.has(sig) && !uniqueRecentFallback) uniqueRecentFallback = question;
         if (sig !== previous && !fallback) fallback = question;
       }
-      return uniqueRecentFallback || fallback || last || makeStrictQuestionForPoint(target, preferred, { pick: scope.pick });
+      return bestCandidate || uniqueRecentFallback || fallback || last || makeStrictQuestionForPoint(target, preferred, { pick: scope.pick });
+    }
+    function targetDifficultyForPoint(point) {
+      return LearningQuality.targetDifficultyForMastery?.(masteryFor(activeProfile(), point?.id)) || 2.5;
     }
     function buildQuestionSetForPoint(point, count, preferred = state.answerMode) {
       const target = bankPointMap()[point?.id] || pointMap[point?.id] || point;
       if (!target) return [];
       const total = clamp(Number(count) || state.setSize || 10, 1, MAX_SET_SIZE);
       const usedSignatures = new Set();
+      const usedFamilyKeys = new Set();
       const avoidRepeatKeys = recentQuestionRepeatKeys(activeProfile(), target.grade);
+      const recentFamilyKeys = recentQuestionFamilyKeySet(activeProfile(), target.grade);
       const pick = createRoundQuestionPicker(preferred);
       let previousSignature = "";
       return Array.from({ length: total }, () => {
-        const question = makeDistinctQuestionForPoint(target, preferred, { usedSignatures, previousSignature, pick, avoidRepeatKeys, externalChance: externalQuestionChanceForPoint(target) });
+        const question = makeDistinctQuestionForPoint(target, preferred, { usedSignatures, usedFamilyKeys, previousSignature, pick, avoidRepeatKeys, recentFamilyKeys, targetDifficulty: targetDifficultyForPoint(target), externalChance: externalQuestionChanceForPoint(target) });
         if (!question) return null;
         previousSignature = signature(question);
         usedSignatures.add(previousSignature);
+        if (question.learningMeta?.familyKey) usedFamilyKeys.add(question.learningMeta.familyKey);
         return question;
       }).filter(Boolean);
     }
@@ -3243,20 +3421,36 @@
       const pointsForGrade = availablePoints(state.grade);
       const sourceOffsets = {};
       const usedSignatures = new Set();
+      const usedFamilyKeys = new Set();
       const avoidRepeatKeys = recentQuestionRepeatKeys(activeProfile(), state.grade);
+      const recentFamilyKeys = recentQuestionFamilyKeySet(activeProfile(), state.grade);
       const pick = createRoundQuestionPicker(preferred);
       let previousSignature = "";
+      function pointTermBucket(point) {
+        const term = String(point?.curriculum?.term || "");
+        const upper = term.includes("上");
+        const lower = term.includes("下");
+        if (upper && !lower) return "upper";
+        if (lower && !upper) return "lower";
+        return "year";
+      }
       return plan.map((sourceType) => {
         const pool = pointsForGrade.filter((point) => point.sourceType === sourceType);
         const fallbackPool = pointsForGrade.filter((point) => point.sourceType !== "abilityLine");
-        const candidates = pool.length ? pool : fallbackPool.length ? fallbackPool : pointsForGrade;
+        let candidates = pool.length ? pool : fallbackPool.length ? fallbackPool : pointsForGrade;
         const offset = sourceOffsets[sourceType] || 0;
         sourceOffsets[sourceType] = offset + 1;
-        const point = candidates[offset % candidates.length] || choosePoint();
-        const question = makeDistinctQuestionForPoint(point, preferred, { usedSignatures, previousSignature, pick, avoidRepeatKeys, externalChance: externalQuestionChanceForPoint(point) });
+        if (sourceType === "inTextbook") {
+          const preferredTerm = offset % 2 === 0 ? "upper" : "lower";
+          const termCandidates = candidates.filter((point) => pointTermBucket(point) === preferredTerm);
+          if (termCandidates.length) candidates = termCandidates;
+        }
+        const point = candidates[Math.floor(offset / (sourceType === "inTextbook" ? 2 : 1)) % candidates.length] || choosePoint();
+        const question = makeDistinctQuestionForPoint(point, preferred, { usedSignatures, usedFamilyKeys, previousSignature, pick, avoidRepeatKeys, recentFamilyKeys, targetDifficulty: targetDifficultyForPoint(point), externalChance: externalQuestionChanceForPoint(point) });
         if (!question) return null;
         previousSignature = signature(question);
         usedSignatures.add(previousSignature);
+        if (question.learningMeta?.familyKey) usedFamilyKeys.add(question.learningMeta.familyKey);
         return question;
       }).filter(Boolean);
     }
@@ -3277,7 +3471,10 @@
         makeStrictQuestionForPoint,
         pointMap: bankPointMap(),
         avoidRepeatKeys: recentQuestionRepeatKeys(activeProfile(), state.grade),
+        recentFamilyKeys: recentQuestionFamilyKeySet(activeProfile(), state.grade),
         recentPointIds: recentQuestionPointIds(activeProfile(), state.grade),
+        questionFamilyKey: LearningQuality.questionFamilyKey,
+        targetDifficultyForPoint,
         createRoundQuestionPicker,
         shuffle,
         signature,
@@ -3286,7 +3483,17 @@
       }, count, preferred);
     }
     function buildSmartDailyQuestionSet(count = state.setSize, preferred = state.answerMode) {
-      return window.MathCampPracticeEngine.buildAdaptiveQuestionSet({
+      const profile = activeProfile();
+      const dailyPlan = window.MathCampDailyLearningPlan?.buildPlan?.({
+        profile,
+        grade: state.grade,
+        subject: activeSubjectId(),
+        setSize: count,
+        dueCount: dueWrongbook(profile, state.grade).length,
+        dateKey: todayKey()
+      }) || null;
+      if (dailyPlan) profile.learningPlan = dailyPlan;
+      return window.MathCampPracticeEngine.buildDailyQuestionSet({
         activeProfile,
         applyQuestionInteraction,
         availablePoints,
@@ -3299,20 +3506,72 @@
         makeStrictQuestionForPoint,
         pointMap: bankPointMap(),
         avoidRepeatKeys: recentQuestionRepeatKeys(activeProfile(), state.grade),
+        recentFamilyKeys: recentQuestionFamilyKeySet(activeProfile(), state.grade),
         recentPointIds: recentQuestionPointIds(activeProfile(), state.grade),
+        questionFamilyKey: LearningQuality.questionFamilyKey,
+        targetDifficultyForPoint,
         createRoundQuestionPicker,
         shuffle,
         signature,
         state,
-        weakestPoints
-      }, count, preferred).map((question) => ({
+        weakestPoints,
+        dailyPlan
+      }, count, preferred, dailyPlan).map((question) => ({
         ...question,
         dailySmart: true,
+        diagnostic: dailyPlan?.mode === "diagnostic",
         reviewSource: question.reviewSource || "fresh"
       }));
     }
+    function buildWeeklyReviewQuestionSet(count = state.setSize, preferred = state.answerMode) {
+      const total = clamp(Number(count) || state.setSize || 10, 1, MAX_SET_SIZE);
+      const profile = activeProfile();
+      const weeklyNeed = new Map();
+      currentWeekItems(profile).forEach((item) => {
+        if (Number(item.grade || state.grade) !== Number(state.grade)) return;
+        if (item.subject && item.subject !== activeSubjectId()) return;
+        const pointId = item.pointId;
+        if (!pointId || pointId === "auto") return;
+        const need = (item.correct ? 0 : 4) + (Number(item.hintLevel) || 0) + (item.confidence === "guess" ? 2 : item.confidence === "unsure" ? 1 : 0);
+        weeklyNeed.set(pointId, (weeklyNeed.get(pointId) || 0) + need);
+      });
+      dueWrongbook(profile, state.grade).forEach((item) => {
+        const pointId = item?.question?.pointId;
+        if (pointId) weeklyNeed.set(pointId, (weeklyNeed.get(pointId) || 0) + 6);
+      });
+      const candidates = availablePoints(state.grade).slice().sort((a, b) => {
+        const needDiff = (weeklyNeed.get(b.id) || 0) - (weeklyNeed.get(a.id) || 0);
+        if (needDiff) return needDiff;
+        return (masteryFor(profile, a.id).score || 0) - (masteryFor(profile, b.id).score || 0);
+      });
+      const usedSignatures = new Set();
+      const usedFamilyKeys = new Set();
+      const avoidRepeatKeys = recentQuestionRepeatKeys(profile, state.grade);
+      const recentFamilyKeys = recentQuestionFamilyKeySet(profile, state.grade);
+      const pickQuestion = createRoundQuestionPicker(preferred);
+      let previousSignature = "";
+      return Array.from({ length: total }, (_, index) => {
+        const point = candidates[index % Math.max(1, candidates.length)] || choosePoint();
+        const question = makeDistinctQuestionForPoint(point, preferred, {
+          usedSignatures,
+          usedFamilyKeys,
+          previousSignature,
+          pick: pickQuestion,
+          avoidRepeatKeys,
+          recentFamilyKeys,
+          targetDifficulty: targetDifficultyForPoint(point),
+          externalChance: externalQuestionChanceForPoint(point)
+        });
+        if (!question) return null;
+        previousSignature = signature(question);
+        usedSignatures.add(previousSignature);
+        if (question.learningMeta?.familyKey) usedFamilyKeys.add(question.learningMeta.familyKey);
+        return { ...question, weeklyReview: true, reviewSource: "weekly" };
+      }).filter(Boolean);
+    }
     function masteryFor(profile, pointId) {
-      if (!profile.mastery[pointId]) profile.mastery[pointId] = { attempts: 0, correct: 0, level: 1, streak: 0 };
+      if (!profile.mastery[pointId]) profile.mastery[pointId] = { attempts: 0, correct: 0, level: 1, streak: 0, score: 12, stableCorrect: 0, diagnostics: {} };
+      if (LearningQuality.normalizeMasteryState) profile.mastery[pointId] = LearningQuality.normalizeMasteryState(profile.mastery[pointId]);
       return profile.mastery[pointId];
     }
     function masteryAccuracy(profile, pointId) {
@@ -3326,9 +3585,10 @@
         .map((point) => {
           const m = masteryFor(profile, point.id);
           const accuracy = m.attempts ? m.correct / m.attempts : 0.45;
+          const masteryScore = clamp(Number(m.score) || 0, 0, 100) / 100;
           const wrongs = profile.wrongbook.filter((item) => item.question.pointId === point.id).length;
           const recentPenalty = recentPointIds.has(point.id) ? 0.22 : 0;
-          return { point, score: accuracy - wrongs * 0.08 + Math.min(m.attempts, 5) * 0.015 + recentPenalty };
+          return { point, score: (accuracy + masteryScore) / 2 - wrongs * 0.08 + Math.min(m.attempts, 5) * 0.015 + recentPenalty };
         })
         .sort((a, b) => a.score - b.score)
         .slice(0, limit)
@@ -3358,13 +3618,15 @@
       options.forEach((point) => {
         const m = masteryFor(profile, point.id);
         const accuracy = m.attempts ? m.correct / m.attempts : 0.3;
+        const masteryNeed = 1 - clamp(Number(m.score) || 0, 0, 100) / 100;
+        const diagnosticNeed = Object.values(m.diagnostics || {}).reduce((sum, value) => sum + Math.max(0, Number(value) || 0), 0);
         const wrongs = profile.wrongbook.filter((item) => item.question.pointId === point.id).length;
         const dueBoost = (dueCounts.get(point.id) || 0) * 4;
         const recentWrongs = recentWrongPointIds.filter((id) => id === point.id).length;
         const coldStart = m.attempts < 3 ? 2 : 0;
         const levelBoost = clamp(6 - (Number(m.level) || 1), 1, 5);
         const recentPenalty = recentPointIds.has(point.id) ? 10 : 0;
-        const weight = clamp(Math.round((1 - accuracy) * 8 + wrongs * 2.4 + dueBoost + recentWrongs * 1.6 + coldStart + levelBoost - recentPenalty), 0, 18);
+        const weight = clamp(Math.round((1 - accuracy) * 5 + masteryNeed * 6 + Math.min(diagnosticNeed, 5) * 0.8 + wrongs * 2.4 + dueBoost + recentWrongs * 1.6 + coldStart + levelBoost - recentPenalty), 0, 18);
         for (let i = 0; i < weight; i += 1) weighted.push(point);
       });
       return pick(weighted.length ? weighted : options);
@@ -3437,12 +3699,26 @@
       const warnings = [];
       const text = String(question?.text || "").trim();
       const explanation = String(question?.explanation || "").trim();
+      const visibleCopy = `${text}\n${explanation}`;
       const steps = Array.isArray(question?.steps) ? question.steps.filter(Boolean) : [];
       if (text.length < 5) warnings.push("题干过短");
       if (!/[？?]/.test(text)) warnings.push("题干缺少问号");
       if (explanation.length < 10) warnings.push("解析过短");
       if (steps.length < 2) warnings.push("步骤少于 2 步");
       if (point?.topic === "word" && !question?.word) warnings.push("应用题知识点未标记 word");
+      if (/参考截图|改写题|(?:PDF|DOCX).{0,24}改写|根据.{0,24}(?:PDF|DOCX).{0,24}改写|按真实试卷的做法|本题对应.+里的/.test(visibleCopy)) {
+        warnings.push("题干含学生不需要看到的制作说明");
+      }
+      const genericDistractorPhrases = ["只看字面随便猜", "不读题目直接选", "答案和题目无关"];
+      if (genericDistractorPhrases.filter((phrase) => text.includes(phrase)).length >= 2) {
+        warnings.push("干扰项使用固定万能错误话术");
+      }
+      const scienceQuestion = question?.subject === "science" || /^s\d-/.test(String(question?.pointId || ""));
+      if (scienceQuestion && point?.topic === "earth" && /天气/.test(visibleCopy) && /宇宙|天体|模型位置/.test(visibleCopy)) {
+        warnings.push("科学题混合了不相关的概念范围");
+      }
+      const quality = LearningQuality.scoreQuestionQuality?.(question);
+      if (quality && quality.score < 60) warnings.push(`题目质量分过低（${quality.score}）`);
       return warnings;
     }
     function runQuestionRuleSelfTest(sampleSize = 80) {
@@ -4445,7 +4721,8 @@
           extraHTML: canSave ? `<button class="secondary compact-btn" type="button" data-floating-pet-save-cause="${escapeAttr(cause)}">保存“${escapeHTML(cause)}”</button>` : ""
         };
       }
-      return { title: "招财提示", body: methodHintFor(question), extraHTML: "" };
+      const nextLevel = clamp((Number(state.hintLevel) || 0) + 1, 1, 3);
+      return { title: `招财第 ${nextLevel} 级提示`, body: hintForLevel(question, nextLevel), extraHTML: "" };
     }
     function openFloatingPetPanel(action = "") {
       if (!els.floatingPetPanel || !els.floatingPetMessage) return;
@@ -4460,11 +4737,12 @@
       const current = state.currentSet[state.index];
       if (action === "hint" && current) {
         state.stepHintOpen = true;
-        const hint = methodHintFor(current);
+        state.hintLevel = clamp(state.hintLevel + 1, 1, 3);
+        const hint = hintForLevel(current, state.hintLevel);
         if (els.methodHint) els.methodHint.textContent = hint;
         if (!isWaitingForCauseSave()) renderAnswerModePanel(current);
-        updatePetStatus(`招财：这题属于"${pointLabel(current.pointId)}"。${hint}`, "提示");
-        setPetAction("hint", "提示");
+        updatePetStatus(`招财：第 ${state.hintLevel} 级提示。${hint}`, "提示");
+        setPetAction("hint", `${state.hintLevel}级`);
       }
       openFloatingPetPanel(action || "hint");
     }
@@ -5536,13 +5814,14 @@
     function renderPetCarePlan(profile, pet) {
       const checklist = petCareChecklist(profile, pet);
       const done = checklist.filter((item) => item.done).length;
+      const freeCareUsed = pet.experience?.freeCareDate === todayKey();
       if (els.petCareScore) els.petCareScore.textContent = `${done}/${checklist.length}`;
       if (els.petCareChecklist) {
         els.petCareChecklist.innerHTML = checklist.map((item) => `<div class="${item.done ? "done" : ""}">
           <span>${item.done ? "✓" : "·"}</span>
           <strong>${escapeHTML(item.label)}</strong>
           <em>${escapeHTML(item.detail)}</em>
-        </div>`).join("");
+        </div>`).join("") + `<button class="${freeCareUsed ? "secondary" : "primary"} pet-free-care" type="button" data-pet-free-care ${freeCareUsed ? "disabled" : ""}>${freeCareUsed ? "今日免费照料已使用" : "今日免费照料"}</button>`;
       }
     }
     function renderPetLevelGiftCard(pet, profile = activeProfile()) {
@@ -5561,11 +5840,31 @@
         <p>奖励：金币 +${Number(pending.coins) || 0}${pending.itemId ? `，${item.name || "用品"} x${Number(pending.itemCount) || 1}` : ""}${pending.unlock ? `，解锁${petCopy(pending.unlock, profile)}` : ""}</p>
         <div class="pet-card-actions"><button class="primary" type="button" data-pet-claim-level="${pending.level}">领取礼物</button></div>`;
     }
+    function petDailyActivitiesHTML(pet) {
+      const today = todayKey();
+      const choices = typeof PetExperience.dailyChoices === "function" ? PetExperience.dailyChoices() : [];
+      const selectedChoice = pet.experience?.dailyChoiceDate === today ? pet.experience.dailyChoiceId : "";
+      const bellPlayed = pet.experience?.bellGameDate === today;
+      const bellSlot = Number(pet.experience?.bellGameSlot) || 0;
+      const bellFound = Boolean(pet.experience?.bellFound);
+      return `<div class="pet-daily-activities">
+        <div class="pet-daily-choice">
+          <strong>今日陪伴</strong>
+          <div>${choices.map((choice) => `<button class="secondary" type="button" data-pet-daily-choice="${escapeAttr(choice.id)}" ${selectedChoice ? "disabled" : ""}>${choice.icon || "🐾"} ${escapeHTML(choice.title)}</button>`).join("")}</div>
+          ${selectedChoice ? `<small>今天已经陪伴过啦，明天会有新的选择。</small>` : ""}
+        </div>
+        <div class="pet-bell-game">
+          <strong>找铃铛</strong>
+          <div>${[1, 2, 3].map((slot) => `<button class="secondary ${bellPlayed && slot === bellSlot ? "selected" : ""}" type="button" data-pet-bell-slot="${slot}" ${bellPlayed ? "disabled" : ""} aria-label="选择第 ${slot} 个垫子">${bellPlayed && slot === bellSlot ? (bellFound ? "🔔" : "🐾") : "▰"}</button>`).join("")}</div>
+          <small>${bellPlayed ? (bellFound ? "找到铃铛，奖励已经收好。" : "今天没猜中，也获得了陪伴奖励。") : "每天一次，选一个垫子看看。"}</small>
+        </div>
+      </div>`;
+    }
     function renderPetEventCard(pet, profile = activeProfile()) {
       if (!els.petEventCard) return;
       const event = currentPetEvent(pet);
       if (!event) {
-        els.petEventCard.innerHTML = `<h3>随机事件</h3><p>Lv.3 后会出现更多小窝事件。</p>`;
+        els.petEventCard.innerHTML = `<h3>随机事件</h3><p>Lv.3 后会出现更多小窝事件。</p>${petDailyActivitiesHTML(pet)}`;
         return;
       }
       const progress = clamp(Number(pet.event?.progress) || 0, 0, Number(event.target) || 1);
@@ -5581,7 +5880,8 @@
         <div class="pet-card-actions">
           ${pet.event?.resolved ? `<button class="secondary" type="button" disabled>已完成</button>` : `<button class="primary" type="button" data-pet-event-practice>做 ${target - progress} 题推进</button>`}
           ${itemAction}
-        </div>`;
+        </div>
+        ${petDailyActivitiesHTML(pet)}`;
     }
     function renderPetStoryCard(pet, profile = activeProfile()) {
       if (!els.petStoryCard) return;
@@ -5746,28 +6046,36 @@
       const recommendation = petShopRecommendation(profile, pet);
       const item = recommendation?.item;
       const careLeft = item ? petCareLeft(pet, petCareKindForItem(item)) : 0;
-      const gap = item ? Math.max(0, Number(item.price || 0) - Number(pet.coins || 0)) : 0;
+      const affordability = item && typeof PetExperience.shopProgress === "function"
+        ? PetExperience.shopProgress(pet.coins, item.price)
+        : { gap: item ? Math.max(0, Number(item.price || 0) - Number(pet.coins || 0)) : 0, pct: 0, practiceSets: 0 };
+      const gap = affordability.gap;
       els.petShopAdvisor.innerHTML = item ? `
         <div>
           <strong>推荐购买：${escapeHTML(item.name)}</strong>
-          <span>${escapeHTML(recommendation.reason)} · ${gap ? `还差 ${gap} 金币` : "金币足够"}${Number.isFinite(careLeft) ? ` · 今日收益 ${careLeft} 次` : ""}</span>
+          <span>${escapeHTML(recommendation.reason)} · ${gap ? `还差 ${gap} 金币，约 ${affordability.practiceSets} 轮短练习` : "金币足够"}${Number.isFinite(careLeft) ? ` · 今日收益 ${careLeft} 次` : ""}</span>
+          <i class="pet-afford-progress"><b style="--value:${affordability.pct}%"></b></i>
         </div>
-        <button class="${gap ? "secondary" : "primary"} compact-btn" type="button" data-pet-buy="${escapeAttr(item.id)}" ${gap ? "disabled" : ""}>${gap ? "继续攒金币" : "购买"}</button>` : "";
+        <button class="${gap ? "secondary" : "primary"} compact-btn" type="button" data-pet-buy="${escapeAttr(item.id)}" ${gap ? "disabled" : ""}>${gap ? `差 ${gap} 金币` : "购买"}</button>` : "";
     }
-    function renderPetDressupPreview(profile = activeProfile(), pet = petState(profile)) {
+    function renderPetDressupPreview(profile = activeProfile(), pet = petState(profile), preview = state.petDressupPreview) {
       if (!els.petDressupPreview) return;
-      const theme = PET_ROOM_THEME_MAP[pet.roomTheme] || PET_ROOM_THEME_MAP.sunny || { title: "阳光小窝", icon: "" };
-      const outfit = pet.outfit ? PET_OUTFIT_MAP[pet.outfit] : null;
-      const furniture = equippedFurnitureList(pet);
+      const previewDef = preview ? petCollectionDef(preview.kind, preview.id) : null;
+      const themeId = preview?.kind === "theme" && previewDef ? preview.id : pet.roomTheme;
+      const outfitId = preview?.kind === "outfit" && previewDef ? preview.id : pet.outfit;
+      const theme = PET_ROOM_THEME_MAP[themeId] || PET_ROOM_THEME_MAP.sunny || { title: "阳光小窝", icon: "" };
+      const outfit = outfitId ? PET_OUTFIT_MAP[outfitId] : null;
+      const furniture = equippedFurnitureList(pet).filter((item) => !(preview?.kind === "furniture" && item.id === preview.id));
+      if (preview?.kind === "furniture" && previewDef) furniture.unshift(previewDef);
       const counts = petCollectionCounts(pet);
       els.petDressupPreview.innerHTML = `
-        <div class="pet-dressup-preview-scene" data-room-theme="${escapeAttr(pet.roomTheme || "sunny")}" data-outfit="${escapeAttr(pet.outfit || "")}">
+        <div class="pet-dressup-preview-scene" data-room-theme="${escapeAttr(themeId || "sunny")}" data-outfit="${escapeAttr(outfitId || "")}">
           <span>${theme.icon || "☀️"}</span>
           <b>${outfit?.icon || "🐾"}</b>
         </div>
         <div>
-          <strong>当前展示</strong>
-          <p>${escapeHTML(theme.title)} · ${outfit ? escapeHTML(outfit.title) : "未穿戴装扮"} · 已摆放 ${counts.equippedFurniture} 件家具</p>
+          <strong>${previewDef ? "试穿预览" : "当前展示"}</strong>
+          <p>${escapeHTML(theme.title)} · ${outfit ? escapeHTML(outfit.title) : "未穿戴装扮"} · ${previewDef?.title ? `正在预览 ${escapeHTML(previewDef.title)}` : `已摆放 ${counts.equippedFurniture} 件家具`}</p>
           <div class="pet-dressup-preview-tags">
             ${furniture.length ? furniture.slice(0, 4).map((item) => `<span>${item.icon || "✦"} ${escapeHTML(item.title)}</span>`).join("") : "<span>还没有摆放家具</span>"}
           </div>
@@ -5865,7 +6173,8 @@
       const unlockProgress = typeof PetDressupMeta.unlockProgressText === "function"
         ? PetDressupMeta.unlockProgressText(kind, item, pet, metaSources)
         : owned ? "已拥有" : levelLocked ? `还差 ${minLevel - Number(pet.level || 1)} 级` : price > Number(pet.coins || 0) ? `还差 ${price - Number(pet.coins || 0)} 金币` : "可解锁";
-      return `<article class="pet-collection-card ${owned ? "owned" : ""} ${active ? "active" : ""} ${levelLocked ? "locked" : ""}">
+      const previewActive = state.petDressupPreview?.kind === kind && state.petDressupPreview?.id === item.id;
+      return `<article class="pet-collection-card ${owned ? "owned" : ""} ${active ? "active" : ""} ${levelLocked ? "locked" : ""} ${previewActive ? "pet-preview-active" : ""}" tabindex="0" role="button" data-pet-preview="${escapeAttr(`${kind}:${item.id}`)}" aria-label="预览${escapeAttr(item.title)}">
         <div class="pet-shop-icon" aria-hidden="true">${item.icon || "✦"}</div>
         <div>
           <strong>${escapeHTML(item.title)}</strong>
@@ -5885,7 +6194,7 @@
       if (els.petDressupSummary) {
         els.petDressupSummary.textContent = `${currentTheme} · 家具 ${countTruthy(pet.ownedFurniture)} · 装扮 ${countTruthy(pet.outfits)} · ${currentOutfit}`;
       }
-      renderPetDressupPreview(profile, pet);
+      renderPetDressupPreview(profile, pet, state.petDressupPreview);
       els.petDressupGrid.innerHTML = `
         <section class="pet-collection-section">
           <div class="pet-shop-tier-head"><h3>小窝主题</h3><span>主题随宠物等级开放，金币用于真正装进小窝。</span></div>
@@ -6177,9 +6486,12 @@
         ? "等待重新领养"
         : pet.runaway?.status === "away"
           ? `${name}暂时离家了`
-          : `${name}今天在等你练习`;
+          : `${name}记得你的学习进度`;
+      const contextMessage = typeof PetExperience.contextMessage === "function"
+        ? PetExperience.contextMessage(profile, pet, Object.fromEntries(Object.entries(SUBJECTS).map(([id, meta]) => [id, meta.label])))
+        : "";
       if (els.petRoomStatus) els.petRoomStatus.textContent = pet.runaway?.status === "home"
-        ? `完成练习、复习错题和闯关会影响成长。当前状态：${petStatusLabel(pet)}。${petLearningQuality(profile).label}会影响经验、心情和亲密。${petCareHint(pet)}`
+        ? `${contextMessage} 当前状态：${petStatusLabel(pet)}。${petCareHint(pet)}`
         : pet.runaway?.status === "away"
           ? `完成一轮练习可以找回${name}。`
           : "重新领养后可以继续从 1 级开始养成。";
@@ -6188,10 +6500,21 @@
           .slice()
           .sort((a, b) => Number(a.minLevel || 1) - Number(b.minLevel || 1))
           .find((item) => Number(item.minLevel || 1) > Number(pet.level || 1));
+        const nextCollection = nextCollectionGoal(pet);
+        const nextLevelReward = PET_LEVEL_REWARDS.find((reward) => Number(reward.level) > Number(pet.level));
+        const xpLeft = PET_XP_PER_LEVEL - xpInLevel;
+        const collectionCopy = nextCollection
+          ? nextCollection.levelGap > 0
+            ? `收藏目标：Lv.${nextCollection.item.minLevel} 解锁${nextCollection.item.title}`
+            : nextCollection.coinGap > 0
+              ? `收藏目标：${nextCollection.item.title}还差 ${nextCollection.coinGap} 金币`
+              : `收藏目标：${nextCollection.item.title}现在可以解锁`
+          : "收藏目标已全部完成";
         els.petStageCard.innerHTML = `
           <strong>${escapeHTML(stage.name)}</strong>
           <span>${escapeHTML(stage.copy)}</span>
           <em>${nextStage ? `Lv.${nextStage.minLevel} 解锁${petCopy(nextStage.name, profile)}` : "成长阶段已全部解锁"}</em>
+          <div class="pet-next-goal"><b>下一个目标</b><span>${escapeHTML(collectionCopy)}</span><small>${nextLevelReward ? `再获得 ${xpLeft} 经验接近 Lv.${pet.level + 1}，后续礼物：${petCopy(nextLevelReward.title, profile)}` : `再获得 ${xpLeft} 经验升级`}</small></div>
           ${petLearningQualityHTML(profile, pet)}`;
       }
       if (els.petSpaceLevel) els.petSpaceLevel.textContent = `${stage.name} · Lv.${pet.level}`;
@@ -6235,6 +6558,9 @@
           <div class="pet-shop-tier-grid">
             ${items.map((item) => {
               const afford = pet.coins >= item.price && pet.runaway?.status !== "lost";
+              const affordability = typeof PetExperience.shopProgress === "function"
+                ? PetExperience.shopProgress(pet.coins, item.price)
+                : { gap: Math.max(0, item.price - pet.coins), pct: 0, practiceSets: 0 };
               const careKind = petCareKindForItem(item);
               const left = careKind ? petCareLeft(pet, careKind) : Infinity;
               const recommended = item.id === recommendedShopItem;
@@ -6243,8 +6569,9 @@
                 <strong>${escapeHTML(item.name)}</strong>
                 <small>${recommended ? "推荐 · " : ""}${tierLabels[tier]}${Number.isFinite(left) ? ` · 今日 ${left} 次` : ""}</small>
                 <div class="pet-shop-buy">
-                  <span>${item.price} 金币</span>
-                  <button class="primary" type="button" data-pet-buy="${item.id}" ${afford ? "" : "disabled"}>购买</button>
+                  <span>${affordability.gap ? `还差 ${affordability.gap} 金币 · 约 ${affordability.practiceSets} 轮` : `${item.price} 金币`}</span>
+                  <i class="pet-afford-progress"><b style="--value:${affordability.pct}%"></b></i>
+                  <button class="primary" type="button" data-pet-buy="${item.id}" ${afford ? "" : "disabled"}>${afford ? "购买" : `差 ${affordability.gap} 金币`}</button>
                 </div>
               </article>`;
             }).join("")}
@@ -6377,6 +6704,7 @@
     function closePetModals(options = {}) {
       const except = options.except || null;
       const openModals = [els.petShopModal, els.petBagModal, els.petTaskModal, els.petCarePanelModal, els.petGrowthPanelModal, els.petPlanMenuModal, els.petDressupModal, els.petThemeShopModal, els.petAchievementModal].filter((modal) => modal && modal !== except && !modal.hidden);
+      if (openModals.includes(els.petDressupModal)) state.petDressupPreview = null;
       openModals.forEach((modal, index) => {
         closeWithMotion(modal, index === openModals.length - 1 ? () => {
           if (!except || except.hidden) document.body.classList.remove("pet-modal-open");
@@ -6390,6 +6718,7 @@
         closePetModals();
         return;
       }
+      if (modal === els.petDressupModal) state.petDressupPreview = null;
       if (modal.dataset.returnPetPlan === "true") {
         delete modal.dataset.returnPetPlan;
         closeWithMotion(modal, () => openPetModal("plan"));
@@ -6405,12 +6734,13 @@
         const rate = attempts ? Math.round((Number(mastery.correct) || 0) / attempts * 100) : 0;
         const wrong = (profile.wrongbook || []).filter((item) => item.question?.pointId === point.id).length;
         const due = dueWrongbook(profile, grade).filter((item) => item.question?.pointId === point.id).length;
-        const level = attempts >= 8 && rate >= 85 && !wrong ? "mastered" : wrong || due || (attempts >= 3 && rate < 75) ? "weak" : attempts ? "learning" : "new";
+        const level = window.MathCampDailyLearningPlan?.masteryStatus?.(mastery, { wrongs: wrong, due })?.id
+          || (attempts >= 8 && rate >= 85 && !wrong ? "mastered" : wrong || due || (attempts >= 3 && rate < 75) ? "weak" : attempts ? "learning" : "new");
         return { point, attempts, rate, wrong, due, level };
       });
     }
     function knowledgeMapLevelLabel(level) {
-      return { mastered: "已掌握", learning: "学习中", weak: "需巩固", new: "待开启" }[level] || "学习中";
+      return { mastered: "已掌握", learning: "学习中", weak: "需要巩固", new: "未学习" }[level] || "学习中";
     }
     function renderLearningKnowledgeMap(profile = activeProfile()) {
       if (!els.learningKnowledgeMap) return;
@@ -6658,6 +6988,26 @@
       applyPetLevel(pet);
     }
 
+    function nextPetCareReaction(pet, kind, profile = activeProfile()) {
+      pet.experience = typeof PetExperience.normalizeExperience === "function"
+        ? PetExperience.normalizeExperience(pet, todayKey())
+        : (pet.experience || {});
+      const sequence = Number(pet.experience.careSequence) || 0;
+      pet.experience.careSequence = sequence + 1;
+      return typeof PetExperience.careReaction === "function"
+        ? PetExperience.careReaction(kind, petDisplayName(profile), sequence)
+        : `${petDisplayName(profile)}很开心。`;
+    }
+
+    function triggerPetCollectionUnlock() {
+      window.MathCampVisualPolish?.setPetReaction?.("reward", 1100);
+      if (!els.petRoomStage) return;
+      els.petRoomStage.classList.remove("collection-unlocked");
+      void els.petRoomStage.offsetWidth;
+      els.petRoomStage.classList.add("collection-unlocked");
+      window.setTimeout(() => els.petRoomStage?.classList.remove("collection-unlocked"), 900);
+    }
+
     function usePetItem(id) {
       const item = PET_ITEM_MAP[id];
       if (!item) return;
@@ -6702,6 +7052,7 @@
       });
       pet.inventory[id] -= 1;
       applyPetItemEffects(pet, item);
+      const reaction = nextPetCareReaction(pet, careKind || "encourage", profile);
       const wishDone = finishPetWishWithItem(id, pet);
       const careDone = updatePetCareMemory(profile, pet);
       if (!saveProfiles()) {
@@ -6723,7 +7074,7 @@
       showItemFloatText(id, "-1", "var(--danger)", "use");
       renderPetSpace(profile);
       closePetModals();
-      updatePetStatus(`${petDisplayName(profile)}使用了${item.name}。${item.desc}。${wishDone ? "今日心愿也完成了。" : ""}${careDone ? "今日照料清单完成，亲密增加。" : ""}`, wishDone ? "心愿" : "舒服");
+      updatePetStatus(`${reaction}${wishDone ? " 今日心愿也完成了。" : ""}${careDone ? " 今日照料清单完成，亲密增加。" : ""}`, wishDone ? "心愿" : "舒服");
       setPetAction(careKind === "feed" ? "fed" : careKind === "clean" ? "clean" : careKind === "play" ? "play" : "comfy", "舒服");
     }
 
@@ -6788,8 +7139,11 @@
         return;
       }
       renderPetSpace(profile);
+      state.petDressupPreview = null;
       renderPetDressup(profile);
       updatePetStatus(`${petDisplayName(profile)}解锁了${def.title}。`, "新收藏");
+      triggerPetCollectionUnlock();
+      UI.notify(`已解锁：${def.title}`);
     }
     function equipPetCollection(kind, id) {
       const def = petCollectionDef(kind, id);
@@ -6807,8 +7161,10 @@
       }
       if (!saveProfiles()) return;
       renderPetSpace(profile);
+      state.petDressupPreview = null;
       renderPetDressup(profile);
       updatePetStatus(`${petDisplayName(profile)}更新了${def.title}。`, kind === "outfit" ? "换装" : "装扮");
+      triggerPetCollectionUnlock();
     }
     function buySystemTheme(id) {
       const themeId = safeThemeId(id);
@@ -6877,6 +7233,7 @@
       renderPetAchievements(profile);
       renderPetDressup(profile);
       updatePetStatus(`${petDisplayName(profile)}完成成就：${achievement.title}。`, "成就");
+      triggerPetCollectionUnlock();
       UI.notify(`成就奖励已领取：${achievement.title}`);
     }
 
@@ -6895,6 +7252,7 @@
       if (!saveProfiles()) return;
       renderPetSpace(profile);
       updatePetStatus(`${petDisplayName(profile)}升到 Lv.${reward.level}，领取了${reward.title}。`, "升级礼物");
+      triggerPetCollectionUnlock();
       UI.notify(`已领取 Lv.${reward.level} 成长礼物。`);
     }
 
@@ -6916,6 +7274,7 @@
       if (!saveProfiles()) return;
       renderPetSpace(profile);
       updatePetStatus(`${petDisplayName(profile)}完成了故事：${chapter.title}。`, "故事完成");
+      triggerPetCollectionUnlock();
       UI.notify(`剧情奖励已领取：金币 +${Number(chapter.rewardCoins) || 0}`);
     }
 
@@ -7000,7 +7359,7 @@
       els.streakStat.textContent = state.streak;
       els.gradeTag.textContent = gradeNames[state.grade - 1];
       els.pointTag.textContent = current ? pointLabel(current.pointId) : pointLabel(state.pointId);
-      els.modeTag.textContent = state.mode === "due-review" ? "到期错题复习" : state.mode === "wrongbook" ? "错题复练" : state.mode === "similar" ? "同类巩固" : state.mode === "weak" ? "薄弱点练习" : state.mode === "timed" ? "限时小测" : state.mode === "appendix" ? "附加题挑战" : state.mode === "hard-word" ? "应用题强化" : state.mode === "logic-reading" ? "思维阅读训练" : state.mode === "custom-bank" ? `校内题库：${state.customBankMeta?.name || "练习"}` : state.mode === "challenge" ? `闯关第 ${state.challengeMeta?.level || 1} 关` : "普通练习";
+      els.modeTag.textContent = state.mode === "due-review" ? "到期错题复习" : state.mode === "weekly-review" ? "本周综合复习" : state.mode === "wrongbook" ? "错题复练" : state.mode === "similar" ? "同类巩固" : state.mode === "weak" ? "薄弱点练习" : state.mode === "timed" ? "限时小测" : state.mode === "appendix" ? "附加题挑战" : state.mode === "hard-word" ? "应用题强化" : state.mode === "logic-reading" ? "思维阅读训练" : state.mode === "custom-bank" ? `校内题库：${state.customBankMeta?.name || "练习"}` : state.mode === "challenge" ? `闯关第 ${state.challengeMeta?.level || 1} 关` : "普通练习";
       els.progressDots.innerHTML = "";
       for (let i = 0; i < total; i += 1) {
         const dot = document.createElement("span");
@@ -7063,6 +7422,27 @@
     function isWaitingForCauseSave() {
       return Boolean(state.checked && state.lastWrongRecordId && els.causePanel?.classList.contains("active"));
     }
+    function setSelectedConfidence(value = "") {
+      state.selectedConfidence = LearningQuality.normalizeConfidence?.(value) || "";
+      els.confidenceControl?.querySelectorAll("[data-confidence]").forEach((button) => {
+        button.setAttribute("aria-pressed", String(button.dataset.confidence === state.selectedConfidence));
+      });
+    }
+    function answerPlaceholderForQuestion(question) {
+      if (question?.answerType === "formula") return "输入算式和答案，如 23+15=38";
+      if (isChineseQuestion(question)) return "根据语境输入词语或简短答案";
+      if (isEnglishQuestion(question)) return "输入英文单词或短语，注意拼写";
+      if (isScienceQuestion(question)) return "输入科学概念、现象或证据";
+      if (question?.answerType === "text" || question?.answerType === "longText" || Array.isArray(question?.acceptedAnswers)) return "输入数值、单位或简短答案";
+      return "输入数值，注意单位";
+    }
+    function answerGuidanceForQuestion(question) {
+      if (question?.answerType === "formula") return '写出完整算式和结果，再点“检查答案”；按回车也可以提交。';
+      if (isChineseQuestion(question)) return '结合材料或语境填写关键词、词语或简短答案，再检查是否答到题目要求。';
+      if (isEnglishQuestion(question)) return '填写英文单词或短语，提交前检查大小写和拼写。';
+      if (isScienceQuestion(question)) return '填写概念、观察现象或证据，答案要和题目中的实验记录对应。';
+      return '输入答案后点“检查答案”，按回车也可以提交。';
+    }
     function renderAnswerModePanel(question) {
       if (!els.answerModePanel || !question) return;
       restoreCausePanelPlacement();
@@ -7077,8 +7457,7 @@
         ? "请选择一个答案"
         : interaction.mode === "judge"
           ? "请选择对或错"
-          : question.answerType === "formula" ? "输入算式和答案，如 23+15=38"
-            : textLikeAnswer ? "在这里输入文字答案" : "在这里输入答案";
+          : answerPlaceholderForQuestion(question);
       if (interaction.mode === "input") {
         els.answerModePanel.innerHTML = "";
         return;
@@ -7296,6 +7675,57 @@
       }
       startWrongbookPractice();
     }
+    function customBankStatusLabel(status) {
+      return { review: "待审核", published: "已发布", disabled: "已停用" }[status] || "待审核";
+    }
+    function allCurriculumPointsForBankEditor() {
+      const ids = SubjectRegistry.SUBJECT_IDS || ["math", "chinese", "english", "science"];
+      return ids.flatMap((subject) => {
+        const bank = SubjectRegistry.subjectBank?.(subject);
+        return (bank?.points || []).map((point) => ({ ...point, subject: point.subject || subject }));
+      }).sort((a, b) => Number(a.grade) - Number(b.grade) || String(a.label).localeCompare(String(b.label), "zh-CN"));
+    }
+    function syncBankBulkPointOptions() {
+      if (!els.bankBulkPointSelect) return;
+      const current = els.bankBulkPointSelect.value;
+      const grade = Number(els.bankBulkGradeSelect?.value) || 0;
+      const subject = els.bankBulkSubjectSelect?.value || "";
+      const options = allCurriculumPointsForBankEditor().filter((point) => {
+        return (!grade || Number(point.grade) === grade) && (!subject || point.subject === subject);
+      });
+      els.bankBulkPointSelect.innerHTML = `<option value="">知识点保持不变</option><option value="__clear__">取消知识点关联</option>`
+        + options.map((point) => `<option value="${escapeAttr(point.id)}">${escapeHTML(`${gradeNames[point.grade - 1]} · ${point.label}`)}</option>`).join("");
+      els.bankBulkPointSelect.value = options.some((point) => point.id === current) || current === "__clear__" ? current : "";
+      syncCustomSelects();
+    }
+    function renderBankReviewToolbar(bank, audit) {
+      if (!els.bankReviewToolbar) return;
+      if (!bank || !audit) {
+        els.bankReviewToolbar.hidden = true;
+        return;
+      }
+      els.bankReviewToolbar.hidden = false;
+      if (els.bankAuditSummary) {
+        els.bankAuditSummary.innerHTML = `<strong>${escapeHTML(customBankStatusLabel(bank.status))} · v${Number(bank.version) || 1}</strong>
+          <span>质量均分 ${audit.averageScore} · 硬问题 ${audit.counts.high} · 提醒 ${audit.counts.medium} · 可直接使用 ${audit.counts.ok}</span>`;
+        els.bankAuditSummary.className = `bank-audit-summary ${audit.canPublish ? "is-ready" : "has-risk"}`;
+      }
+      if (els.publishCustomBankBtn) {
+        els.publishCustomBankBtn.hidden = bank.status === "published";
+        els.publishCustomBankBtn.disabled = !audit.canPublish;
+        els.publishCustomBankBtn.title = audit.canPublish ? "审核通过并加入智能练习" : `请先处理 ${audit.counts.high} 道硬规则问题`;
+      }
+      if (els.disableCustomBankBtn) els.disableCustomBankBtn.hidden = bank.status === "disabled";
+      if (els.reviewCustomBankBtn) els.reviewCustomBankBtn.hidden = bank.status === "review";
+      if (els.bankVersionHistory) {
+        const history = (bank.history || []).slice(-5).reverse();
+        els.bankVersionHistory.innerHTML = history.length
+          ? history.map((item) => `<span><b>v${Number(item.version) || 1}</b>${escapeHTML(item.summary || item.action || "更新")}<em>${escapeHTML(String(item.at || "").slice(0, 10))}</em></span>`).join("")
+          : `<span class="muted">尚无版本记录。</span>`;
+      }
+      if (els.bankSelectAllQuestions) els.bankSelectAllQuestions.checked = false;
+      syncBankBulkPointOptions();
+    }
     function renderCustomBankList() {
       const CustomBank = window.MathCampCustomBank;
       if (!els.customBankList || !CustomBank) return;
@@ -7313,14 +7743,21 @@
         const when = bank.importedAt ? String(bank.importedAt).slice(0, 10) : "";
         const fmt = bank.sourceFormat ? bank.sourceFormat.toUpperCase() : "";
         const active = bank.id === state.selectedBankId;
+        const status = customBankStatusLabel(bank.status);
+        const statusAction = bank.status === "published"
+          ? `<button class="secondary" type="button" data-custom-bank-disable="${escapeAttr(bank.id)}">停用</button>`
+          : bank.status === "disabled"
+            ? `<button class="secondary" type="button" data-custom-bank-review="${escapeAttr(bank.id)}">退回审核</button>`
+            : `<button class="primary" type="button" data-custom-bank-publish="${escapeAttr(bank.id)}">审核发布</button>`;
         return `<div class="report-item ${active ? "report-item-active" : ""}" data-custom-bank-id="${escapeAttr(bank.id)}">
           <div>
-            <strong>${escapeHTML(bank.name)}</strong>
-            <div class="muted">${bank.count} 题${fmt ? ` · ${fmt}` : ""}${when ? ` · ${when}` : ""}</div>
+            <strong>${escapeHTML(bank.name)} <span class="bank-status-badge" data-status="${escapeAttr(bank.status)}">${escapeHTML(status)}</span></strong>
+            <div class="muted">${bank.enabledCount}/${bank.count} 题启用 · v${bank.version}${fmt ? ` · ${fmt}` : ""}${when ? ` · ${when}` : ""}</div>
           </div>
           <div class="row-actions">
             <button class="${active ? "primary" : "secondary"}" type="button" data-custom-bank-view="${escapeAttr(bank.id)}">查看题目</button>
             <button class="primary" type="button" data-custom-bank-practice="${escapeAttr(bank.id)}">整批练习</button>
+            ${statusAction}
             <button class="secondary" type="button" data-custom-bank-rename="${escapeAttr(bank.id)}">重命名</button>
             <button class="danger" type="button" data-custom-bank-delete="${escapeAttr(bank.id)}">删除</button>
           </div>
@@ -7339,9 +7776,12 @@
         if (els.bankDetailTitle) els.bankDetailTitle.textContent = "题目详情";
         if (els.bankDetailMeta) els.bankDetailMeta.textContent = "点击左侧「校内题库」中某个批次的「查看题目」，这里会显示该批次的全部题目。";
         els.bankDetailBody.innerHTML = `<p class="bank-detail-empty muted">还没有选择题库批次。</p>`;
+        renderBankReviewToolbar(null, null);
         return;
       }
       const questions = Array.isArray(bank.questions) ? bank.questions : [];
+      const audit = CustomBank.auditBank?.(bankId) || { counts: { high: 0, medium: 0, low: 0, ok: questions.length }, averageScore: 100, canPublish: true, rows: [] };
+      renderBankReviewToolbar(bank, audit);
       // 有图片则先解析
       if (bank.hasImages && typeof CustomBank.resolveBankImages === "function") {
         await CustomBank.resolveBankImages(bankId);
@@ -7365,6 +7805,7 @@
       }
       els.bankDetailBody.innerHTML = questions.map((q, index) => {
         const type = q.answerType || "text";
+        const auditRow = audit.rows?.[index] || { highestSeverity: "ok", score: 100, issues: [] };
         const pointBadge = q.pointId
           ? `<span class="bank-q-badge is-point">${escapeHTML(pointLabel(q.pointId))}</span>`
           : `<span class="bank-q-badge is-loose">未关联知识点</span>`;
@@ -7398,12 +7839,17 @@
         const explanation = q.explanation
           ? `<div class="bank-q-explain"><span class="bank-q-label">解析</span>${escapeHTML(String(q.explanation))}</div>`
           : "";
-        return `<article class="bank-q-item">
+        const qualityLabel = auditRow.highestSeverity === "high" ? "硬问题" : auditRow.highestSeverity === "medium" ? "需完善" : auditRow.highestSeverity === "low" ? "小提醒" : "质量通过";
+        const issueText = auditRow.issues?.length ? auditRow.issues.map((item) => item.message).join("；") : "答案、题型和元数据检查通过";
+        return `<article class="bank-q-item ${q.enabled === false ? "is-disabled" : ""}">
           <div class="bank-q-top">
+            <label class="bank-q-select"><input type="checkbox" data-bank-q-select="${escapeAttr(q.id)}" aria-label="选择第 ${index + 1} 题" /></label>
             <span class="bank-q-index">${index + 1}</span>
             <span class="bank-q-type">${bankAnswerTypeLabel(type)}</span>
             ${pointBadge}
             ${imageBadge}
+            <span class="bank-q-badge quality-${escapeAttr(auditRow.highestSeverity)}" title="${escapeAttr(issueText)}">${escapeHTML(qualityLabel)} ${auditRow.score}</span>
+            <label class="bank-q-enable"><input type="checkbox" data-bank-q-enabled="${escapeAttr(q.id)}" ${q.enabled !== false ? "checked" : ""} /><span>${q.enabled !== false ? "启用" : "停用"}</span></label>
           </div>
           ${imageHtml}
           ${stem}
@@ -7428,29 +7874,79 @@
         }
       });
     }
-    async function importCustomBankFromUI() {
-      const Excel = window.MathCampQuestionBankExcel;
-      const CustomBank = window.MathCampCustomBank;
-      const status = els.customBankImportStatus;
-      if (!Excel || !CustomBank) {
-        if (status) status.textContent = "导入模块未加载。";
+    function renderCustomBankImportPreview(preview) {
+      if (!els.customBankPreview) return;
+      if (!preview?.result) {
+        els.customBankPreview.hidden = true;
+        els.customBankPreview.innerHTML = "";
+        if (els.importCustomBankBtn) els.importCustomBankBtn.disabled = true;
         return;
       }
+      const { result, audit } = preview;
+      const issues = (audit.rows || []).flatMap((row, index) => row.issues.map((item) => ({ ...item, index: index + 1 }))).slice(0, 8);
+      els.customBankPreview.hidden = false;
+      els.customBankPreview.innerHTML = `<div class="bank-preview-summary">
+          <strong>解析完成：${result.questions.length} 题</strong>
+          <span>质量均分 ${audit.averageScore} · 硬问题 ${audit.counts.high} · 提醒 ${audit.counts.medium} · 跳过 ${result.skipped.length} 行</span>
+        </div>
+        ${issues.length ? `<ul>${issues.map((item) => `<li><b>第 ${item.index} 题</b>${escapeHTML(item.message)}</li>`).join("")}</ul>` : `<p>当前预览未发现答案、题型或元数据问题。</p>`}
+        <p class="muted">确认后只会进入待审核区，不会立即混入学生的智能练习。</p>`;
+      if (els.importCustomBankBtn) els.importCustomBankBtn.disabled = false;
+    }
+    async function prepareCustomBankImportFromUI() {
+      const Excel = window.MathCampQuestionBankExcel;
+      const Audit = window.MathCampQuestionQualityAudit;
+      const status = els.customBankImportStatus;
       const file = els.customBankFileInput?.files?.[0];
+      if (!Excel || !Audit) {
+        if (status) status.textContent = "导入预览模块未加载。";
+        return;
+      }
       if (!file) {
         if (status) status.textContent = "请先选择一个 .xlsx 或 .csv 文件。";
         return;
       }
-      if (status) status.textContent = "正在导入...";
+      if (status) status.textContent = "正在解析并检查题目...";
       try {
         const input = await readFileForImport(file);
         const nameFromFile = String(file.name || "").replace(/\.(xlsx|csv)$/i, "");
         const bankName = (els.customBankNameInput?.value || "").trim() || nameFromFile || "校内题库";
         const result = Excel.parseImportFile(input, { bankName });
         if (!result.questions.length) {
-          if (status) status.textContent = `没有导入任何题目（共 ${result.totalRows} 行，跳过 ${result.skipped.length} 行）。请检查文件格式。`;
+          state.customBankImportPreview = null;
+          renderCustomBankImportPreview(null);
+          if (status) status.textContent = `没有解析出题目（共 ${result.totalRows} 行，跳过 ${result.skipped.length} 行）。`;
           return;
         }
+        const audit = Audit.auditQuestions(result.questions);
+        state.customBankImportPreview = { fileName: file.name, bankName, result, audit };
+        renderCustomBankImportPreview(state.customBankImportPreview);
+        if (status) status.textContent = audit.canPublish
+          ? "预览完成。确认后进入待审核，可继续批量维护后发布。"
+          : `预览完成，发现 ${audit.counts.high} 道硬规则问题；导入后需修正才能发布。`;
+      } catch (error) {
+        state.customBankImportPreview = null;
+        renderCustomBankImportPreview(null);
+        if (status) status.textContent = `解析失败：${error?.message || error}`;
+      }
+    }
+    async function importCustomBankFromUI() {
+      const CustomBank = window.MathCampCustomBank;
+      const status = els.customBankImportStatus;
+      if (!CustomBank) {
+        if (status) status.textContent = "导入模块未加载。";
+        return;
+      }
+      const preview = state.customBankImportPreview;
+      const file = els.customBankFileInput?.files?.[0];
+      if (!preview?.result || !file || preview.fileName !== file.name) {
+        if (status) status.textContent = "请先解析并预览当前文件。";
+        return;
+      }
+      if (status) status.textContent = "正在导入...";
+      try {
+        const result = preview.result;
+        const bankName = (els.customBankNameInput?.value || "").trim() || preview.bankName;
         // 处理关联图片：按文件名匹配用户选择的图片，存入 IndexedDB
         const Images = window.MathCampBankImages;
         const neededImages = Array.isArray(result.imageNames) ? result.imageNames : [];
@@ -7463,7 +7959,8 @@
           name: bankName,
           questions: result.questions,
           sourceFormat: result.sourceFormat,
-          hasImages: neededImages.length > 0
+          hasImages: neededImages.length > 0,
+          status: "review"
         });
         if (neededImages.length && Images) {
           for (const imageName of neededImages) {
@@ -7484,11 +7981,13 @@
         if (els.customBankImageInput) els.customBankImageInput.value = "";
         if (els.customBankImageName) els.customBankImageName.textContent = "未选择图片";
         if (els.customBankNameInput) els.customBankNameInput.value = "";
+        state.customBankImportPreview = null;
+        renderCustomBankImportPreview(null);
         const skipNote = result.skipped.length ? `，跳过 ${result.skipped.length} 行（格式不全）` : "";
         const imgNote = neededImages.length
           ? `，图片 ${matchedImages}/${neededImages.length} 张已关联${missingImages ? `（${missingImages} 张缺文件）` : ""}`
           : "";
-        if (status) status.textContent = `已导入「${bankName}」：${result.questions.length} 题${skipNote}${imgNote}。`;
+        if (status) status.textContent = `已导入待审核批次「${bankName}」：${result.questions.length} 题${skipNote}${imgNote}。审核发布前不会混入日常练习。`;
       } catch (error) {
         if (status) status.textContent = `导入失败：${error?.message || error}`;
       }
@@ -7529,6 +8028,30 @@
       renderPracticeQuestion();
       enterPracticeFocus();
       startRoundTimer();
+    }
+    function publishCustomBankFromUI(bankId = state.selectedBankId) {
+      const CustomBank = window.MathCampCustomBank;
+      const result = CustomBank?.publishBank?.(bankId);
+      if (!result?.ok) {
+        UI.notify(result?.reason || "题库暂时不能发布。", { tone: "bad", duration: 4200 });
+        if (bankId) {
+          state.selectedBankId = bankId;
+          renderCustomBankList();
+        }
+        return false;
+      }
+      state.selectedBankId = bankId;
+      renderCustomBankList();
+      UI.notify("题库审核通过，已加入日常智能练习。", { tone: "good" });
+      return true;
+    }
+    function setCustomBankWorkflowStatus(bankId, status) {
+      const CustomBank = window.MathCampCustomBank;
+      if (!CustomBank?.setBankStatus?.(bankId, status)) return false;
+      state.selectedBankId = bankId;
+      renderCustomBankList();
+      UI.notify(status === "disabled" ? "题库已停用，不再混入智能练习。" : "题库已退回待审核。", { tone: "good" });
+      return true;
     }
     function challengeDraftPayload() {
       if (state.mode !== "challenge" || !state.challengeMeta || state.setFinished) return null;
@@ -7734,6 +8257,9 @@
       }
       state.grade = current.grade || state.grade;
       state.checked = false;
+      state.questionStartedAt = Date.now();
+      state.hintLevel = 0;
+      setSelectedConfidence("");
       clearAutoNext();
       closePetHintPopover();
       els.practiceCard.removeAttribute("data-mood");
@@ -7776,7 +8302,7 @@
           ? "判断这句话正确或错误，点一下就会检查。"
           : current.answerLabel
             ? "这题可能有余数或分数，输入主要数值即可，讲解里会显示完整答案。"
-            : '输入答案后点"检查答案"，按回车也可以提交。', "🤔");
+            : answerGuidanceForQuestion(current), "🤔");
       const appendixPoint = appendixPointForGrade(state.grade);
       els.appendixPreview.textContent = `${gradeNames[state.grade - 1]}附加题：${appendixPoint.helper}。答题前先想模型，再列式。`;
       renderStats();
@@ -7814,20 +8340,16 @@
       }
       return { valid: true, value, raw };
     }
-    function updateMastery(pointId, correct) {
-      const m = masteryFor(activeProfile(), pointId);
-      m.attempts += 1;
-      if (correct) {
-        m.correct += 1;
-        m.streak += 1;
-        if (m.streak >= 3) {
-          m.level = clamp(m.level + 1, 1, 5);
-          m.streak = 0;
-        }
-      } else {
-        m.streak = 0;
-        m.level = clamp(m.level - 1, 1, 5);
+    function updateMastery(pointId, correct, evidence = {}) {
+      const profile = activeProfile();
+      const current = masteryFor(profile, pointId);
+      if (LearningQuality.updateMasteryState) {
+        profile.mastery[pointId] = LearningQuality.updateMasteryState(current, { ...evidence, correct });
+        return profile.mastery[pointId];
       }
+      current.attempts += 1;
+      if (correct) current.correct += 1;
+      return current;
     }
     function signature(question) {
       return `${question.pointId}|${question.text}|${formatAnswer(question.answer, question.answerLabel)}`;
@@ -7855,6 +8377,17 @@
       });
       return ids;
     }
+    function recentQuestionFamilyKeySet(profile = activeProfile(), grade = Number(profile?.grade || state.grade), limit = 80) {
+      const subject = activeSubjectId();
+      const keys = new Set(Array.isArray(state.recentQuestionFamilyKeys) ? state.recentQuestionFamilyKeys.filter(Boolean) : []);
+      (Array.isArray(profile?.history) ? profile.history : []).slice(0, limit).forEach((item) => {
+        if (Number(item.grade || grade) !== Number(grade)) return;
+        if (item.subject && item.subject !== subject) return;
+        const familyKey = LearningQuality.questionFamilyKey?.({ pointId: item.pointId, text: item.text, questionType: item.questionType || "" });
+        if (familyKey) keys.add(familyKey);
+      });
+      return keys;
+    }
     function rememberRecentQuestionSet(questions, limit = 160) {
       const existing = Array.isArray(state.recentQuestionKeys) ? state.recentQuestionKeys : [];
       const generated = (questions || []).map(questionRepeatKey).filter((key) => key && !key.endsWith("|"));
@@ -7868,8 +8401,10 @@
         compact.unshift(key);
       }
       state.recentQuestionKeys = compact.slice(-limit);
+      const families = (questions || []).map((question) => question?.learningMeta?.familyKey || LearningQuality.questionFamilyKey?.(question)).filter(Boolean);
+      state.recentQuestionFamilyKeys = [...new Set([...(state.recentQuestionFamilyKeys || []), ...families])].slice(-limit);
     }
-    const REVIEW_STAGE_OFFSETS = [0, 1, 3, 7];
+    const REVIEW_STAGE_OFFSETS = [1, 3, 7, 14];
     function nextReviewDueDate(stage) {
       const offset = REVIEW_STAGE_OFFSETS[clamp(Number(stage) || 0, 0, REVIEW_STAGE_OFFSETS.length - 1)] ?? 7;
       return addDaysToKey(todayKey(), offset);
@@ -7886,7 +8421,7 @@
       if (due === todayKey(1)) return "明天复习";
       return `${due.slice(5).replace("-", "/")} 复习`;
     }
-    function upsertWrong(question, cause = "未标记") {
+    function upsertWrong(question, cause = "未标记", evidence = {}) {
       const profile = activeProfile();
       const sig = signature(question);
       const found = profile.wrongbook.find((item) => item.signature === sig);
@@ -7894,10 +8429,14 @@
         found.wrongCount += 1;
         found.correctStreak = 0;
         found.reviewStage = 0;
-        found.dueDate = todayKey();
+        found.dueDate = nextReviewDueDate(0);
         found.lastReviewedAt = Date.now();
         found.lastResult = "wrong";
         found.cause = cause || found.cause || "未标记";
+        found.chainStage = "scaffold";
+        found.recentDiagnostic = LearningQuality.normalizeDiagnostic?.(evidence.diagnostic) || found.recentDiagnostic || "uncertain";
+        found.confidence = LearningQuality.normalizeConfidence?.(evidence.confidence) || "";
+        found.hintLevel = clamp(Number(evidence.hintLevel) || 0, 0, 3);
         found.updatedAt = Date.now();
         return found.id;
       }
@@ -7910,7 +8449,11 @@
         wrongCount: 1,
         correctStreak: 0,
         reviewStage: 0,
-        dueDate: todayKey(),
+        chainStage: "scaffold",
+        recentDiagnostic: LearningQuality.normalizeDiagnostic?.(evidence.diagnostic) || "uncertain",
+        confidence: LearningQuality.normalizeConfidence?.(evidence.confidence) || "",
+        hintLevel: clamp(Number(evidence.hintLevel) || 0, 0, 3),
+        dueDate: nextReviewDueDate(0),
         lastReviewedAt: Date.now(),
         lastResult: "wrong",
         updatedAt: Date.now()
@@ -7932,14 +8475,16 @@
       };
       profile.masteredWrong = [mastered, ...(profile.masteredWrong || []).filter((entry) => entry.signature !== item.signature)].slice(0, 500);
     }
-    function updateWrongbookAttemptForProfile(profile, id, correct) {
+    function updateWrongbookAttemptForProfile(profile, id, correct, evidence = {}) {
       if (!profile || !Array.isArray(profile.wrongbook)) return false;
       const itemIndex = profile.wrongbook.findIndex((entry) => entry.id === id);
       const item = itemIndex >= 0 ? profile.wrongbook[itemIndex] : null;
       if (!item) return false;
       if (correct) {
-        item.correctStreak = clamp((Number(item.correctStreak) || 0) + 1, 0, 3);
+        const stable = LearningQuality.isStableEvidence ? LearningQuality.isStableEvidence({ ...evidence, correct }) : true;
+        item.correctStreak = clamp((Number(item.correctStreak) || 0) + 1, 0, 4);
         item.reviewStage = clamp((Number(item.reviewStage) || 0) + 1, 0, 4);
+        item.chainStage = LearningQuality.nextChainStage?.(item.chainStage || "scaffold", { correct, stable }) || item.chainStage || "scaffold";
         item.dueDate = nextReviewDueDate(item.reviewStage);
         item.lastReviewedAt = Date.now();
         item.lastResult = "correct";
@@ -7949,20 +8494,24 @@
         pet.bond = clamp(pet.bond + 1, 0, 100);
         if (hasWrongbookBuddy) pet.bond = clamp(pet.bond + 1, 0, 100);
         pet.mood = clamp(pet.mood + 1, 0, 100);
-        if (item.correctStreak >= 3) {
+        if (item.correctStreak >= 4 && item.chainStage === "delayed") {
           markWrongAsMastered(profile, item);
           profile.wrongbook.splice(itemIndex, 1);
           if (!profile.rewards) profile.rewards = {};
           profile.rewards.clearedWrong = (profile.rewards.clearedWrong || 0) + 1;
           awardCoins(8, "掌握错题");
           pet.bond = clamp(pet.bond + 3, 0, 100);
-          els.companionTalk.textContent = petCopy('这道错题已经连续做对 3 次，移入"已掌握错题"记录了。招财额外奖励 8 金币。');
-          showRewardRibbon({ title: "错题掌握", copy: "连续做对 3 次，招财把它收进已掌握记录。", coins: 8 });
+          els.companionTalk.textContent = petCopy('这道错题已经完成 1、3、7、14 天四次复习，移入"已掌握错题"记录了。招财额外奖励 8 金币。');
+          showRewardRibbon({ title: "错题掌握", copy: "完成四次间隔复习，招财把它收进已掌握记录。", coins: 8 });
         }
       } else {
         item.correctStreak = 0;
         item.reviewStage = 0;
-        item.dueDate = todayKey();
+        item.chainStage = "scaffold";
+        item.recentDiagnostic = LearningQuality.normalizeDiagnostic?.(evidence.diagnostic) || item.recentDiagnostic || "uncertain";
+        item.confidence = LearningQuality.normalizeConfidence?.(evidence.confidence) || "";
+        item.hintLevel = clamp(Number(evidence.hintLevel) || 0, 0, 3);
+        item.dueDate = nextReviewDueDate(0);
         item.lastReviewedAt = Date.now();
         item.wrongCount += 1;
         item.lastResult = "wrong";
@@ -7970,13 +8519,13 @@
       }
       return true;
     }
-    function updateWrongbookAttempt(id, correct) {
-      return updateWrongbookAttemptForProfile(activeProfile(), id, correct);
+    function updateWrongbookAttempt(id, correct, evidence = {}) {
+      return updateWrongbookAttemptForProfile(activeProfile(), id, correct, evidence);
     }
-    function recordReviewSourceAttempt(question, correct) {
+    function recordReviewSourceAttempt(question, correct, evidence = {}) {
       const sourceId = question?.reviewSourceWrongId || "";
       if (!sourceId) return false;
-      let updated = updateWrongbookAttempt(sourceId, correct);
+      let updated = updateWrongbookAttempt(sourceId, correct, evidence);
       const candidates = [];
       state.profiles.forEach((profile) => {
         candidates.push(profile);
@@ -7986,7 +8535,7 @@
       for (const profile of candidates) {
         if (!profile || seen.has(profile)) continue;
         seen.add(profile);
-        updated = updateWrongbookAttemptForProfile(profile, sourceId, correct) || updated;
+        updated = updateWrongbookAttemptForProfile(profile, sourceId, correct, evidence) || updated;
       }
       return updated;
     }
@@ -8054,14 +8603,21 @@
         cause,
         selfReview: result
       };
-      updateMastery(question.pointId, correct);
-      if (!correct) upsertWrong(question, cause);
-      addHistory({ date: record.date, time: record.time, pointId: question.pointId, grade: question.grade, correct, cause, text: question.text, mode: state.mode || "practice", selfReview: result });
+      const evidence = {
+        confidence: state.selectedConfidence,
+        hintLevel: state.hintLevel,
+        elapsedMs: Math.max(0, Date.now() - state.questionStartedAt),
+        diagnostic: correct ? "uncertain" : LearningQuality.inferDiagnostic?.(question, { cause })
+      };
+      const beforeScore = masteryFor(activeProfile(), question.pointId).score;
+      const mastery = updateMastery(question.pointId, correct, evidence);
+      if (!correct) upsertWrong(question, cause, evidence);
+      addHistory({ date: record.date, time: record.time, pointId: question.pointId, grade: question.grade, correct, cause, text: question.text, mode: state.mode || "practice", selfReview: result, ...evidence, firstTryCorrect: correct, masteryDelta: Math.round((mastery.score || 0) - (beforeScore || 0)) });
       state.records[state.index] = record;
       els.answerInput.disabled = true;
       els.checkBtn.disabled = true;
       renderStats();
-      saveProfiles();
+      scheduleSaveProfiles();
       setFeedback(correct ? "good" : "saved", correct ? "已标记为掌握。" : "已保存订正，后续会安排复习。", correct ? "😄" : "📝");
       if (!correct && els.showAnswerBtn) els.showAnswerBtn.disabled = false;
     }
@@ -8085,6 +8641,12 @@
       }
       const expected = Number(current.answer);
       const correct = answerMatches(current, parsed);
+      const elapsedMs = Math.max(0, Date.now() - state.questionStartedAt);
+      const confidence = state.selectedConfidence;
+      const hintLevel = state.hintLevel;
+      const diagnostic = correct ? "uncertain" : LearningQuality.inferDiagnostic?.(current, { answer: parsed.raw || parsed.value || "" }) || "uncertain";
+      const difficultyScore = LearningQuality.estimateDifficulty?.(current, masteryFor(activeProfile(), current.pointId)) || 0;
+      const evidence = { confidence, hintLevel, elapsedMs, diagnostic, expectedMs: 35000 + difficultyScore * 7000 };
       state.checked = true;
       const coinGain = awardQuestionReward(correct, current);
       if ((current.interaction?.mode || "input") === "step" && state.stepHintOpen) {
@@ -8097,7 +8659,13 @@
         question: current,
         answer: parsed.value,
         correct,
-        cause: "未标记"
+        cause: "未标记",
+        confidence,
+        elapsedMs,
+        hintLevel,
+        firstTryCorrect: correct,
+        diagnostic,
+        difficultyScore
       };
       if (correct) {
         state.correct += 1;
@@ -8127,11 +8695,13 @@
         showCausePanelForWrong(current);
         if (els.showAnswerBtn) els.showAnswerBtn.disabled = false;
       }
-      updateMastery(current.pointId, correct);
-      const updatedReviewSource = recordReviewSourceAttempt(current, correct);
-      if (state.mode === "wrongbook") updateWrongbookAttempt(current.wrongId, correct);
-      else if (!correct && !updatedReviewSource) upsertWrong(current);
-      addHistory({ date: record.date, time: record.time, pointId: current.pointId, grade: current.grade, correct, cause: record.cause, text: current.text, mode: state.mode || "practice" });
+      const beforeScore = masteryFor(activeProfile(), current.pointId).score;
+      const mastery = updateMastery(current.pointId, correct, evidence);
+      const masteryDelta = Math.round((mastery.score || 0) - (beforeScore || 0));
+      const updatedReviewSource = recordReviewSourceAttempt(current, correct, evidence);
+      if (state.mode === "wrongbook") updateWrongbookAttempt(current.wrongId, correct, evidence);
+      else if (!correct && !updatedReviewSource) upsertWrong(current, "未标记", evidence);
+      addHistory({ date: record.date, time: record.time, pointId: current.pointId, grade: current.grade, correct, cause: record.cause, text: current.text, mode: state.mode || "practice", ...evidence, firstTryCorrect: correct, difficultyScore, masteryDelta });
       state.records[state.index] = record;
       state.lastWrongRecordId = correct ? "" : record.id;
       els.answerInput.disabled = true;
@@ -8140,7 +8710,7 @@
         btn.disabled = true;
       });
       saveChallengeDraft({ persist: false, render: false });
-      saveProfiles();
+      scheduleSaveProfiles();
       renderStats();
       if (correct) {
         state.autoNextId = window.setTimeout(() => {
@@ -8617,6 +9187,31 @@
       const weak = weakestPoints(1)[0] || availablePoints(state.grade)[0];
       startPointSet(weak.id, Math.min(10, state.setSize), "weak");
     }
+    function startWeeklyReviewPractice() {
+      state.mode = "weekly-review";
+      state.challengeMeta = null;
+      state.pointId = "auto";
+      state.currentSet = buildWeeklyReviewQuestionSet(Math.min(10, state.setSize || 10), state.answerMode);
+      rememberRecentQuestionSet(state.currentSet);
+      state.index = 0;
+      state.checked = false;
+      state.correct = 0;
+      state.streak = 0;
+      state.records = [];
+      state.roundCoins = 0;
+      state.lastWrongRecordId = "";
+      state.setFinished = false;
+      delete state._lastFinishResult;
+      els.summaryPanel.hidden = true;
+      els.challengeResultOverlay.hidden = true;
+      els.mobileChallengeResult.hidden = true;
+      els.reviewPanel.hidden = true;
+      showView("practice");
+      resetRoundRuntime();
+      renderPracticeQuestion();
+      enterPracticeFocus();
+      startRoundTimer();
+    }
     function startLogicReadingTraining() {
       const point = readingPointForGrade(activeProfile().grade || state.grade);
       const count = Math.max(8, Math.min(12, Number(state.setSize) || 10));
@@ -8716,7 +9311,7 @@
       const recent = mastered.slice(0, 3).map((item) => `${pointLabel(item.question.pointId)} · ${normalizeCause(item.cause)}`).join("；");
       return `<div class="report-item">
         <div class="item-top"><h3>已掌握错题</h3><span class="mastered-chip">${mastered.length} 题</span></div>
-        <p>这些题已经连续做对 3 次，从错题本移入掌握记录。最近掌握：${escapeHTML(recent)}。</p>
+        <p>这些题已经完成四次间隔复习，从错题本移入掌握记录。最近掌握：${escapeHTML(recent)}。</p>
       </div>`;
     }
     function causeSelectHTML(selected, id) {
@@ -9630,6 +10225,11 @@
     }
     document.addEventListener("visibilitychange", handleAudioVisibility);
     window.addEventListener("pagehide", stopBackgroundMusic);
+    // 页面进入后台或即将卸载前，立即写入挂起的防抖保存，避免丢失最后的答题数据。
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") flushPendingSaveProfiles();
+    });
+    window.addEventListener("pagehide", flushPendingSaveProfiles);
     if (!isAndroidWebView()) document.addEventListener("click", playButtonSound, true);
     els.pointSelect.addEventListener("change", () => {
       state.pointId = els.pointSelect.value;
@@ -9668,7 +10268,11 @@
     els.backToSetupBtn.addEventListener("click", returnToPracticeSetup);
     els.closeTypeSettingsBtn?.addEventListener("click", closeTypeSettings);
     els.checkBtn.addEventListener("click", checkAnswer);
-    els.readAloudBtn?.addEventListener("click", () => readQuestionAloud());
+    els.confidenceControl?.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-confidence]");
+      if (!button || state.checked) return;
+      setSelectedConfidence(button.dataset.confidence === state.selectedConfidence ? "" : button.dataset.confidence);
+    });
     els.nextBtn.addEventListener("click", nextQuestion);
     if (els.skipBtn) els.skipBtn.addEventListener("click", skipQuestion);
     if (els.showAnswerBtn) els.showAnswerBtn.addEventListener("click", showAnswerPopover);
@@ -9688,15 +10292,9 @@
         pet.bond = clamp(pet.bond + Number(limit.bond || 1), 0, 100);
       }
       pet.lastCareDate = todayKey();
-      const lines = [
-        ["招财：收到摸摸。我们慢慢来，先把题目里最重要的数字找出来。", "呼噜"],
-        ["招财：先别急着算，先看清题目问的是什么。", "陪你"],
-        ["招财：如果连错两题，我们就换成同类基础题稳一下。", "稳住"],
-        ["招财：做完这一小轮，我会帮你把错题拆成步骤。", "加油"]
-      ];
-      const [message, bubble] = pick(lines);
-      updatePetStatus(hasCareReward ? message : "招财：今天已经陪我玩够啦，继续练题会更有用。", hasCareReward ? bubble : "已满足");
-      setPetAction("encourage", hasCareReward ? bubble : "陪你");
+      const message = nextPetCareReaction(pet, "encourage", profile);
+      updatePetStatus(hasCareReward ? message : `${petDisplayName(profile)}今天已经收到足够多的摸摸啦，继续练题会更有用。`, hasCareReward ? "呼噜" : "已满足");
+      setPetAction("encourage", hasCareReward ? "呼噜" : "陪你");
       playSound("meow");
       saveProfiles();
       renderPetSpace(profile);
@@ -9711,14 +10309,15 @@
       const current = state.currentSet[state.index];
       if (!current) return;
       state.stepHintOpen = true;
-      const hint = methodHintFor(current);
+      state.hintLevel = clamp(state.hintLevel + 1, 1, 3);
+      const hint = hintForLevel(current, state.hintLevel);
       els.methodHint.textContent = hint;
       if (!isWaitingForCauseSave()) {
         renderAnswerModePanel(current);
       }
-      updatePetStatus(`招财：这题属于"${pointLabel(current.pointId)}"。${hint}`, "提示");
+      updatePetStatus(`招财：第 ${state.hintLevel} 级提示。${hint}`, "提示");
       if (shouldUseMobilePetHintPopover()) openPetHintPopover(hint);
-      setPetAction("hint", "提示");
+      setPetAction("hint", `${state.hintLevel}级`);
     });
     els.mobilePetHintClose?.addEventListener("click", closePetHintPopover);
     els.floatingPetButton?.addEventListener("pointerdown", beginFloatingPetDrag);
@@ -9788,6 +10387,67 @@
       const openPetPanelBtn = event.target.closest("[data-open-pet-modal]");
       if (openPetPanelBtn) {
         openPetModal(openPetPanelBtn.dataset.openPetModal, { returnToPlan: Boolean(openPetPanelBtn.closest("#petPlanMenuModal")) });
+        return;
+      }
+      const previewCard = event.target.closest("[data-pet-preview]");
+      if (previewCard && !event.target.closest("button")) {
+        const [kind, id] = String(previewCard.dataset.petPreview || "").split(":");
+        if (petCollectionDef(kind, id)) {
+          state.petDressupPreview = { kind, id };
+          renderPetDressup();
+        }
+        return;
+      }
+      if (event.target.closest("[data-pet-free-care]")) {
+        const profile = activeProfile();
+        const pet = petState(profile);
+        const result = PetExperience.applyDailyFreeCare?.(pet, todayKey());
+        if (!result?.applied) {
+          UI.notify("今天的免费照料已经使用过了。", { tone: "warn" });
+          return;
+        }
+        applyPetLevel(pet);
+        pet.lastCareDate = todayKey();
+        addPetMemory(pet, "今日免费照料", `${petDisplayName(profile)}的${{ hunger: "饥饿", clean: "清洁", mood: "心情" }[result.stat] || "状态"}提升了 ${result.value} 点。`);
+        saveProfiles();
+        renderPetSpace(profile);
+        const action = result.stat === "hunger" ? "fed" : result.stat === "clean" ? "cleanComfy" : "play";
+        setPetAction(action, "+15");
+        UI.notify(`免费照料完成，${{ hunger: "饥饿值", clean: "清洁值", mood: "心情值" }[result.stat]} +${result.value}`);
+        return;
+      }
+      const dailyChoiceBtn = event.target.closest("[data-pet-daily-choice]");
+      if (dailyChoiceBtn) {
+        const profile = activeProfile();
+        const pet = petState(profile);
+        const result = PetExperience.applyDailyChoice?.(pet, dailyChoiceBtn.dataset.petDailyChoice, todayKey());
+        if (!result?.applied) {
+          UI.notify("今天已经完成陪伴选择了。", { tone: "warn" });
+          return;
+        }
+        applyPetLevel(pet);
+        addPetMemory(pet, result.choice.title, result.choice.message);
+        saveProfiles();
+        renderPetSpace(profile);
+        setPetAction(result.choice.id === "play" ? "play" : "encourage", "陪伴");
+        UI.notify(result.choice.message);
+        return;
+      }
+      const bellBtn = event.target.closest("[data-pet-bell-slot]");
+      if (bellBtn) {
+        const profile = activeProfile();
+        const pet = petState(profile);
+        const result = PetExperience.playBellGame?.(pet, bellBtn.dataset.petBellSlot, todayKey());
+        if (!result?.played) {
+          UI.notify("今天已经玩过找铃铛了。", { tone: "warn" });
+          return;
+        }
+        applyPetLevel(pet);
+        addPetMemory(pet, "找铃铛", result.found ? `在第 ${result.winningSlot} 个垫子下找到了铃铛。` : "虽然没有猜中，也一起开心地玩了一会儿。");
+        saveProfiles();
+        renderPetSpace(profile);
+        setPetAction(result.found ? "play" : "encourage", result.found ? `+${result.rewardCoins}` : "有奖励");
+        UI.notify(result.found ? `找到铃铛，金币 +${result.rewardCoins}` : `没有猜中，也获得金币 +${result.rewardCoins}`);
         return;
       }
       const buyBtn = event.target.closest("[data-pet-buy]");
@@ -9882,6 +10542,13 @@
     els.petPlanMenuModal?.addEventListener("click", handlePetPanelAction);
     els.petShopModal?.addEventListener("click", handlePetPanelAction);
     els.petDressupModal?.addEventListener("click", handlePetPanelAction);
+    els.petDressupModal?.addEventListener("keydown", (event) => {
+      if (event.target.closest("button") || (event.key !== "Enter" && event.key !== " ")) return;
+      const card = event.target.closest("[data-pet-preview]");
+      if (!card) return;
+      event.preventDefault();
+      handlePetPanelAction(event);
+    });
     els.petThemeShopModal?.addEventListener("click", handlePetPanelAction);
     els.petAchievementModal?.addEventListener("click", handlePetPanelAction);
     [els.petShopModal, els.petBagModal, els.petTaskModal, els.petCarePanelModal, els.petGrowthPanelModal, els.petPlanMenuModal, els.petDressupModal, els.petThemeShopModal, els.petAchievementModal].forEach((modal) => {
@@ -10002,7 +10669,7 @@
       if (ids.length) deleteWrongItems(ids);
     });
     [els.wrongPointFilter, els.wrongCauseFilter].forEach((control) => control.addEventListener("change", renderWrongbook));
-    els.startWeakReportBtn.addEventListener("click", startWeakPractice);
+    els.startWeakReportBtn.addEventListener("click", startWeeklyReviewPractice);
     els.clearTodayBtn.addEventListener("click", async () => {
       const profile = activeProfile();
       const today = profile.history.filter((item) => item.date === todayKey());
@@ -10164,11 +10831,14 @@
     els.customBankChooseBtn?.addEventListener("click", () => els.customBankFileInput?.click());
     els.customBankFileInput?.addEventListener("change", () => {
       const file = els.customBankFileInput.files?.[0];
+      state.customBankImportPreview = null;
+      renderCustomBankImportPreview(null);
       if (els.customBankFileName) els.customBankFileName.textContent = file ? file.name : "未选择任何文件";
       if (file && els.customBankNameInput && !els.customBankNameInput.value.trim()) {
         els.customBankNameInput.value = String(file.name || "").replace(/\.(xlsx|csv)$/i, "");
       }
     });
+    els.previewCustomBankBtn?.addEventListener("click", prepareCustomBankImportFromUI);
     els.importCustomBankBtn?.addEventListener("click", importCustomBankFromUI);
     els.customBankImageBtn?.addEventListener("click", () => els.customBankImageInput?.click());
     els.customBankImageInput?.addEventListener("change", () => {
@@ -10189,6 +10859,21 @@
       const practiceBtn = event.target.closest("[data-custom-bank-practice]");
       if (practiceBtn) {
         startCustomBankPractice(practiceBtn.dataset.customBankPractice);
+        return;
+      }
+      const publishBtn = event.target.closest("[data-custom-bank-publish]");
+      if (publishBtn) {
+        publishCustomBankFromUI(publishBtn.dataset.customBankPublish);
+        return;
+      }
+      const disableBtn = event.target.closest("[data-custom-bank-disable]");
+      if (disableBtn) {
+        setCustomBankWorkflowStatus(disableBtn.dataset.customBankDisable, "disabled");
+        return;
+      }
+      const reviewBtn = event.target.closest("[data-custom-bank-review]");
+      if (reviewBtn) {
+        setCustomBankWorkflowStatus(reviewBtn.dataset.customBankReview, "review");
         return;
       }
       const renameBtn = event.target.closest("[data-custom-bank-rename]");
@@ -10217,6 +10902,47 @@
           if (els.customBankImportStatus) els.customBankImportStatus.textContent = "已删除该题库。";
         }
       }
+    });
+    [els.bankBulkGradeSelect, els.bankBulkSubjectSelect].forEach((select) => select?.addEventListener("change", syncBankBulkPointOptions));
+    els.publishCustomBankBtn?.addEventListener("click", () => publishCustomBankFromUI());
+    els.disableCustomBankBtn?.addEventListener("click", () => setCustomBankWorkflowStatus(state.selectedBankId, "disabled"));
+    els.reviewCustomBankBtn?.addEventListener("click", () => setCustomBankWorkflowStatus(state.selectedBankId, "review"));
+    els.auditCustomBankBtn?.addEventListener("click", () => {
+      if (!state.selectedBankId) return;
+      renderBankDetail(state.selectedBankId);
+      UI.notify("题库质量审查已刷新。", { tone: "good" });
+    });
+    els.bankSelectAllQuestions?.addEventListener("change", () => {
+      els.bankDetailBody?.querySelectorAll("[data-bank-q-select]").forEach((input) => { input.checked = els.bankSelectAllQuestions.checked; });
+    });
+    els.bankDetailBody?.addEventListener("change", (event) => {
+      const input = event.target.closest("[data-bank-q-enabled]");
+      if (!input || !state.selectedBankId) return;
+      if (window.MathCampCustomBank?.setQuestionEnabled?.(state.selectedBankId, input.dataset.bankQEnabled, input.checked)) {
+        renderCustomBankList();
+      }
+    });
+    els.applyBankBulkEditBtn?.addEventListener("click", () => {
+      const CustomBank = window.MathCampCustomBank;
+      const ids = [...(els.bankDetailBody?.querySelectorAll("[data-bank-q-select]:checked") || [])].map((input) => input.dataset.bankQSelect);
+      if (!ids.length) {
+        UI.notify("请先选择需要批量修改的题目。", { tone: "bad" });
+        return;
+      }
+      const pointValue = els.bankBulkPointSelect?.value || "";
+      const patch = {};
+      if (els.bankBulkGradeSelect?.value) patch.grade = Number(els.bankBulkGradeSelect.value);
+      if (els.bankBulkSubjectSelect?.value) patch.subject = els.bankBulkSubjectSelect.value;
+      if (els.bankBulkTermSelect?.value) patch.term = els.bankBulkTermSelect.value;
+      if (pointValue) patch.pointId = pointValue === "__clear__" ? "" : pointValue;
+      if (els.bankBulkDifficultySelect?.value) patch.difficultyScore = Number(els.bankBulkDifficultySelect.value);
+      if (!Object.keys(patch).length) {
+        UI.notify("请选择至少一个要修改的字段。", { tone: "bad" });
+        return;
+      }
+      const changed = CustomBank?.batchUpdateQuestions?.(state.selectedBankId, ids, patch) || 0;
+      renderCustomBankList();
+      UI.notify(`已批量修改 ${changed} 题，并退回待审核。`, { tone: "good" });
     });
     els.clearAllBtn.addEventListener("click", async () => {
       const confirmed = await UI.confirm("确定清空所有学生档案、错题和学习记录吗？", {
@@ -10476,15 +11202,27 @@
         externalQuestionChanceForPoint,
         externalQuestionCountForPoint,
         localQuestionTemplateCountForPoint,
+        questionSpecBucket,
+        createRoundQuestionPicker,
         buildQuestionSetForPoint,
         buildAdaptiveQuestionSet,
         buildSmartDailyQuestionSet,
+        buildWeeklyReviewQuestionSet,
         startNewSet,
         renderPracticeQuestion,
+        answerPlaceholderForQuestion,
+        answerGuidanceForQuestion,
+        hintForLevel,
+        setSelectedConfidence,
+        enrichQuestionLearningMeta,
+        learningQuality: LearningQuality,
         startSmartDailyPractice,
+        startWeeklyReviewPractice,
         startChallengeSet,
         challengeDifficultyForLevel,
         recordReviewSourceAttempt,
+        nextReviewDueDate,
+        reviewStageOffsets: REVIEW_STAGE_OFFSETS.slice(),
         buildParentWeeklyPrompt,
         roundPetSummary,
         hasAudioPrompt,
@@ -10493,6 +11231,7 @@
         applyQuestionInteraction,
         answerMatches,
         questionRuleIssues,
+        questionQualityWarnings,
         interactionRuleIssues,
         runQuestionQualityAudit,
         runQuestionSourceAudit,

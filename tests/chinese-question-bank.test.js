@@ -52,8 +52,11 @@ for (const grade of [1, 2, 3, 4, 5, 6]) {
     assert(points.some((point) => point.sourceType === sourceType), `${grade} 年级应包含 ${sourceType} 题源知识点`);
   });
   const textbookPoints = points.filter((point) => point.sourceType === "inTextbook");
-  assert(textbookPoints.length >= 10, `${grade} 年级课内题源应按教材知识点重建，不能只靠少量课文派生`);
-  assert(textbookPoints.every((point) => !point.curriculum.lessonTitle && !/《.*》/.test(point.label + point.helper)), `${grade} 年级课内题源不应强行绑定单篇课文`);
+  const lessonPoints = textbookPoints.filter((point) => point.curriculum.lessonTitle);
+  assert(lessonPoints.length >= 32, `${grade} 年级课内题源应覆盖上下册主要课文和识字条目`);
+  assert(lessonPoints.some((point) => point.curriculum.term.includes("上册")), `${grade} 年级课内题源应包含上册逐课知识点`);
+  assert(lessonPoints.some((point) => point.curriculum.term.includes("下册")), `${grade} 年级课内题源应包含下册逐课知识点`);
+  assert(lessonPoints.every((point) => point.curriculum.unit && point.curriculum.lessonTitle), `${grade} 年级逐课知识点应保留册别、单元和课题定位`);
 }
 
 assert(bank.pointsBySource.inTextbook.length > bank.pointsBySource.recommendedReading.length, "课内教材题源点应多于推荐读物点");
@@ -62,6 +65,8 @@ assert(bank.pointsBySource.extraOriginal.length > 0, "原创拓展题源点不�
 
 assert(bank.pointMap["c1-pinyin"], "一年级拼音知识点应存在");
 assert(bank.pointMap["c6-reading-strategy"], "六年级阅读策略知识点应存在");
+assert(bank.pointMap["c1-textbook-1-1-1"], "一年级上册首个逐课知识点应存在");
+assert(bank.pointMap["c6-textbook-2-4-4"], "六年级下册逐课知识点应存在");
 
 vm.runInContext(fs.readFileSync(path.join(root, "js/question-spec-utils.js"), "utf8"), context, { filename: "js/question-spec-utils.js" });
 assert(context.window.MathCampQuestionSpec, "选择题规格工具应暴露为 MathCampQuestionSpec");
@@ -69,6 +74,16 @@ const generatorSource = fs.readFileSync(path.join(root, "js/chinese-question-gen
 vm.runInContext(generatorSource, context, { filename: "js/chinese-question-generator.js" });
 const generator = context.window.MathCampChineseQuestionGenerator;
 assert(generator, "语文生成器应暴露为 MathCampChineseQuestionGenerator");
+for (const grade of [1, 2, 3, 4, 5, 6]) {
+  const lessonPoints = bank.points.filter((point) => point.grade === grade && point.curriculum.lessonTitle);
+  assert(lessonPoints.every((point) => generator.questionTemplateCountForPoint(point) >= 4), `${grade} 年级每个逐课知识点应至少有 4 个本地模板`);
+  const unitCounts = new Map();
+  lessonPoints.forEach((point) => {
+    const key = `${point.curriculum.term}/${point.curriculum.unit}`;
+    unitCounts.set(key, (unitCounts.get(key) || 0) + generator.questionTemplateCountForPoint(point));
+  });
+  assert([...unitCounts.values()].every((count) => count >= 10), `${grade} 年级每个上下册单元应至少有 10 个本地模板`);
+}
 assert.strictEqual(bank.autoSourcePolicy.mode, "textbookOnly", "语文自动题源策略应明确为只取课内教材同步知识点");
 assert.strictEqual(JSON.stringify(generator.buildSourcePlan(10, bank.autoSourcePolicy)), JSON.stringify(Array.from({ length: 10 }, () => "inTextbook")), "语文自动组卷应只按杭州教材同步知识点出题，不再遵循课内/推荐/拓展比例");
 assert.strictEqual(JSON.stringify(generator.buildSourcePlan(4, bank.autoSourcePolicy)), JSON.stringify(Array.from({ length: 4 }, () => "inTextbook")), "小题量语文组卷也应只取教材同步知识点");

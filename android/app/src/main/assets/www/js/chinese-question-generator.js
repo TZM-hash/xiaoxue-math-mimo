@@ -2062,12 +2062,17 @@
   };
 
   function fallbackSpec(point) {
+    const correct = point.helper.replace(/[。.!！?？]$/g, "");
+    const pointPitfalls = [
+      ...(Array.isArray(point.commonPitfalls) ? point.commonPitfalls : []),
+      ...(Array.isArray(point.pitfalls) ? point.pitfalls : [])
+    ];
     return {
       prompt: `【${point.label}】下面哪一项最符合“${point.helper}”这个训练目标？`,
-      correct: point.helper.replace(/[。.!！?？]$/g, ""),
-      wrongs: ["只看字面随便猜", "不读题目直接选", "答案和题目无关"],
-      explanation: `本题对应“${point.label}”，要围绕“${point.helper}”判断。`,
-      commonPitfalls: ["没有看清知识点要求"]
+      correct,
+      wrongs: cleanWrongOptions(point, correct, pointPitfalls),
+      explanation: `判断“${point.label}”时，应先看清材料和要求，再运用“${point.helper}”完成作答。`,
+      commonPitfalls: pointPitfalls.length ? pointPitfalls : ["没有结合材料和题目要求判断"]
     };
   }
 
@@ -2132,7 +2137,7 @@
       correct,
       wrongs,
       aliases,
-      explanation: `这题对应${sourceLabel}里的“${point.label}”。按真实试卷的做法，先读材料和题目要求，再回到语境中选择答案。`,
+      explanation: `解答“${point.label}”时，先读材料和题目要求，再结合“${point.helper}”回到语境中选择答案。`,
       steps: [
         "先读材料，圈出题目问的关键信息。",
         "再把每个选项放回材料或句子中比较。",
@@ -2193,6 +2198,30 @@
     return `${header}\n${materialLine}\n题目：根据题目要求，选择正确的一项。`;
   }
 
+  function lessonSourceSpec(point, sourceLabel) {
+    const lessonTitle = point.curriculum?.lessonTitle;
+    if (!lessonTitle) return null;
+    const methods = {
+      pinyin: ["按声母、韵母和声调逐项拼读，再核对拼写规则", ["把声母和韵母的位置对调后直接读", "遇到相似音节时省略声调比较", "把整体认读音节拆成普通两拼音节"]],
+      character: ["把字音、字形、偏旁和词语语境结合起来核对", ["同音字可以在词语里相互替换", "偏旁相同的字意思一定相同", "形近字笔画接近就可以通用"]],
+      word: ["把词语放回句子，联系前后内容判断意思和搭配", ["遇到多义词时固定采用第一个意思", "词语读音相同就可以互相替换", "不考虑搭配对象，选择字数相同的词"]],
+      sentence: ["读完整句子，检查语序、成分和前后关系", ["把句子成分任意调换后保持原意", "关联词保留前半个也能表达完整关系", "句子越长，表达就一定越准确"]],
+      punctuation: ["根据人物语气、句子结构和停顿选择标点", ["每个短句后面都使用句号", "人物说话时省略提示语后的标点", "并列词语之间统一使用问号"]],
+      reading: ["先读问题，再回到材料定位人物、事件和关键句", ["根据标题推测全文细节", "把自己的生活经历当作材料结论", "看到熟悉词语就确定答案"]],
+      poem: ["抓住景物词和关键词，结合诗句想象画面、体会情感", ["把每个字都按现代口语解释", "根据诗句长短判断作者情感", "忽略上下句关系，单独猜一个字的意思"]],
+      writing: ["先审清题意，再按顺序选材并用细节写具体", ["想到什么就写什么，不区分重点", "开头结尾写得很长，中间省略事情经过", "改变题目要求，换成更熟悉的话题"]]
+    };
+    const [correct, wrongs] = methods[point.topic] || methods.reading;
+    return {
+      prompt: `【${sourceLabel}】${point.label}\n题目：完成这篇内容的同步练习时，下面哪种做法最合适？`,
+      correct,
+      wrongs,
+      explanation: `先判断这篇内容对应的语文任务，再使用与${point.short || point.topic}相匹配的方法。`,
+      steps: ["先读题目要求。", "再判断需要使用哪类语文方法。", "最后用材料中的信息核对选择。"],
+      commonPitfalls: ["方法和题型不匹配", "没有使用材料依据"]
+    };
+  }
+
   function sourceSpec(point) {
     const sourceType = point.sourceType || "abilityLine";
     const sourceLabel = point.sourceLabel || "";
@@ -2202,6 +2231,8 @@
     const words = knowledge.words || [];
     const characters = knowledge.characters || [];
     if (sourceType === "inTextbook") {
+      const lessonSpec = lessonSourceSpec(point, sourceLabel);
+      if (lessonSpec) return lessonSpec;
       const examSpec = textbookExamSpec(point, sourceLabel);
       if (examSpec) return examSpec;
       const material = knowledge.material || `材料：根据“${point.label}”这个知识点，读一个新句子或新短文再判断。`;
@@ -2321,6 +2352,13 @@
       explanation: "根据材料原句，括号里只能填“阳光”。",
       commonPitfalls: ["词语搭配不当"]
     },
+    "c2-textbook-picture-writing-order": {
+      questionType: "顺序词填空",
+      prompt: "【课内教材】看图写话顺序\n材料：图中小朋友先拿水壶照顾小树，接着扶正小树，最后整理工具。\n题目：小朋友最先做的动作是什么？请写出两个汉字。",
+      correct: "浇水",
+      explanation: "材料用“先”标出了第一件事，小朋友先给小树浇水。",
+      commonPitfalls: ["没有抓住先、再、最后", "动作顺序颠倒"]
+    },
     "c5-textbook-integrated-language": {
       questionType: "错别字改正",
       prompt: "【课内教材】语基综合检查\n材料：句子“做完习作后，要认针检查错别字、病句和标点”中有一个同音错字。\n题目：词语“认针”中的错别字应改成哪个字？请直接输入正确的汉字。",
@@ -2421,11 +2459,17 @@
     }
 
     if (/成语|accumulation|亡羊|寓言/.test(identity)) {
+      const idiomItems = [
+        { clue: "比喻拘泥成例、不知道变通", stem: "刻舟求（ ）", answer: "剑", explanation: "固定成语是“刻舟求剑”，括号里只能填“剑”。" },
+        { clue: "比喻力量太小，解决不了问题", stem: "杯水车（ ）", answer: "薪", explanation: "固定成语是“杯水车薪”，括号里只能填“薪”。" },
+        { clue: "表示出了问题及时补救还不晚", stem: "亡羊补（ ）", answer: "牢", explanation: "固定成语是“亡羊补牢”，括号里只能填“牢”。" }
+      ];
+      const item = idiomItems.find((candidate) => !header.includes(candidate.answer)) || idiomItems[0];
       return {
         questionType: "成语填空",
-        prompt: `${header}\n材料：这个成语常用来说明出了问题及时补救还不晚。\n题目：亡羊补（ ）。请写出括号里的汉字。`,
-        correct: "牢",
-        explanation: "固定成语是“亡羊补牢”，括号里只能填“牢”。",
+        prompt: `${header}\n材料：这个成语${item.clue}。\n题目：${item.stem}。请写出括号里的汉字。`,
+        correct: item.answer,
+        explanation: item.explanation,
         commonPitfalls: ["成语关键字写错"]
       };
     }
@@ -2489,9 +2533,56 @@
     };
   }
 
+  function lessonMethodSpecs(point) {
+    if (!point?.curriculum?.lessonTitle) return [];
+    const skills = point.curriculum?.knowledge?.skills || [];
+    const focus = skills[0] || point.short || "理解内容";
+    const methodByTopic = {
+      pinyin: "先看声母、韵母和声调，再按拼写规则核对",
+      character: "把字音、字形和偏旁放在词语里一起判断",
+      word: "把词语放回句子，联系前后语境理解意思",
+      sentence: "先读完整句子，再检查成分、关联词和语序",
+      punctuation: "根据人物语气和句子结构选择标点",
+      reading: "先读问题，再回到材料定位人物、事件和关键句",
+      poem: "抓住景物词和关键词，想象画面并体会情感",
+      writing: "先审清题意，再按顺序选择材料并写具体"
+    };
+    const correctMethod = methodByTopic[point.topic] || "先读材料和要求，再找直接依据";
+    return [
+      {
+        prompt: `【${point.sourceLabel || "课内教材"}】${point.curriculum.lessonTitle}\n题目：练习“${focus}”时，下面哪种方法最合适？`,
+        correct: correctMethod,
+        wrongs: topicDistractors(point),
+        explanation: `这道题考查“${focus}”。应使用与当前课文类型匹配的方法，不能换成其他语文任务。`,
+        steps: ["先判断当前任务属于哪类语文能力。", `再围绕“${focus}”选择方法。`, "最后排除与当前材料无关的做法。"],
+        commonPitfalls: ["把不同题型的方法混用", "没有结合当前任务"]
+      },
+      {
+        prompt: `【${point.sourceLabel || "课内教材"}】${point.curriculum.lessonTitle}\n题目：完成这篇内容的同步练习时，怎样找到最可靠的答案依据？`,
+        correct: "回到题目给出的新材料，找到与问题直接对应的词句",
+        wrongs: ["根据课题名称猜答案", "选择看起来最长的一项", "跳过问题，直接回忆课文原句"],
+        explanation: "同步练习使用新材料时，答案依据应来自当前题干和材料中与问题直接相关的信息。",
+        steps: ["先读清问题问什么。", "再在当前材料中找直接相关的词句。", "最后用找到的依据核对答案。"],
+        commonPitfalls: ["只凭记忆作答", "没有回到材料定位"]
+      }
+    ];
+  }
+
+  function hideInputAnswerFromHeader(point, inputSpec) {
+    if (!inputSpec) return inputSpec;
+    const answer = String(inputSpec.correct || "").trim();
+    const prompt = String(inputSpec.prompt || "");
+    if (!answer || !prompt.includes(answer)) return inputSpec;
+    const lines = prompt.split("\n");
+    if (lines[0]?.includes(answer)) {
+      lines[0] = `【${point.sourceLabel || "课内教材"}】${point.short || "语文同步"}`;
+    }
+    return { ...inputSpec, prompt: lines.join("\n") };
+  }
+
   function specsForPoint(point) {
     const specs = POINT_SPECS[point.id] || sourceSpec(point);
-    const list = (Array.isArray(specs) ? specs : [specs]).filter(Boolean);
+    const list = [...(Array.isArray(specs) ? specs : [specs]), ...lessonMethodSpecs(point)].filter(Boolean);
     if (!list.length) return [];
     const result = [];
     const seenInputPrompts = new Set();
@@ -2502,9 +2593,10 @@
       const inputSpec = spec.directInput
         ? { ...spec.directInput }
         : directInputSpec(point, spec);
-      if (inputSpec && !seenInputPrompts.has(inputSpec.prompt)) {
-        seenInputPrompts.add(inputSpec.prompt);
-        result.push({ ...inputSpec, format: "input" });
+      const safeInputSpec = hideInputAnswerFromHeader(point, inputSpec);
+      if (safeInputSpec && !seenInputPrompts.has(safeInputSpec.prompt)) {
+        seenInputPrompts.add(safeInputSpec.prompt);
+        result.push({ ...safeInputSpec, format: "input" });
       }
     });
     return result;

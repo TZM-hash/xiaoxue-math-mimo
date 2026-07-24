@@ -53,6 +53,8 @@ vm.createContext(context);
   "js/grade3-reference-question-seeds.js",
   "js/grade3-original-question-seeds.js",
   "js/external-question-seeds.js",
+  "js/learning-quality-engine.js",
+  "js/question-quality-audit.js",
   "js/question-bank-excel.js",
   "js/bank-images.js",
   "js/custom-bank.js"
@@ -180,13 +182,17 @@ test("parseImportFile 走 csv 分支", () => {
   assert.strictEqual(result.questions.length, 3);
 });
 
-test("addBank 持久化 + 带合法 pointId 的题并入外部题库", () => {
+test("addBank 先进入待审核，发布后带合法 pointId 的题并入外部题库", () => {
   const pid = "g3-multi-add";
   const before = (External.BANK[pid] || []).length;
   const rows = Excel.matrixToRowObjects(sampleMatrix);
   const { questions } = Excel.rowsToQuestions(rows, { bankName: "期中卷" });
   const bank = CustomBank.addBank({ name: "期中卷", questions, sourceFormat: "csv" });
   assert(bank && bank.id, "addBank 应返回批次");
+  assert.strictEqual(bank.status, "review", "新题库应进入待审核");
+  assert.strictEqual((External.BANK[pid] || []).length, before, "待审核题目不应进入正式练习");
+  const publish = CustomBank.publishBank(bank.id);
+  assert.strictEqual(publish.ok, true, "无硬规则问题的题库应可发布");
   const after = (External.BANK[pid] || []).length;
   assert.strictEqual(after, before + 1, "只应并入 1 道带合法 pointId 的题");
   const list = CustomBank.listBanks();
@@ -202,6 +208,20 @@ test("practiceQuestionsForBank 生成可练习题（选择题嵌入选项）", (
   assert(/A\./.test(choice.text) && /B\./.test(choice.text), "选择题应嵌入 A/B 选项");
 });
 
+test("批量修改会增加版本并退回待审核，停用题不进入练习", () => {
+  const id = CustomBank.listBanks()[0].id;
+  const bank = CustomBank.getBank(id);
+  const firstId = bank.questions[0].id;
+  const oldVersion = bank.version;
+  assert.strictEqual(CustomBank.batchUpdateQuestions(id, [firstId], { difficultyScore: 4, term: "lower" }), 1);
+  assert.strictEqual(bank.status, "review");
+  assert(bank.version > oldVersion);
+  assert.strictEqual(bank.questions[0].difficultyScore, 4);
+  assert.strictEqual(bank.questions[0].term, "lower");
+  CustomBank.setQuestionEnabled(id, firstId, false);
+  assert(!CustomBank.practiceQuestionsForBank(id, { shuffle: (a) => a }).some((q) => q.id === firstId));
+});
+
 test("deleteBank 撤销并入并清空列表", () => {
   const pid = "g3-multi-add";
   const before = (External.BANK[pid] || []).length;
@@ -209,7 +229,7 @@ test("deleteBank 撤销并入并清空列表", () => {
   CustomBank.deleteBank(id);
   assert.strictEqual(CustomBank.listBanks().length, 0, "删除后列表应为空");
   const after = (External.BANK[pid] || []).length;
-  assert.strictEqual(after, before - 1, "删除应撤销并入的题");
+  assert.strictEqual(after, before, "删除待审核题库不应改变正式题库");
 });
 
 test("exportAll / replaceAll 往返（存档备份）", () => {

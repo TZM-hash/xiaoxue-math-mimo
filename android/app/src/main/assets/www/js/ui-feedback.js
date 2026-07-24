@@ -31,7 +31,7 @@
       });
       toast.appendChild(action);
     }
-    root.appendChild(toast);
+    root.replaceChildren(toast);
     window.setTimeout(() => {
       toast.classList.add("leaving");
       window.setTimeout(() => toast.remove(), 220);

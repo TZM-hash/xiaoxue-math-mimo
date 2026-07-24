@@ -16,12 +16,19 @@
       evidence: "颗粒均匀分散到水中而不是消失，科学上称为溶解。",
       wrongs: ["只根据杯子颜色判断", "认为颗粒凭空消失了", "不比较搅拌前后的现象"]
     },
-    earth: {
-      correct: "连续记录天气或模型位置，再根据变化寻找规律",
+    earthWeather: {
+      correct: "在固定时间连续记录天气现象，再比较变化规律",
+      inputAnswer: "天气记录",
+      inputPrompt: "每天同一时间记录气温、云量和风向，用来比较一周的天气变化。请填入这种记录名称。",
+      evidence: "在相同时间连续记录气温、云量和风向，才能用多天证据判断天气变化。",
+      wrongs: ["只记录变化最明显的一天", "每天更换观察时间再直接比较", "用一个季节的记录代表全年天气"]
+    },
+    earthModel: {
+      correct: "用模型表示天体的位置和运动，再根据现象作出解释",
       inputAnswer: "模型",
       inputPrompt: "研究很大的天体运动时，课堂上常用球、灯和轨道图来表示真实对象。请填入这种研究方法。",
-      evidence: "天气和宇宙现象需要长期观察或模型模拟，不能只凭一次印象。",
-      wrongs: ["只看图片漂亮不漂亮", "不用记录就直接下结论", "把一次天气当成全年规律"]
+      evidence: "天体距离遥远且运动周期较长，可以用球、灯和轨道图模拟位置关系并检验解释。",
+      wrongs: ["把模型大小当成天体真实大小", "只记住天体名称而不比较位置", "改变多个模型条件后直接归因于其中一个"]
     },
     engineering: {
       correct: "先明确需求，再测试承重或稳定性，根据结果改进",
@@ -46,6 +53,16 @@
     engineering: ["需求", "结构测试", "迭代改进"],
     inquiry: ["变量", "证据", "结论"]
   };
+
+  function earthSeed(point) {
+    const scope = `${point?.label || ""} ${point?.short || ""} ${point?.helper || ""}`;
+    return /天气|气温|云量|降水|风向|风力|季节/.test(scope) ? topicSeeds.earthWeather : topicSeeds.earthModel;
+  }
+
+  function topicSeed(point) {
+    if (point?.topic === "earth") return earthSeed(point);
+    return topicSeeds[point?.topic] || topicSeeds.inquiry;
+  }
 
   // ==========================================================================
   // 知识点专属题池：key 为 point.id（多为单元点 s{年级}-unit-{学期}-{单元}）。
@@ -1300,11 +1317,69 @@
     });
   }
 
+  function extensionSpecs(point) {
+    const label = point.label || "这个科学问题";
+    const concepts = point.curriculum?.knowledge?.concepts || unitFallbacks[point.topic] || [];
+    const inquiry = point.curriculum?.knowledge?.inquiry || [];
+    const focus = concepts[0] || label;
+    const method = inquiry[0] || "观察并记录";
+    return [
+      {
+        questionType: "数据分析",
+        prompt: `【数据分析】研究“${label}”时连续记录三次，结果分别为 8、9、8。下面哪种处理更合理？`,
+        correct: "保留三次数据，比较整体趋势后再得出结论",
+        wrongs: ["只保留最大的 9", "把三个数据都改成 8", "不看数据，按原来的猜想写结论"],
+        explanation: "多次真实数据能帮助发现整体趋势，也能减少偶然误差的影响。"
+      },
+      {
+        questionType: "步骤排序",
+        prompt: `【步骤排序】围绕“${label}”开展探究，下面哪一组顺序更科学？`,
+        correct: "提出问题、作出预测、实验记录、分析结论",
+        wrongs: ["先写结论、再改数据、最后提问", "只作预测、不观察也不记录", "先选喜欢的答案、再找一条记录"],
+        explanation: "完整探究通常从问题出发，经过预测、实验和记录，最后依据证据形成结论。"
+      },
+      {
+        questionType: "变量识别",
+        prompt: `【变量识别】要比较一个条件是否会影响“${focus}”，下面哪种做法最公平？`,
+        correct: "只改变要研究的条件，其他条件和记录方法保持一致",
+        wrongs: ["两组同时改变三个条件", "每组使用不同的记录方法", "只做一次并忽略异常现象"],
+        explanation: "一次只改变一个研究条件，才能判断结果差异是否由这个条件引起。"
+      },
+      {
+        questionType: "模型检验",
+        prompt: `【模型检验】用模型解释“${label}”时，下面哪种做法最可靠？`,
+        correct: "说明模型各部分对应什么，并检查模型现象是否符合记录",
+        wrongs: ["模型做得越大，结论就一定越正确", "只看模型颜色，不说明对应关系", "模型与记录不一致时直接删掉记录"],
+        explanation: "模型必须明确对应关系，还要能够解释观察或实验记录，不能只追求外观。"
+      },
+      {
+        questionType: "误差修正",
+        prompt: `【误差修正】用“${method}”研究“${label}”时，有一次结果与其他记录差别很大。下一步怎样做更合适？`,
+        correct: "检查操作和工具，保留原记录并增加重复实验",
+        wrongs: ["立刻删除这次记录", "把数据改成和其他次一样", "只采用最符合猜想的一次"],
+        explanation: "异常结果需要检查原因并重复验证，不能随意删除或修改真实记录。"
+      },
+      {
+        questionType: "工程优化",
+        prompt: `【工程优化】解决与“${label}”有关的实际问题时，第一次测试没有达到要求。下面哪一步最合理？`,
+        correct: "根据测试记录找到问题，修改方案后再次测试",
+        wrongs: ["不看测试结果，照原样重复", "只改变外观颜色", "直接宣布方案已经成功"],
+        explanation: "工程设计需要根据测试证据反复改进，直到方案更符合需求和限制条件。"
+      }
+    ];
+  }
+
+  function specsForPoint(point) {
+    const pointSpecs = POINT_SPECS[point?.id];
+    if (Array.isArray(pointSpecs) && pointSpecs.length) return [...pointSpecs, ...extensionSpecs(point)];
+    return null;
+  }
+
   function makeQuestion(deps, point, options) {
     const safePoint = point || {};
     const d = deps || {};
     // 优先使用知识点专属题池（贴合该单元真实概念/材料）；没有则回退 topic 通用种子
-    const pointSpecs = POINT_SPECS[safePoint.id];
+    const pointSpecs = specsForPoint(safePoint);
     if (Array.isArray(pointSpecs) && pointSpecs.length) {
       // 专属题按 [选择, 填空, ...] 顺序展开，保证 index0=choice、index1=input（测试契约）
       const specs = pointSpecs.map((spec) => ({
@@ -1315,7 +1390,7 @@
       const preferred = pick(d, specs) || specs[0];
       return preferred.build();
     }
-    const seed = topicSeeds[safePoint.topic] || topicSeeds.inquiry;
+    const seed = topicSeed(safePoint);
     const specs = [
       { format: "choice", questionType: "现象判断", build: () => choiceQuestion(d, safePoint, seed) },
       { format: "input", questionType: "概念填空", build: () => inputQuestion(d, safePoint, seed) },
@@ -1328,7 +1403,7 @@
 
   function questionTemplateCountForPoint(point) {
     const safePoint = point || {};
-    const pointSpecs = POINT_SPECS[safePoint.id];
+    const pointSpecs = specsForPoint(safePoint);
     if (Array.isArray(pointSpecs) && pointSpecs.length) return pointSpecs.length;
     return 4;
   }

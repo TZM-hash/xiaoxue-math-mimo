@@ -67,13 +67,201 @@ async function runSmoke(createPage) {
           subject: debug.state.subject,
           setSize: debug.state.currentSet.length,
           hasChinesePoint: debug.state.currentSet.every((question) => question.pointId === "c3-paragraph-reading"),
-          hasExplanation: debug.state.currentSet.every((question) => question.explanation && question.steps && question.steps.length)
+          hasExplanation: debug.state.currentSet.every((question) => question.explanation && question.steps && question.steps.length),
+          titleOptionCount: document.querySelectorAll("#questionText .question-option").length,
+          answerOptionCount: document.querySelectorAll("#answerModePanel .answer-option").length
         };
       });
 
       if (chineseResult.subject !== "chinese") throw new Error(`${viewport.name}: Chinese subject did not activate`);
       if (chineseResult.setSize !== 3) throw new Error(`${viewport.name}: Chinese practice set did not build`);
       if (!chineseResult.hasChinesePoint || !chineseResult.hasExplanation) throw new Error(`${viewport.name}: Chinese questions missing metadata`);
+      if (chineseResult.titleOptionCount !== 0 || chineseResult.answerOptionCount !== 4) {
+        throw new Error(`${viewport.name}: objective choices should render once ${JSON.stringify(chineseResult)}`);
+      }
+
+      const scienceLayout = await page.evaluate(() => {
+        const debug = window.mathCampDebug;
+        debug.selectSubject("science");
+        debug.state.grade = 3;
+        debug.state.pointId = "s3-earth-air-weather";
+        debug.els.pointSelect.innerHTML = debug.pointOptionsHTML(3, debug.state.pointId);
+        debug.els.pointSelect.value = debug.state.pointId;
+        debug.state.setSize = 3;
+        debug.els.setSizeInput.value = "3";
+        debug.startNewSet({ focus: true });
+        const confidenceButtons = Array.from(document.querySelectorAll("#confidenceControl [data-confidence]"));
+        confidenceButtons.find((button) => button.dataset.confidence === "guess")?.click();
+        debug.els.petHintBtn.click();
+        const firstHint = debug.els.methodHint.textContent;
+        debug.els.petHintBtn.click();
+        const secondHint = debug.els.methodHint.textContent;
+        const visible = Array.from(document.querySelectorAll("#questionText, #answerModePanel, #answerModePanel .answer-option"));
+        const viewportWidth = document.documentElement.clientWidth;
+        return {
+          documentOverflow: document.documentElement.scrollWidth - viewportWidth,
+          widestRight: Math.max(...visible.map((element) => element.getBoundingClientRect().right), 0),
+          viewportWidth,
+          confidenceCount: confidenceButtons.length,
+          selectedConfidence: debug.state.selectedConfidence,
+          hintLevel: debug.state.hintLevel,
+          hintsDiffer: firstHint !== secondHint,
+          confidenceFits: document.getElementById("confidenceControl").getBoundingClientRect().right <= viewportWidth + 1
+        };
+      });
+      if (scienceLayout.documentOverflow > 1 || scienceLayout.widestRight > scienceLayout.viewportWidth + 1) {
+        throw new Error(`${viewport.name}: science question overflows viewport ${JSON.stringify(scienceLayout)}`);
+      }
+      if (scienceLayout.confidenceCount !== 3 || scienceLayout.selectedConfidence !== "guess" || !scienceLayout.confidenceFits) {
+        throw new Error(`${viewport.name}: confidence control failed ${JSON.stringify(scienceLayout)}`);
+      }
+      if (scienceLayout.hintLevel !== 2 || !scienceLayout.hintsDiffer) {
+        throw new Error(`${viewport.name}: staged hints failed ${JSON.stringify(scienceLayout)}`);
+      }
+
+      const interactionResult = await page.evaluate(async () => {
+        document.getElementById("backToSetupBtn")?.click();
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        let animationError = "";
+        const onError = (event) => { animationError = event.error?.message || event.message || "unknown error"; };
+        window.addEventListener("error", onError);
+
+        window.MathCampAnimationIntegration?.setupNumberCounters?.();
+        const todayPill = document.getElementById("todayPill");
+        if (!todayPill.firstChild) todayPill.textContent = "0";
+        if (todayPill.firstChild?.nodeType === Node.TEXT_NODE) todayPill.firstChild.data = "1";
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        window.removeEventListener("error", onError);
+
+        window.MathCampMicroInteractions?.enhanceSwitches?.();
+        const nativeSwitch = document.querySelector(".custom-switch input[type='checkbox']");
+        nativeSwitch?.focus();
+        const switchFocusable = Boolean(nativeSwitch && document.activeElement === nativeSwitch && getComputedStyle(nativeSwitch).display !== "none");
+
+        const returnTarget = document.getElementById("adaptiveToggle");
+        returnTarget.focus();
+        window.MathCampEffectsControl?.openModal?.();
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        const effectsModal = document.getElementById("effectsSettingsModal");
+        const modalFocused = Boolean(effectsModal?.contains(document.activeElement));
+        window.MathCampEffectsControl?.closeModal?.();
+        await new Promise((resolve) => setTimeout(resolve, 350));
+
+        const themeSelect = document.getElementById("themeSelect");
+        const fieldLabelTopmost = (fieldSelector) => {
+          const label = document.querySelector(`${fieldSelector} .floating-label`);
+          if (!label) return null;
+          const rect = label.getBoundingClientRect();
+          if (!rect.width || !rect.height) return null;
+          const previousPointerEvents = label.style.pointerEvents;
+          label.style.pointerEvents = "auto";
+          const layers = document.elementsFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+          label.style.pointerEvents = previousPointerEvents;
+          const input = label.parentElement?.querySelector("input");
+          const labelIndex = layers.indexOf(label);
+          const inputIndex = layers.indexOf(input);
+          return {
+            topmost: labelIndex >= 0 && inputIndex >= 0 && labelIndex < inputIndex,
+            labelIndex,
+            inputIndex,
+            labelZIndex: getComputedStyle(label).zIndex,
+            inputZIndex: getComputedStyle(input).zIndex
+          };
+        };
+        themeSelect.value = "glass-clear";
+        themeSelect.dispatchEvent(new Event("change", { bubbles: true }));
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        const clearTheme = document.documentElement.dataset.theme;
+        const clearThemeTransitionActive = document.documentElement.classList.contains("theme-transitioning");
+        const clearBackdrop = getComputedStyle(document.querySelector(".panel, .card, .home-dashboard")).backdropFilter;
+        const clearSetupLabelLayers = [
+          fieldLabelTopmost(".setup-set-size-field"),
+          fieldLabelTopmost(".setup-daily-goal-field")
+        ];
+        themeSelect.value = "glass-pop";
+        themeSelect.dispatchEvent(new Event("change", { bubbles: true }));
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        const popTheme = document.documentElement.dataset.theme;
+        const popThemeTransitionActive = document.documentElement.classList.contains("theme-transitioning");
+        const popSetupLabelLayers = [
+          fieldLabelTopmost(".setup-set-size-field"),
+          fieldLabelTopmost(".setup-daily-goal-field")
+        ];
+        const feedback = document.getElementById("feedback");
+        feedback.className = "feedback good";
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        const goodFeedbackClass = document.getElementById("practiceCard")?.classList.contains("answer-feedback-good");
+        const correctPetReaction = document.getElementById("floatingPetAssistant")?.dataset.reaction;
+        feedback.className = "feedback bad";
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        const badFeedbackClass = document.getElementById("practiceCard")?.classList.contains("answer-feedback-bad");
+        const wrongPetReaction = document.getElementById("floatingPetAssistant")?.dataset.reaction;
+        const performanceClass = window.MathCampVisualPolish?.classifyPerformance?.({ hardwareConcurrency: 2, deviceMemory: 2, saveData: false });
+        const depthCard = document.querySelector(".desktop-overview-card, .practice-card, .home-mode-card");
+        const depthInput = document.querySelector(".setup-set-size-field input, #answerInput");
+        const depthButton = document.querySelector("button.primary, #checkBtn");
+
+        return {
+          animationError,
+          switchFocusable,
+          switchDisplay: nativeSwitch ? getComputedStyle(nativeSwitch).display : "missing",
+          switchId: nativeSwitch?.id || "",
+          activeElementId: document.activeElement?.id || "",
+          activeElementTag: document.activeElement?.tagName || "",
+          modalFocused,
+          focusRestored: document.activeElement === returnTarget,
+          clearTheme,
+          popTheme,
+          clearThemeTransitionActive,
+          popThemeTransitionActive,
+          clearBackdrop,
+          clearSetupLabelLayers,
+          popSetupLabelLayers,
+          polishReady: document.documentElement.classList.contains("visual-polish-ready"),
+          motionFast: getComputedStyle(document.documentElement).getPropertyValue("--motion-fast").trim(),
+          goodFeedbackClass,
+          badFeedbackClass,
+          correctPetReaction,
+          wrongPetReaction,
+          performanceClass,
+          depthCardShadow: depthCard ? getComputedStyle(depthCard).boxShadow : "missing",
+          depthInputShadow: depthInput ? getComputedStyle(depthInput).boxShadow : "missing",
+          depthButtonShadow: depthButton ? getComputedStyle(depthButton).boxShadow : "missing"
+        };
+      });
+
+      if (interactionResult.animationError) throw new Error(`${viewport.name}: number counter mutation failed: ${interactionResult.animationError}`);
+      if (interactionResult.switchDisplay === "none" || !interactionResult.switchId) {
+        throw new Error(`${viewport.name}: custom switch hides the native checkbox ${JSON.stringify(interactionResult)}`);
+      }
+      if (viewport.width >= 700 && !interactionResult.switchFocusable) {
+        throw new Error(`${viewport.name}: custom switch lost native keyboard focus ${JSON.stringify(interactionResult)}`);
+      }
+      if (viewport.width >= 700 && (!interactionResult.modalFocused || !interactionResult.focusRestored)) {
+        throw new Error(`${viewport.name}: effects modal focus flow failed ${JSON.stringify(interactionResult)}`);
+      }
+      if (interactionResult.clearTheme !== "glass-clear" || interactionResult.popTheme !== "glass-pop" || interactionResult.clearBackdrop === "none") {
+        throw new Error(`${viewport.name}: glass theme switching failed ${JSON.stringify(interactionResult)}`);
+      }
+      if (!interactionResult.polishReady || interactionResult.motionFast !== "150ms") {
+        throw new Error(`${viewport.name}: visual polish system did not initialize ${JSON.stringify(interactionResult)}`);
+      }
+      if (!interactionResult.clearThemeTransitionActive || !interactionResult.popThemeTransitionActive) {
+        throw new Error(`${viewport.name}: theme transition state did not activate ${JSON.stringify(interactionResult)}`);
+      }
+      if (!interactionResult.goodFeedbackClass || !interactionResult.badFeedbackClass || interactionResult.correctPetReaction !== "correct" || interactionResult.wrongPetReaction !== "wrong") {
+        throw new Error(`${viewport.name}: answer and pet visual feedback did not synchronize ${JSON.stringify(interactionResult)}`);
+      }
+      if (interactionResult.performanceClass !== "low") {
+        throw new Error(`${viewport.name}: low-performance classification failed ${JSON.stringify(interactionResult)}`);
+      }
+      if (interactionResult.depthCardShadow === "none" || !interactionResult.depthInputShadow.includes("inset") || interactionResult.depthButtonShadow === "none") {
+        throw new Error(`${viewport.name}: medium-depth visual treatment is missing ${JSON.stringify(interactionResult)}`);
+      }
+      const visibleGlassLabelLayers = [...interactionResult.clearSetupLabelLayers, ...interactionResult.popSetupLabelLayers].filter(Boolean);
+      if (visibleGlassLabelLayers.some((item) => !item.topmost)) {
+        throw new Error(`${viewport.name}: glass theme setup labels are covered by inputs ${JSON.stringify(interactionResult)}`);
+      }
     } finally {
       await page.close();
     }

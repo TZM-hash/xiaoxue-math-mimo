@@ -7,6 +7,8 @@
   var SUPABASE_SDK_TIMEOUT_MS = 12000;
   var syncTimer = null;
   var retryTimer = null;
+  var pendingProfilePush = null;
+  var profilePushSequence = 0;
   var sdkTimer = null;
   var sdkPromise = null;
   var client = null;
@@ -194,6 +196,7 @@
 
   async function pushProfiles(profiles, activeId) {
     if (!syncEnabled || !client) return false;
+    var sequence = ++profilePushSequence;
 
     try {
       var now = new Date().toISOString();
@@ -211,12 +214,19 @@
         .upsert(payload, { onConflict: "owner_id,device_id" });
 
       if (error) throw error;
+      if (!pendingProfilePush || sequence >= pendingProfilePush.sequence) {
+        pendingProfilePush = null;
+        if (retryTimer) {
+          clearTimeout(retryTimer);
+          retryTimer = null;
+        }
+      }
       setSyncStatus("synced");
       return true;
     } catch (err) {
       console.error("[CloudSync] 推送失败:", err);
       setSyncStatus("error");
-      scheduleRetry();
+      scheduleRetry(profiles, activeId, sequence);
       return false;
     }
   }
@@ -524,11 +534,17 @@
     }, SYNC_DEBOUNCE_MS);
   }
 
-  function scheduleRetry() {
+  function scheduleRetry(profiles, activeId, sequence) {
+    if (!pendingProfilePush || sequence >= pendingProfilePush.sequence) {
+      pendingProfilePush = { profiles: profiles, activeId: activeId, sequence: sequence };
+    }
     if (retryTimer) return;
-    retryTimer = setTimeout(function () {
+    retryTimer = setTimeout(async function () {
       retryTimer = null;
+      var pending = pendingProfilePush;
+      if (!pending) return;
       setSyncStatus("retrying");
+      await pushProfiles(pending.profiles, pending.activeId);
     }, SYNC_RETRY_MS);
   }
 
@@ -608,6 +624,7 @@
     syncEnabled = false;
     if (syncTimer) { clearTimeout(syncTimer); syncTimer = null; }
     if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
+    pendingProfilePush = null;
     client = null;
   }
 

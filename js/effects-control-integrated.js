@@ -19,8 +19,12 @@
       focusBlur: true,
       ambientAnimations: true
     },
+    initialized: false,
+    returnFocusElement: null,
 
     init() {
+      if (this.initialized) return;
+      this.initialized = true;
       this.loadSettings();
       this.applySettings();
       this.bindEvents();
@@ -186,6 +190,7 @@
      * 打开模态框
      */
     openModal() {
+      this.returnFocusElement = document.activeElement;
       const modal = document.getElementById('effectsSettingsModal');
       if (modal) {
         modal.hidden = false;
@@ -207,6 +212,7 @@
           if (panel) {
             panel.style.animation = 'modalPanelIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
           }
+          modal.querySelector('[data-close-effects]')?.focus();
         }, 10);
       }
 
@@ -281,6 +287,8 @@
           if (systemModal) {
             systemModal.hidden = false;
           }
+          this.returnFocusElement?.focus?.();
+          this.returnFocusElement = null;
         }, 300);
       }
     },

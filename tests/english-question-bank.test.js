@@ -48,6 +48,13 @@ assert(context.window.MathCampQuestionSpec, "选择题规格工具应暴露为 M
 vm.runInContext(fs.readFileSync(path.join(root, "js/english-question-generator.js"), "utf8"), context, { filename: "js/english-question-generator.js" });
 const generator = context.window.MathCampEnglishQuestionGenerator;
 assert(generator, "英语生成器应暴露为 MathCampEnglishQuestionGenerator");
+for (const grade of [3, 4, 5, 6]) {
+  const unitPoints = bank.points.filter((point) => point.grade === grade && point.curriculum.term);
+  assert(unitPoints.every((point) => generator.questionTemplateCountForPoint(point) >= 10), `${grade} 年级每个英语单元应至少有 10 个本地模板`);
+  const upper = unitPoints.filter((point) => point.curriculum.term.includes("上册")).reduce((total, point) => total + generator.questionTemplateCountForPoint(point), 0);
+  const lower = unitPoints.filter((point) => point.curriculum.term.includes("下册")).reduce((total, point) => total + generator.questionTemplateCountForPoint(point), 0);
+  assert(Math.abs(upper - lower) <= 2, `${grade} 年级英语上下册本地模板数量应基本对称`);
+}
 
 function hasChoiceOptions(question) {
   return /\nA\. .+\nB\. .+\nC\. .+\nD\. /s.test(question.text || "");

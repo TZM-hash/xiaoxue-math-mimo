@@ -89,6 +89,19 @@ const banks = {
   science: context.window.MathCampScienceQuestionBank
 };
 
+let removedDuplicateSeeds = 0;
+Object.values(banks).forEach((bank) => {
+  bank.points.forEach((point) => {
+    const raw = seeds.rawForPoint(point);
+    const effective = seeds.forPoint(point);
+    const keys = effective.map((seed) => seeds.seedContentKey(seed));
+    assert.strictEqual(new Set(keys).size, keys.length, `${point.id} 运行时扩展题池不应包含重复内容`);
+    assert(raw.length >= effective.length, `${point.id} 去重后题量不应超过原始题量`);
+    removedDuplicateSeeds += raw.length - effective.length;
+  });
+});
+assert(removedDuplicateSeeds >= 1000, "运行时去重应识别并移除批量资料中的重复内容");
+
 const expectedPoints = {
   math: [
     "g1-20-add",

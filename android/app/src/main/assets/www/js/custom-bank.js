@@ -7,6 +7,7 @@
   // ------------------------------------------------------------------
 
   const STORE_KEY = "mathcamp-custom-banks-v1";
+  const BANK_STATUSES = new Set(["review", "published", "disabled"]);
 
   function readStore() {
     try {
@@ -27,7 +28,35 @@
     }
   }
 
-  let banks = readStore();
+  function normalizeQuestion(question, published, index = 0) {
+    const item = question && typeof question === "object" ? { ...question } : {};
+    item.id = String(item.id || `custom-q-${index + 1}-${Math.random().toString(36).slice(2, 7)}`);
+    item.enabled = item.enabled !== false;
+    item.reviewStatus = ["pending", "approved", "rejected"].includes(item.reviewStatus)
+      ? item.reviewStatus
+      : (published ? "approved" : "pending");
+    const difficulty = Number(item.difficultyScore || item.difficulty);
+    if (difficulty >= 1 && difficulty <= 5) item.difficultyScore = difficulty;
+    return item;
+  }
+
+  function normalizeBank(raw, options = {}) {
+    const source = raw && typeof raw === "object" ? raw : {};
+    const status = BANK_STATUSES.has(source.status) ? source.status : (options.newBank ? "review" : "published");
+    return {
+      ...source,
+      id: String(source.id || `cb-migrated-${Math.random().toString(36).slice(2, 10)}`),
+      name: String(source.name || "校内题库").trim() || "校内题库",
+      status,
+      version: Math.max(1, Number(source.version) || 1),
+      importedAt: source.importedAt || nowIso(),
+      updatedAt: source.updatedAt || source.importedAt || nowIso(),
+      history: Array.isArray(source.history) ? source.history.slice(-30) : [],
+      questions: (Array.isArray(source.questions) ? source.questions : []).map((question, index) => normalizeQuestion(question, status === "published", index))
+    };
+  }
+
+  let banks = readStore().map((bank) => normalizeBank(bank));
 
   function nowIso() {
     // 沙箱里 new Date() 可能被禁用；用可用则用，否则空串。
@@ -45,7 +74,11 @@
       name: bank.name,
       importedAt: bank.importedAt || "",
       sourceFormat: bank.sourceFormat || "",
-      count: Array.isArray(bank.questions) ? bank.questions.length : 0
+      count: Array.isArray(bank.questions) ? bank.questions.length : 0,
+      enabledCount: (bank.questions || []).filter((question) => question.enabled !== false).length,
+      status: bank.status,
+      version: bank.version || 1,
+      updatedAt: bank.updatedAt || ""
     }));
   }
 
@@ -55,7 +88,7 @@
 
   function addBank(payload) {
     const questions = Array.isArray(payload?.questions) ? payload.questions : [];
-    const bank = {
+    const bank = normalizeBank({
       id: uid(),
       name: String(payload?.name || "校内题库").trim() || "校内题库",
       importedAt: nowIso(),
@@ -63,8 +96,11 @@
       defaultGrade: payload?.defaultGrade || undefined,
       defaultSubject: payload?.defaultSubject || undefined,
       hasImages: Boolean(payload?.hasImages),
+      status: payload?.status || "review",
+      version: 1,
+      history: [{ version: 1, action: "import", summary: `导入 ${questions.length} 题，进入待审核`, at: nowIso() }],
       questions
-    };
+    }, { newBank: true });
     banks.push(bank);
     writeStore(banks);
     mergeIntoExternalSeeds();
@@ -75,7 +111,107 @@
     const bank = getBank(id);
     if (!bank) return false;
     bank.name = String(name || "").trim() || bank.name;
+    recordHistory(bank, "rename", "修改批次名称");
     return writeStore(banks);
+  }
+
+  function recordHistory(bank, action, summary) {
+    if (!bank) return;
+    bank.version = Math.max(1, Number(bank.version) || 1) + 1;
+    bank.updatedAt = nowIso();
+    bank.history = [...(Array.isArray(bank.history) ? bank.history : []), {
+      version: bank.version,
+      action,
+      summary: String(summary || action),
+      at: bank.updatedAt
+    }].slice(-30);
+  }
+
+  function auditBank(id) {
+    const bank = getBank(id);
+    if (!bank) return null;
+    const Audit = window.MathCampQuestionQualityAudit;
+    const result = Audit && typeof Audit.auditQuestions === "function"
+      ? Audit.auditQuestions(bank.questions || [])
+      : { total: (bank.questions || []).length, counts: { high: 0, medium: 0, low: 0, ok: (bank.questions || []).length }, averageScore: 100, canPublish: true, rows: [] };
+    (bank.questions || []).forEach((question, index) => {
+      if (!question.pointId) return;
+      const point = pointForId(question.pointId);
+      const row = result.rows[index];
+      if (!row) return;
+      if (!point) {
+        row.issues.push({ severity: "high", code: "invalid-point", message: "知识点 ID 不存在" });
+        row.highestSeverity = "high";
+      } else if (Number(point.grade) !== Number(question.grade) || point.subject !== question.subject) {
+        row.issues.push({ severity: "high", code: "point-mismatch", message: "知识点与题目年级或学科不一致" });
+        row.highestSeverity = "high";
+      }
+    });
+    if (result.rows.length) {
+      result.counts = { high: 0, medium: 0, low: 0, ok: 0 };
+      result.rows.forEach((row) => { result.counts[row.highestSeverity] += 1; });
+      result.canPublish = result.counts.high === 0;
+    }
+    return result;
+  }
+
+  function publishBank(id) {
+    const bank = getBank(id);
+    if (!bank) return { ok: false, reason: "题库不存在" };
+    const audit = auditBank(id);
+    if (!audit?.canPublish) return { ok: false, reason: `仍有 ${audit?.counts?.high || 0} 道题存在硬规则问题`, audit };
+    bank.status = "published";
+    bank.questions.forEach((question) => {
+      if (question.enabled !== false) question.reviewStatus = "approved";
+    });
+    recordHistory(bank, "publish", `审核发布 ${bank.questions.filter((question) => question.enabled !== false).length} 题`);
+    writeStore(banks);
+    mergeIntoExternalSeeds();
+    return { ok: true, bank, audit };
+  }
+
+  function setBankStatus(id, status) {
+    const bank = getBank(id);
+    if (!bank || !BANK_STATUSES.has(status) || status === "published") return false;
+    bank.status = status;
+    recordHistory(bank, status, status === "disabled" ? "停用题库" : "退回待审核");
+    writeStore(banks);
+    mergeIntoExternalSeeds();
+    return true;
+  }
+
+  function batchUpdateQuestions(id, questionIds, patch) {
+    const bank = getBank(id);
+    if (!bank || !patch || typeof patch !== "object") return 0;
+    const ids = new Set(Array.isArray(questionIds) ? questionIds.filter(Boolean) : []);
+    let changed = 0;
+    bank.questions.forEach((question) => {
+      if (ids.size && !ids.has(question.id)) return;
+      if (patch.grade !== undefined && Number(patch.grade) >= 1 && Number(patch.grade) <= 6) question.grade = Number(patch.grade);
+      if (patch.subject !== undefined && ["math", "chinese", "english", "science"].includes(patch.subject)) question.subject = patch.subject;
+      if (patch.term !== undefined && ["upper", "lower", "year"].includes(patch.term)) question.term = patch.term;
+      if (patch.pointId !== undefined) question.pointId = String(patch.pointId || "").trim() || undefined;
+      if (patch.difficultyScore !== undefined && Number(patch.difficultyScore) >= 1 && Number(patch.difficultyScore) <= 5) question.difficultyScore = Number(patch.difficultyScore);
+      question.reviewStatus = "pending";
+      changed += 1;
+    });
+    if (!changed) return 0;
+    bank.status = "review";
+    recordHistory(bank, "batch-update", `批量修改 ${changed} 题并退回审核`);
+    writeStore(banks);
+    mergeIntoExternalSeeds();
+    return changed;
+  }
+
+  function setQuestionEnabled(id, questionId, enabled) {
+    const bank = getBank(id);
+    const question = bank?.questions?.find((item) => item.id === questionId);
+    if (!bank || !question) return false;
+    question.enabled = Boolean(enabled);
+    recordHistory(bank, enabled ? "enable-question" : "disable-question", `${enabled ? "启用" : "停用"}题目 ${questionId}`);
+    writeStore(banks);
+    mergeIntoExternalSeeds();
+    return true;
   }
 
   function deleteBank(id) {
@@ -119,24 +255,30 @@
   }
 
   // ---- 把带合法 pointId 的自定义题合并进外部题库，供普通自适应练习抽取 ----
-  function validPointId(pointId) {
+  function pointForId(pointId) {
     const id = String(pointId || "").trim();
-    if (!id) return false;
+    if (!id) return null;
     const registry = window.MathCampSubjects;
     if (registry && typeof registry.subjectBank === "function") {
       for (const subject of registry.SUBJECT_IDS || []) {
         const bank = registry.subjectBank(subject);
-        if (bank && (bank.pointMap?.[id] || bank.points?.find?.((p) => p.id === id))) return true;
+        const point = bank && (bank.pointMap?.[id] || bank.points?.find?.((p) => p.id === id));
+        if (point) return { ...point, subject: point.subject || subject };
       }
     }
-    return false;
+    return null;
+  }
+
+  function validPointId(pointId) {
+    return Boolean(pointForId(pointId));
   }
 
   function mergeIntoExternalSeeds() {
     const external = window.MathCampExternalQuestionSeeds;
     if (!external || typeof external.registerExtraSeeds !== "function") return;
     const byPoint = {};
-    allQuestions().forEach((question) => {
+    banks.filter((bank) => bank.status === "published").flatMap((bank) => bank.questions || []).forEach((question) => {
+      if (question.enabled === false || question.reviewStatus !== "approved") return;
       const pointId = String(question.pointId || "").trim();
       if (!validPointId(pointId)) return;
       (byPoint[pointId] = byPoint[pointId] || []).push(question);
@@ -203,7 +345,7 @@
     const bank = getBank(id);
     if (!bank) return [];
     return (bank.questions || [])
-      .filter((question) => !question.displayOnly) // 纯展示题不进作答练习
+      .filter((question) => question.enabled !== false && !question.displayOnly) // 纯展示题和停用题不进作答练习
       .map((question) => toPracticeQuestion(question, deps, id));
   }
 
@@ -213,6 +355,11 @@
     addBank,
     renameBank,
     deleteBank,
+    auditBank,
+    publishBank,
+    setBankStatus,
+    batchUpdateQuestions,
+    setQuestionEnabled,
     allQuestions,
     mergeIntoExternalSeeds,
     toPracticeQuestion,
@@ -224,7 +371,7 @@
       return JSON.parse(JSON.stringify(banks));
     },
     replaceAll(list) {
-      banks = Array.isArray(list) ? list.filter((b) => b && Array.isArray(b.questions)) : [];
+      banks = Array.isArray(list) ? list.filter((b) => b && Array.isArray(b.questions)).map((bank) => normalizeBank(bank)) : [];
       writeStore(banks);
       mergeIntoExternalSeeds();
       return banks.length;
@@ -246,7 +393,7 @@
     // 从存档恢复：写回 banks 和图片
     async replaceAllWithImages(payload) {
       const list = Array.isArray(payload) ? payload : (payload && payload.banks);
-      banks = Array.isArray(list) ? list.filter((b) => b && Array.isArray(b.questions)) : [];
+      banks = Array.isArray(list) ? list.filter((b) => b && Array.isArray(b.questions)).map((bank) => normalizeBank(bank)) : [];
       writeStore(banks);
       const Images = window.MathCampBankImages;
       const images = (payload && payload.images) || {};

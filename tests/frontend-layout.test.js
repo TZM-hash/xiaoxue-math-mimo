@@ -41,7 +41,8 @@ const cssFiles = [
   "css/animations-enhanced.css",
   "css/effects-settings.css"
 ];
-const css = cssFiles.map(read).join("\n");
+const visualPolishCss = fs.existsSync(path.join(root, "css/visual-polish.css")) ? read("css/visual-polish.css") : "";
+const css = [...cssFiles.map(read), visualPolishCss].join("\n");
 const mathQuestionMakers = read("js/math-question-makers.js");
 const app = [read("js/app.js"), mathQuestionMakers].join("\n");
 const runtimeConfig = read("js/runtime-config.js");
@@ -52,15 +53,25 @@ const questionEnhancements = read("js/question-enhancements.js");
 const cursorEffects = read("js/cursor-effects.js");
 const uiAnimations = read("js/ui-animations.js");
 const animationIntegration = read("js/animation-integration.js");
+const microInteractions = read("js/micro-interactions.js");
+const effectsControlIntegrated = read("js/effects-control-integrated.js");
+const visualPolish = fs.existsSync(path.join(root, "js/visual-polish.js")) ? read("js/visual-polish.js") : "";
+const uiFeedback = read("js/ui-feedback.js");
+const grade3ReferenceSeeds = read("js/grade3-reference-question-seeds.js");
+const grade4ReferenceSeeds = read("js/grade4-reference-question-seeds.js");
+const scienceQuestionGenerator = read("js/science-question-generator.js");
+const chineseQuestionGenerator = read("js/chinese-question-generator.js");
 const timerFix = read("js/timer-fix.js");
 const questionGenerator = read("js/question-generator.js");
 const questionBank = read("js/question-bank.js");
 const questionBankCoverage = read("js/question-bank-coverage.js");
 const learningInsights = read("js/learning-insights.js");
+const learningQuality = read("js/learning-quality-engine.js");
 const subjectRegistry = read("js/subject-registry.js");
 const practiceEngine = read("js/practice-engine.js");
 const reportModule = read("js/report.js");
 const petModule = read("js/pet.js");
+const petExperience = fs.existsSync(path.join(root, "js/pet-experience.js")) ? read("js/pet-experience.js") : "";
 const importExportModule = read("js/import-export.js");
 const questionSourceSummary = read("js/question-source-summary.js");
 const packageJson = read("package.json");
@@ -85,6 +96,16 @@ assertContains(html, 'id="knowledgeMapView"', "knowledge map should use a standa
 assertContains(html, 'id="learningKnowledgeMap"', "knowledge map view should include the knowledge map mount");
 assertContains(html, 'id="petStagePanelSlot"', "mobile pet growth modal should include a stage/quality slot");
 assertContains(html, 'id="petShowcaseCard"', "pet space should include a visible showcase card");
+assertContains(html, 'src="js/pet-experience.js"', "页面应加载宠物体验增强模块");
+assertContains(app, "data-pet-free-care", "今日照料应提供每日一次免费照料");
+assertContains(app, "data-pet-daily-choice", "随机事件区域应提供每日陪伴选择");
+assertContains(app, "data-pet-bell-slot", "宠物空间应提供低频找铃铛玩法");
+assertContains(app, "data-pet-preview", "装扮卡片应支持即时预览");
+assertContains(app, "pet-afford-progress", "商店物品应显示金币积累进度");
+assertContains(petExperience, "function ensureStarterKit", "宠物体验模块应提供幂等开局礼包");
+assertContains(petExperience, "function playBellGame", "宠物体验模块应提供每日轻量玩法");
+assertContains(css, ".pet-room-stage[data-pet-state]", "宠物房间应根据状态强化视觉表现");
+assertContains(css, ".pet-preview-active", "装扮预览应有明确视觉状态");
 assertContains(html, 'id="petShowcasePanelSlot"', "mobile pet plan menu should host the showcase card");
 assertContains(html, 'id="petShopAdvisor"', "pet shop should include a recommendation panel");
 assertContains(html, 'id="petDressupPreview"', "dressup modal should include a current display preview");
@@ -187,6 +208,49 @@ assertNotContains(html, 'id="historyList"', "学习报告不应保留最近记�
 assertContains(html, 'src="js/question-generator.js"', "页面应加载拆分后的题目生成模块");
 assertContains(html, 'src="js/question-source-summary.js"', "页面应加载题目来源统计模块");
 assertContains(html, 'src="js/practice-engine.js"', "页面应加载拆分后的练习引擎模块");
+assertContains(html, 'src="js/learning-quality-engine.js"', "页面应加载学习质量引擎模块");
+assertContains(html, '<option value="glass-clear">', "主题设置应提供清透玻璃主题");
+assertContains(html, '<option value="glass-pop">', "主题设置应提供缤纷玻璃主题");
+assertContains(css, ':root[data-theme="glass-clear"]', "主题令牌应定义清透玻璃主题");
+assertContains(css, ':root[data-theme="glass-pop"]', "主题令牌应定义缤纷玻璃主题");
+assertContains(css, 'backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));', "毛玻璃主题应使用统一背景模糊和饱和度令牌");
+assertContains(css, 'radial-gradient(circle at 14% 12%', "毛玻璃主题背景应包含柔和光球");
+assertContains(html, 'href="css/visual-polish.css"', "页面应加载统一视觉精修样式");
+assertContains(html, 'src="js/visual-polish.js"', "页面应加载统一视觉精修控制器");
+assertContains(css, "--motion-fast: 150ms", "视觉系统应统一快速交互时长");
+assertContains(css, "--elevation-raised", "视觉系统应提供统一悬浮阴影层级");
+assertContains(css, "--glass-layer-content", "毛玻璃主题应区分内容层玻璃强度");
+assertContains(css, "font-variant-numeric: tabular-nums", "统计数字应使用等宽数字避免跳动");
+assertContains(css, ":focus-visible", "控件应提供统一键盘聚焦状态");
+assertContains(css, ".theme-transitioning", "主题切换应提供平滑过渡状态");
+assertContains(css, ".answer-feedback-good", "答对状态应提供专用视觉反馈");
+assertContains(css, '.floating-pet-assistant[data-reaction="correct"]', "悬浮猫咪应响应答对状态");
+assertContains(css, ".effects-performance-low", "低性能设备应降低模糊和环境动画");
+assertContains(css, "@media (prefers-reduced-motion: reduce)", "视觉系统应尊重系统减少动态效果设置");
+assertContains(css, "--depth-card-rest", "立体视觉应提供统一卡片承托阴影");
+assertContains(css, "--depth-control-inset", "立体视觉应提供输入控件内凹阴影");
+assertContains(css, ".depth-surface", "立体视觉应使用不改变布局的共享表面规则");
+assertContains(css, "box-shadow: var(--depth-control-inset)", "输入框应使用内凹立体效果");
+assertContains(css, "html.android-webview", "Android 应使用简化立体阴影避免性能负担");
+assertContains(css, ".answer-option[aria-pressed=\"true\"]", "选中答案应提供明确立体高光");
+assertContains(css, ".enhanced-input-wrapper .input-indicator", "增强输入框的指示线应保持在内凹表面上方");
+assertContains(css, "transform: scaleX(0)", "输入指示线应使用不影响布局的缩放过渡");
+assertContains(visualPolish, "function classifyPerformance", "视觉控制器应判断设备性能等级");
+assertContains(visualPolish, "MutationObserver", "视觉控制器应监听主题和答题状态变化");
+assertContains(visualPolish, "dataset.reaction", "视觉控制器应驱动悬浮猫咪状态动画");
+assertContains(visualPolish, "visual-polish-ready", "视觉控制器初始化后应暴露就绪状态");
+assertContains(html, 'id="confidenceControl"', "练习页应提供可选答题信心控件");
+assertNotContains(html, 'id="readAloudBtn"', "练习页不应保留通用读题按钮");
+assertNotContains(app, "function readQuestionAloud", "应用不应保留通用整题朗读功能");
+assertContains(html, 'id="startWeakReportBtn">生成周复习', "学习报告应复用现有入口提供周复习组卷");
+assertContains(html, 'data-confidence="sure"', "答题信心控件应包含确定选项");
+assertContains(html, 'data-confidence="unsure"', "答题信心控件应包含不确定选项");
+assertContains(html, 'data-confidence="guess"', "答题信心控件应包含猜测选项");
+assertContains(css, ".confidence-control", "答题信心控件应有稳定布局样式");
+assertContains(app, "questionStartedAt", "答题流程应记录单题开始时间");
+assertContains(app, "selectedConfidence", "答题流程应记录可选信心值");
+assertContains(app, "hintLevel", "答题流程应记录最高提示等级");
+assertContains(learningQuality, "function updateMasteryState", "学习质量引擎应提供掌握度更新函数");
 assertContains(html, 'src="js/question-rules-engine.js"', "页面应加载拆分后的题目规则引擎");
 assertContains(html, 'src="js/question-interaction.js"', "页面应加载拆分后的答题交互模块");
 assertContains(html, 'src="js/report.js"', "页面应加载拆分后的报告模块");
@@ -365,6 +429,9 @@ assertContains(runtimeConfig, "cursorEffects: false", "Android defaults should d
 assertContains(cloudSync, "ensureSupabaseSdk", "cloud sync should lazy-load the Supabase SDK");
 assertContains(cloudSync, "loading-sdk", "cloud sync should expose SDK loading status");
 assertContains(cloudSync, "testConnection", "cloud sync should expose a lightweight connection test");
+assertContains(cloudSync, "pendingProfilePush", "cloud sync should retain the latest failed profile payload for retry");
+assertContains(cloudSync, "pushProfiles(pending.profiles, pending.activeId)", "cloud sync retry timer should perform a real profile push");
+assertContains(cloudSync, "scheduleRetry(profiles, activeId, sequence)", "failed profile pushes should schedule their payload for retry");
 assertContains(questionSourceSummary, "summarizeQuestionSources", "question source summary module should export source summary helper");
 assertContains(app, "roundQuestionSourceSummary", "finish summary should expose round source statistics");
 assertContains(app, "questionBankAuditFilterFromUI", "question bank audit should combine source, subject, grade and point filters");
@@ -417,6 +484,28 @@ assertContains(cursorEffects, "closest('[data-subject-choice]')", "subject selec
 assertContains(uiAnimations, "closest('[data-subject-choice]')", "subject selector buttons should be excluded from UI click ripple effects");
 assertContains(animationIntegration, "isAnswerFeedbackNode", "answer celebration effects should only observe real feedback nodes");
 assertNotContains(animationIntegration, "node.textContent?.includes('正确')", "ordinary page copy containing 正确率 should not trigger correct-answer bursts");
+assertContains(animationIntegration, "mutation.target.parentElement", "number counter observers should handle text-node mutations through the parent element");
+assertNotContains(animationIntegration, "mutation.target.closest('strong')", "number counter observers should not call closest on text nodes");
+assertNotContains(microInteractions, '.custom-switch input[type="checkbox"] {\n      display: none;', "custom switches should keep their native checkbox focusable");
+assertContains(microInteractions, '.custom-switch input[type="checkbox"]:focus-visible + .switch-track', "custom switches should expose a keyboard focus indicator");
+assertContains(effectsControlIntegrated, "initialized: false", "effects control should track whether it has already initialized");
+assertContains(effectsControlIntegrated, "if (this.initialized) return", "effects control initialization should be idempotent");
+assertContains(effectsControlIntegrated, "this.returnFocusElement = document.activeElement", "effects settings should remember the trigger focus");
+assertContains(effectsControlIntegrated, "this.returnFocusElement?.focus?.()", "effects settings should restore focus after closing");
+assertContains(app, "objectiveQuestionPromptHTML", "objective questions should have a prompt-only title renderer");
+assertNotContains(css, "white-space: nowrap;\n      word-break: keep-all;\n      overflow-x: auto;", "question options should wrap instead of scrolling horizontally");
+assertContains(css, "overflow-wrap: anywhere;", "practice question content should allow long text to wrap within the viewport");
+assertNotContains(css, "body.practice-view-active.practice-focus-mode .floating-pet-assistant {\n        display: none !important;", "mobile practice focus should keep the draggable floating pet visible");
+assertContains(uiFeedback, "root.replaceChildren(toast)", "notifications should replace the previous toast instead of stacking over practice controls");
+assertNotContains(grade3ReferenceSeeds, '"参考截图来自', "grade 3 student prompts should not expose reference-production wording");
+assertNotContains(grade4ReferenceSeeds, '"参考截图来自', "grade 4 student prompts should not expose reference-production wording");
+assertNotContains(grade3ReferenceSeeds, "reference page", "grade 3 English prompts should not expose reference-production wording");
+assertNotContains(grade4ReferenceSeeds, "reference page", "grade 4 English prompts should not expose reference-production wording");
+assertNotContains(css + grade3ReferenceSeeds + grade4ReferenceSeeds, "DOCX 期中卷改写", "student prompts should not expose document-production wording");
+assertNotContains(scienceQuestionGenerator, "只看图片漂亮不漂亮", "science distractors should use plausible misconceptions");
+assertNotContains(scienceQuestionGenerator, "天气和宇宙现象需要长期观察或模型模拟", "science fallback explanations should not mix weather and astronomy");
+assertNotContains(chineseQuestionGenerator, '"只看字面随便猜", "不读题目直接选", "答案和题目无关"', "Chinese fallback distractors should be point-specific");
+assertNotContains(chineseQuestionGenerator, "按真实试卷的做法", "Chinese explanations should explain the actual skill instead of using generic exam copy");
 assertNotContains(cursorEffects, "createRipple(x, y)", "valid click effect should not include a center ripple");
 assertNotContains(cursorEffects, ".card, .tab-btn", "valid click effect should not treat ordinary cards as click targets");
 assertNotContains(cursorEffects, "this.setupParticleTrail();", "cursor effects should not leave mouse trail particles outside click targets");
@@ -632,6 +721,7 @@ assertContains(css, "#reportView .report-visual-panel:first-child {\n        gri
   "js/science-question-bank.js",
   "js/science-question-generator.js",
   "js/question-generator.js",
+  "js/learning-quality-engine.js",
   "js/practice-engine.js",
   "js/question-rules-engine.js",
   "js/question-interaction.js",

@@ -1,0 +1,515 @@
+/* Visual polish layer. It intentionally does not change page geometry or responsive layout. */
+
+:root {
+  --motion-fast: 150ms;
+  --motion-standard: 220ms;
+  --motion-slow: 300ms;
+  --motion-theme: 420ms;
+  --ease-standard: cubic-bezier(.2, .8, .2, 1);
+  --ease-emphasized: cubic-bezier(.22, 1, .36, 1);
+  --elevation-rest: 0 8px 20px rgba(38, 75, 96, .07);
+  --elevation-raised: 0 14px 30px rgba(38, 75, 96, .12);
+  --elevation-overlay: 0 24px 58px rgba(31, 62, 82, .19);
+  --border-quiet: color-mix(in oklch, var(--border), transparent 28%);
+  --border-active: color-mix(in oklch, var(--subject-accent), white 32%);
+  --glass-layer-shell: color-mix(in oklch, var(--surface), transparent 12%);
+  --glass-layer-content: color-mix(in oklch, var(--surface), transparent 7%);
+  --glass-layer-control: color-mix(in oklch, var(--surface), transparent 2%);
+  --depth-card-rest:
+    inset 0 1px 0 rgba(255, 255, 255, .82),
+    inset 0 -1px 0 rgba(44, 75, 94, .08),
+    0 2px 4px rgba(38, 75, 96, .055),
+    0 10px 22px rgba(38, 75, 96, .075);
+  --depth-card-raised:
+    inset 0 1px 0 rgba(255, 255, 255, .9),
+    inset 0 -1px 0 rgba(44, 75, 94, .1),
+    0 4px 7px rgba(38, 75, 96, .07),
+    0 15px 30px rgba(38, 75, 96, .11);
+  --depth-control-inset:
+    inset 0 2px 5px rgba(42, 72, 90, .085),
+    inset 0 -1px 0 rgba(255, 255, 255, .88),
+    0 1px 0 rgba(255, 255, 255, .68);
+  --depth-button-rest:
+    inset 0 1px 0 rgba(255, 255, 255, .84),
+    inset 0 -2px 0 rgba(42, 72, 90, .12),
+    0 4px 9px rgba(38, 75, 96, .09);
+  --depth-button-pressed:
+    inset 0 2px 4px rgba(42, 72, 90, .16),
+    inset 0 -1px 0 rgba(255, 255, 255, .54),
+    0 1px 3px rgba(38, 75, 96, .07);
+}
+
+:root:is([data-theme="glass-clear"], [data-theme="glass-pop"]) {
+  --glass-layer-shell: color-mix(in oklch, var(--surface), transparent 20%);
+  --glass-layer-content: color-mix(in oklch, var(--surface), transparent 10%);
+  --glass-layer-control: color-mix(in oklch, var(--surface), transparent 3%);
+}
+
+:root[data-theme="glass-pop"] {
+  --glass-layer-content: color-mix(in oklch, var(--surface), white 13%);
+  --glass-layer-control: color-mix(in oklch, var(--surface), white 23%);
+}
+
+:root:is([data-theme="glass-clear"], [data-theme="glass-pop"]) {
+  --depth-card-rest:
+    inset 0 1px 0 rgba(255, 255, 255, .92),
+    inset 0 -1px 0 rgba(57, 92, 110, .07),
+    0 3px 7px rgba(55, 96, 116, .055),
+    0 13px 28px rgba(55, 96, 116, .09);
+  --depth-control-inset:
+    inset 0 2px 6px rgba(57, 92, 110, .07),
+    inset 0 -1px 0 rgba(255, 255, 255, .94),
+    0 1px 0 rgba(255, 255, 255, .74);
+}
+
+:is(
+  .depth-surface,
+  .card,
+  .panel,
+  .practice-card,
+  .desktop-overview-card,
+  .home-route-step,
+  .home-mode-card,
+  .home-settings-card,
+  .mission-card,
+  .report-card,
+  .wrongbook-card,
+  .data-card,
+  .pet-collection-card
+) {
+  border-color: var(--border-quiet);
+  box-shadow: var(--depth-card-rest);
+  transition:
+    border-color var(--motion-standard) var(--ease-standard),
+    box-shadow var(--motion-standard) var(--ease-standard),
+    background-color var(--motion-theme) var(--ease-standard);
+}
+
+@media (hover: hover) {
+  :is(
+    .home-route-step,
+    .home-mode-card,
+    .mission-card,
+    .pet-collection-card
+  ):hover {
+    border-color: color-mix(in oklch, var(--border-active), transparent 10%);
+    box-shadow: var(--depth-card-raised);
+  }
+}
+
+:is(.hub-modal-panel, .pet-modal-panel, .archive-modal-panel, .app-dialog, .floating-pet-panel) {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .9),
+    inset 0 -1px 0 rgba(42, 72, 90, .1),
+    var(--elevation-overlay);
+}
+
+:root:is([data-theme="glass-clear"], [data-theme="glass-pop"]) :is(
+  .app-header,
+  .home-dashboard,
+  .panel,
+  .hub-modal-panel,
+  .pet-modal-panel,
+  .archive-modal-panel
+) {
+  background: var(--glass-layer-shell);
+}
+
+:root:is([data-theme="glass-clear"], [data-theme="glass-pop"]) :is(
+  .practice-card,
+  .desktop-overview-card,
+  .home-route-step,
+  .home-mode-card,
+  .home-settings-card,
+  .mission-card,
+  .report-card,
+  .wrongbook-card,
+  .data-card,
+  .pet-collection-card,
+  .floating-pet-panel
+) {
+  background: var(--glass-layer-content);
+}
+
+:root:is([data-theme="glass-clear"], [data-theme="glass-pop"]) :is(
+  input,
+  select,
+  textarea,
+  .custom-select-button,
+  .answer-option,
+  .number-pad button,
+  .confidence-btn,
+  .choice
+) {
+  background-color: var(--glass-layer-control);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .78), 0 5px 14px rgba(48, 84, 103, .05);
+}
+
+:root[data-theme="glass-pop"] :is(.question, .question-prompt, .answer-mode-panel, .feedback) {
+  text-shadow: 0 1px 0 rgba(255, 255, 255, .58);
+}
+
+:is(h1, h2, h3, .question, .question-prompt) {
+  text-wrap: pretty;
+}
+
+:is(.muted, .field label, .field-label, .stat span, .home-cockpit-meter em) {
+  color: color-mix(in oklch, var(--muted), var(--fg) 8%);
+}
+
+:is(
+  .stat strong,
+  .pill,
+  .goal-card strong,
+  .home-cockpit-meter b,
+  .pet-stat-value,
+  #timerStat,
+  #progressStat,
+  #correctStat,
+  #streakStat,
+  #todayPill,
+  #coinPill,
+  #wrongCountPill
+) {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+button,
+input,
+select,
+textarea,
+.choice,
+.answer-option,
+.custom-select-button {
+  transition:
+    transform var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-standard) var(--ease-standard),
+    color var(--motion-standard) var(--ease-standard),
+    opacity var(--motion-fast) linear;
+}
+
+:is(
+  button,
+  .choice,
+  .answer-option,
+  .custom-select-button,
+  .confidence-btn,
+  .tab-btn
+) {
+  box-shadow: var(--depth-button-rest);
+}
+
+:is(input, select, textarea, .answer-input) {
+  box-shadow: var(--depth-control-inset);
+}
+
+.enhanced-input-wrapper .input-indicator {
+  left: 10px;
+  right: 10px;
+  bottom: 1px;
+  z-index: 2;
+  width: auto;
+  border-radius: 999px;
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--motion-standard) var(--ease-standard);
+}
+
+.enhanced-input-wrapper.focused .input-indicator {
+  width: auto;
+  transform: scaleX(1);
+}
+
+:is(.pill, .tag, .stat, .goal-card, .home-cockpit-meter > span) {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .84),
+    inset 0 -1px 0 rgba(42, 72, 90, .08),
+    0 2px 5px rgba(38, 75, 96, .055);
+}
+
+:is(
+  .choice.active,
+  .choice[aria-pressed="true"],
+  .answer-option[aria-pressed="true"],
+  .confidence-btn.active,
+  .tab-btn[aria-selected="true"]
+) {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .9),
+    inset 0 -2px 0 color-mix(in oklch, var(--subject-accent), transparent 48%),
+    0 0 0 1px color-mix(in oklch, var(--subject-accent), transparent 68%),
+    0 7px 15px color-mix(in oklch, var(--subject-shadow), transparent 34%);
+}
+
+:is(.primary, #checkBtn) {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .34),
+    inset 0 -3px 0 color-mix(in oklch, var(--subject-accent), black 20%),
+    0 6px 13px color-mix(in oklch, var(--subject-shadow), transparent 18%);
+}
+
+:is(.danger, .feedback.bad) {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .42),
+    inset 0 -2px 0 color-mix(in oklch, var(--danger), black 16%),
+    0 6px 13px color-mix(in oklch, var(--danger), transparent 78%);
+}
+
+@media (hover: hover) {
+  button:not(:disabled):hover,
+  .choice:not(:disabled):hover,
+  .answer-option:not(:disabled):hover,
+  .custom-select-button:hover {
+    box-shadow: var(--elevation-raised);
+  }
+}
+
+button:not(:disabled):active,
+.choice:not(:disabled):active,
+.answer-option:not(:disabled):active,
+.custom-select-button:active {
+  transform: translateY(1px) scale(.985);
+  transition-duration: 80ms;
+  box-shadow: var(--depth-button-pressed);
+}
+
+:is(button, input, select, textarea, .choice, .answer-option, .custom-select-button):focus-visible {
+  outline: 3px solid color-mix(in oklch, var(--subject-accent-2), transparent 58%);
+  outline-offset: 2px;
+  border-color: var(--border-active);
+  box-shadow: 0 0 0 5px color-mix(in oklch, var(--subject-accent-2), transparent 82%);
+}
+
+:is(button, input, select, textarea, .choice, .answer-option):disabled {
+  opacity: .52;
+  filter: saturate(.62);
+  cursor: not-allowed;
+}
+
+.ui-icon {
+  width: 1.15em;
+  height: 1.15em;
+  flex: 0 0 1.15em;
+  display: inline-grid;
+  place-items: center;
+  font-size: 1em;
+  line-height: 1;
+  vertical-align: -.08em;
+}
+
+:root.theme-transitioning body,
+:root.theme-transitioning :is(
+  .app-header,
+  .panel,
+  .card,
+  .practice-card,
+  .desktop-overview-card,
+  .home-dashboard,
+  .home-route-step,
+  .home-mode-card,
+  .home-settings-card,
+  .hub-modal-panel,
+  .floating-pet-panel,
+  button,
+  input,
+  select,
+  textarea
+) {
+  transition:
+    background-color var(--motion-theme) var(--ease-standard),
+    background var(--motion-theme) var(--ease-standard),
+    border-color var(--motion-theme) var(--ease-standard),
+    color var(--motion-theme) var(--ease-standard),
+    box-shadow var(--motion-theme) var(--ease-standard) !important;
+}
+
+:root:is([data-theme="glass-clear"], [data-theme="glass-pop"]):not(.effects-ambient-off):not(.effects-performance-low) body::before {
+  animation: polish-ambient-drift 18s ease-in-out infinite alternate;
+  transform-origin: center;
+}
+
+.practice-card.answer-feedback-good {
+  animation: polish-answer-good 520ms var(--ease-emphasized);
+}
+
+.practice-card.answer-feedback-bad {
+  animation: polish-answer-bad 380ms var(--ease-standard);
+}
+
+.feedback.good {
+  box-shadow: inset 4px 0 0 color-mix(in oklch, var(--success), white 8%), var(--elevation-rest);
+}
+
+.feedback.bad {
+  box-shadow: inset 4px 0 0 color-mix(in oklch, var(--danger), white 8%), var(--elevation-rest);
+}
+
+.feedback.good::after,
+.feedback.bad::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  animation: polish-feedback-sheen 560ms var(--ease-standard);
+}
+
+.feedback.good,
+.feedback.bad {
+  position: relative;
+  overflow: hidden;
+}
+
+.floating-pet-button img {
+  transform-origin: 50% 88%;
+  animation: polish-pet-idle 4.2s ease-in-out infinite;
+}
+
+.floating-pet-assistant[data-reaction="correct"] .floating-pet-button img {
+  animation: polish-pet-correct 680ms var(--ease-emphasized);
+}
+
+.floating-pet-assistant[data-reaction="wrong"] .floating-pet-button img {
+  animation: polish-pet-wrong 520ms var(--ease-standard);
+}
+
+.floating-pet-assistant[data-reaction="reward"] .floating-pet-button {
+  animation: polish-pet-reward 900ms var(--ease-emphasized);
+}
+
+.floating-pet-assistant[data-reaction="hint"] .floating-pet-button img {
+  animation: polish-pet-hint 760ms var(--ease-emphasized);
+}
+
+.floating-pet-assistant.is-dragging *,
+.floating-pet-assistant.is-dragging .floating-pet-button img {
+  animation-play-state: paused !important;
+}
+
+@keyframes polish-ambient-drift {
+  0% { transform: translate3d(-1.2%, -.8%, 0) scale(1.01); }
+  100% { transform: translate3d(1.2%, .9%, 0) scale(1.035); }
+}
+
+@keyframes polish-answer-good {
+  0% { box-shadow: var(--elevation-rest); transform: translateY(0); }
+  45% { box-shadow: 0 0 0 4px color-mix(in oklch, var(--success), transparent 78%), var(--elevation-raised); transform: translateY(-2px); }
+  100% { box-shadow: var(--elevation-rest); transform: translateY(0); }
+}
+
+@keyframes polish-answer-bad {
+  0%, 100% { transform: translateX(0); }
+  28% { transform: translateX(-4px); }
+  56% { transform: translateX(3px); }
+  78% { transform: translateX(-1px); }
+}
+
+@keyframes polish-feedback-sheen {
+  0% { opacity: 0; transform: translateX(-36%); background: linear-gradient(90deg, transparent, rgba(255,255,255,.46), transparent); }
+  35% { opacity: .7; }
+  100% { opacity: 0; transform: translateX(36%); background: linear-gradient(90deg, transparent, rgba(255,255,255,.46), transparent); }
+}
+
+@keyframes polish-pet-idle {
+  0%, 100% { transform: translateY(0) scale(1); }
+  48% { transform: translateY(-2px) scale(1.018, .988); }
+  54% { transform: translateY(-2px) scale(.99, 1.012); }
+}
+
+@keyframes polish-pet-correct {
+  0%, 100% { transform: translateY(0) rotate(0) scale(1); }
+  35% { transform: translateY(-8px) rotate(-4deg) scale(1.07); }
+  62% { transform: translateY(-3px) rotate(4deg) scale(1.04); }
+}
+
+@keyframes polish-pet-wrong {
+  0%, 100% { transform: rotate(0) scale(1); }
+  30% { transform: rotate(-5deg) scale(.98); }
+  62% { transform: rotate(4deg) scale(.99); }
+}
+
+@keyframes polish-pet-reward {
+  0%, 100% { box-shadow: 0 16px 34px color-mix(in oklch, var(--subject-shadow), transparent 22%); }
+  45% { box-shadow: 0 0 0 7px color-mix(in oklch, var(--sun), transparent 58%), 0 18px 38px color-mix(in oklch, var(--sun), transparent 40%); transform: translateY(-4px) scale(1.06); }
+}
+
+@keyframes polish-pet-hint {
+  0%, 100% { transform: scale(1); }
+  45% { transform: scale(1.075) rotate(2deg); }
+}
+
+:root.effects-performance-low {
+  --glass-blur: 8px;
+  --glass-saturation: 1.05;
+  --elevation-rest: 0 4px 12px rgba(38, 75, 96, .06);
+  --elevation-raised: 0 8px 18px rgba(38, 75, 96, .09);
+  --elevation-overlay: 0 14px 34px rgba(31, 62, 82, .14);
+  --depth-card-rest: inset 0 1px 0 rgba(255,255,255,.76), 0 5px 12px rgba(38,75,96,.07);
+  --depth-card-raised: inset 0 1px 0 rgba(255,255,255,.82), 0 8px 16px rgba(38,75,96,.09);
+  --depth-control-inset: inset 0 2px 4px rgba(42,72,90,.07), inset 0 -1px 0 rgba(255,255,255,.74);
+  --depth-button-rest: inset 0 1px 0 rgba(255,255,255,.72), inset 0 -1px 0 rgba(42,72,90,.1), 0 3px 7px rgba(38,75,96,.07);
+}
+
+html.android-webview {
+  --depth-card-rest: inset 0 1px 0 rgba(255,255,255,.72), 0 4px 10px rgba(38,75,96,.065);
+  --depth-card-raised: inset 0 1px 0 rgba(255,255,255,.76), 0 6px 14px rgba(38,75,96,.08);
+  --depth-control-inset: inset 0 2px 3px rgba(42,72,90,.065), inset 0 -1px 0 rgba(255,255,255,.7);
+  --depth-button-rest: inset 0 1px 0 rgba(255,255,255,.7), inset 0 -1px 0 rgba(42,72,90,.09), 0 2px 6px rgba(38,75,96,.065);
+  --elevation-overlay: 0 11px 26px rgba(31,62,82,.13);
+}
+
+:root.effects-performance-low:is([data-theme="glass-clear"], [data-theme="glass-pop"]) :is(
+  input,
+  select,
+  textarea,
+  .answer-option,
+  .number-pad button,
+  .home-route-step,
+  .desktop-overview-card
+) {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+:root.effects-performance-low body::before,
+:root.effects-performance-low .floating-pet-button img {
+  animation: none !important;
+}
+
+:root.effects-reduced-motion *,
+:root.effects-ui-animations-off * {
+  scroll-behavior: auto !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 1ms;
+    --motion-standard: 1ms;
+    --motion-slow: 1ms;
+    --motion-theme: 1ms;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+:root.effects-reduced-motion *,
+:root.effects-reduced-motion *::before,
+:root.effects-reduced-motion *::after,
+:root.effects-ui-animations-off *,
+:root.effects-ui-animations-off *::before,
+:root.effects-ui-animations-off *::after {
+  animation-duration: 1ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 1ms !important;
+}

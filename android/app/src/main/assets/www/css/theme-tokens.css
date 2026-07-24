@@ -316,5 +316,59 @@
       --cat-gold: oklch(80% 0.16 84);
       --cat-pink: oklch(78% 0.12 350);
     }
+    :root[data-theme="glass-clear"] {
+      --bg: oklch(97% 0.018 205);
+      --surface: oklch(100% 0.008 210 / .78);
+      --soft: oklch(94% 0.035 188 / .72);
+      --fg: oklch(22% 0.032 225);
+      --muted: oklch(47% 0.035 215);
+      --border: oklch(88% 0.035 202 / .72);
+      --accent: oklch(62% 0.13 174);
+      --accent-2: oklch(70% 0.11 215);
+      --sun: oklch(88% 0.13 92);
+      --coral: oklch(71% 0.12 28);
+      --berry: oklch(63% 0.11 320);
+      --success: oklch(56% 0.13 155);
+      --danger: oklch(59% 0.16 24);
+      --warning: oklch(82% 0.14 86);
+      --shadow: 0 22px 56px rgba(42, 105, 117, .14);
+      --glass-surface: rgba(255, 255, 255, .58);
+      --glass-strong: rgba(255, 255, 255, .82);
+      --glass-border: rgba(255, 255, 255, .76);
+      --glass-blur: 20px;
+      --glass-saturation: 1.22;
+      --cat-white: oklch(100% 0.006 205);
+      --cat-cream: oklch(95% 0.026 92);
+      --cat-shadow: oklch(80% 0.04 205);
+      --cat-gold: oklch(80% 0.15 88);
+      --cat-pink: oklch(77% 0.09 350);
+    }
+    :root[data-theme="glass-pop"] {
+      --bg: oklch(97% 0.025 35);
+      --surface: oklch(100% 0.006 30 / .76);
+      --soft: oklch(95% 0.055 48 / .72);
+      --fg: oklch(22% 0.04 252);
+      --muted: oklch(47% 0.045 260);
+      --border: oklch(88% 0.05 28 / .72);
+      --accent: oklch(63% 0.2 20);
+      --accent-2: oklch(66% 0.16 220);
+      --sun: oklch(87% 0.18 88);
+      --coral: oklch(69% 0.2 24);
+      --berry: oklch(61% 0.18 326);
+      --success: oklch(58% 0.16 150);
+      --danger: oklch(58% 0.2 24);
+      --warning: oklch(82% 0.18 82);
+      --shadow: 0 24px 60px rgba(101, 70, 128, .18);
+      --glass-surface: rgba(255, 255, 255, .56);
+      --glass-strong: rgba(255, 255, 255, .84);
+      --glass-border: rgba(255, 255, 255, .8);
+      --glass-blur: 22px;
+      --glass-saturation: 1.35;
+      --cat-white: oklch(100% 0.006 25);
+      --cat-cream: oklch(95% 0.03 88);
+      --cat-shadow: oklch(81% 0.045 250);
+      --cat-gold: oklch(82% 0.17 85);
+      --cat-pink: oklch(77% 0.15 350);
+    }
     * { box-sizing: border-box; }
     html { background: var(--bg); color: var(--fg); scroll-behavior: smooth; }

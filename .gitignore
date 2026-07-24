@@ -16,3 +16,11 @@ tmp/
 
 # 自动生成的巨型逐题文档（用 npm run docs:generate 再生成）
 docs/题库文档.md
+
+# 本地编辑器生成的产物元数据
+*.artifact.json
+
+# Trellis / 编辑器脚手架（本地工具配置，不纳入版本控制）
+.trellis/
+.cursor/
+AGENTS.md

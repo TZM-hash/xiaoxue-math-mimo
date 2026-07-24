@@ -2104,6 +2104,16 @@
       }
     }
     @media (max-width: 620px) {
+      .bank-audit-summary { align-items: flex-start; flex-direction: column; }
+      .bank-bulk-editor { grid-template-columns: 1fr; }
+      .bank-bulk-editor .checkline,
+      .bank-bulk-editor button { grid-column: auto; }
+      .home-plan-mix {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .home-plan-mix > strong {
+        grid-column: 1 / -1;
+      }
       .app { width: min(100% - 12px, 1320px); padding: 0 0 6px; gap: 6px; }
       .app-header {
         position: relative;
@@ -6682,6 +6692,7 @@
         min-height: 0;
         max-height: none;
         overflow: visible;
+        padding-bottom: max(96px, calc(env(safe-area-inset-bottom) + 88px));
       }
       body.practice-view-active.practice-focus-mode .answer-panel {
         min-height: 0;
@@ -6695,6 +6706,33 @@
       body.practice-view-active.practice-focus-mode .practice-actions,
       body.practice-view-active.practice-focus-mode .mobile-challenge-result:not([hidden]) {
         flex: 0 0 auto;
+      }
+      body.practice-view-active.practice-focus-mode .question,
+      body.practice-view-active.practice-focus-mode .question-prompt,
+      body.practice-view-active.practice-focus-mode .question-line,
+      body.practice-view-active.practice-focus-mode .answer-mode-panel,
+      body.practice-view-active.practice-focus-mode .answer-option {
+        min-width: 0;
+        max-width: 100%;
+        white-space: normal;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+      }
+      body.practice-view-active.practice-focus-mode .choice-options {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      body.practice-view-active.practice-focus-mode .confidence-control {
+        align-items: stretch;
+        padding: 6px;
+      }
+      body.practice-view-active.practice-focus-mode .confidence-control > span {
+        display: none;
+      }
+      body.practice-view-active.practice-focus-mode .confidence-options {
+        width: 100%;
+      }
+      body.practice-view-active.practice-focus-mode .confidence-options button {
+        min-height: 36px;
       }
       body.practice-view-active.practice-focus-mode .practice-card > .companion {
         display: none !important;
