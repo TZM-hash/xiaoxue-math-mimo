@@ -953,6 +953,21 @@
         const thing = heavy ? "一袋大米" : "一个鸡蛋";
         const answer = heavy ? "千克" : "克";
         return mathBalanceSeed(id, `称${thing}的质量，用“克”还是“千克”更合适？`, answer, "质量单位选择", `${thing}比较${heavy ? "重" : "轻"}，用 ${answer} 更合适。`, [`判断${thing}的轻重。`, heavy ? "较重的物品用千克。" : "较轻的物品用克。", `选 ${answer}。`]);
+      },
+      (n, id) => {
+        const kg = 2 + (n % 7);
+        const extraG = 100 + (n % 8) * 50;
+        return mathBalanceSeed(id, `${kg} 千克 ${extraG} 克 = 多少克？`, kg * 1000 + extraG, "克千克合并", `${kg} 千克是 ${kg * 1000} 克，再加 ${extraG} 克，共 ${kg * 1000 + extraG} 克。`, [`${kg} 千克 = ${kg * 1000} 克。`, `再加 ${extraG} 克。`, `共 ${kg * 1000 + extraG} 克。`]);
+      },
+      (n, id) => {
+        const total = 1000;
+        const used = 200 + (n % 8) * 50;
+        return mathBalanceSeed(id, `一包糖重 ${total} 克，吃掉 ${used} 克，还剩多少克？`, total - used, "质量减法", `${total} - ${used} = ${total - used} 克。`, [`原来 ${total} 克。`, `吃掉 ${used} 克。`, `还剩 ${total - used} 克。`]);
+      },
+      (n, id) => {
+        const each = 2 + (n % 6);
+        const count = 3 + (n % 6);
+        return mathBalanceSeed(id, `每袋盐重 ${each} 千克，${count} 袋一共重多少千克？`, each * count, "质量乘法", `${each} × ${count} = ${each * count} 千克。`, [`每袋 ${each} 千克。`, `有 ${count} 袋。`, `共 ${each * count} 千克。`]);
       }
     ]),
     "g2-statistics": rotatingSeries("g2-statistics", 20, [

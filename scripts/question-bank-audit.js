@@ -4,6 +4,10 @@ const vm = require("vm");
 
 const root = path.resolve(__dirname, "..");
 
+// 数学每个知识点的最低有效题量门槛。数学没有本地模板生成器，全部依赖
+// external 种子；低于该值说明该知识点接近空缺，应补题后再发布。
+const MATH_MIN_EFFECTIVE = 6;
+
 function read(file) {
   return fs.readFileSync(path.join(root, file), "utf8");
 }
@@ -161,6 +165,13 @@ function buildAudit() {
         const minimum = subject === "chinese" ? 4 : subject === "science" ? 10 : 8;
         if (bucket !== "year" && subject !== "math" && local.length < minimum) {
           gaps.push({ level: "high", subject, grade, pointId: point.id, message: `term point has fewer than ${minimum} local templates` });
+        }
+
+        // 数学没有本地模板生成器，题目完全来自 external 种子。
+        // 这里补一条“每个数学知识点至少要有 MATH_MIN_EFFECTIVE 道有效题”的检查，
+        // 防止出现空知识点或题量极少的知识点悄悄进入发布（历史上一年级曾出现空点）。
+        if (subject === "math" && effective.length < MATH_MIN_EFFECTIVE) {
+          gaps.push({ level: "high", subject, grade, pointId: point.id, message: `math point has only ${effective.length} effective questions (minimum ${MATH_MIN_EFFECTIVE})` });
         }
       });
       const contentKeys = entries.map((entry) => questionContentKey(context, entry.question));
