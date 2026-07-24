@@ -568,6 +568,16 @@
       isLanguageQuestion,
       isNonMathQuestion
     } = window.MathCampUtils;
+    // 纯格式化 / 日期 / HTML 转义工具（从 app.js 抽到 app-format-utils.js，只搬不改）。
+    const {
+      escapeHTML,
+      escapeAttr,
+      isPlainObject,
+      todayKey,
+      dateKeyFromDayNumber,
+      dayNumber,
+      accuracyOf
+    } = window.MathCampFormatUtils;
     function hasAudioPrompt(question) {
       const prompt = question?.audioPrompt;
       return Boolean(isEnglishQuestion(question) && prompt && prompt.type === "tts" && String(prompt.text || "").trim());
@@ -612,15 +622,6 @@
         [copy[i], copy[j]] = [copy[j], copy[i]];
       }
       return copy;
-    }
-    function escapeHTML(value) {
-      return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[char]));
-    }
-    function escapeAttr(value) {
-      return escapeHTML(value).replace(/`/g, "&#96;");
-    }
-    function isPlainObject(value) {
-      return Boolean(value) && typeof value === "object" && !Array.isArray(value);
     }
     function normalizeQuestionDiagram(diagram) {
       if (!isPlainObject(diagram)) return null;
@@ -1001,26 +1002,10 @@
         saveSystemSettingsSnapshot();
       }
     }
-    function todayKey(offset = 0) {
-      const date = new Date();
-      date.setDate(date.getDate() + offset);
-      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-    }
-    function dateKeyFromDayNumber(value) {
-      const day = Number(value);
-      if (!Number.isFinite(day)) return todayKey();
-      const date = new Date(day * 86400000);
-      return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
-    }
     function addDaysToKey(key, offset = 0) {
       const base = dayNumber(key || todayKey());
       if (!Number.isFinite(base)) return todayKey(offset);
       return dateKeyFromDayNumber(base + Number(offset || 0));
-    }
-    function dayNumber(key) {
-      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(key || ""));
-      if (!match) return NaN;
-      return Math.floor(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) / 86400000);
     }
     function daysBetween(from, to = todayKey()) {
       const a = dayNumber(from);
@@ -1769,10 +1754,6 @@
     }
     function dailyGoal(profile = activeProfile()) {
       return clamp(Number(profile.settings?.dailyGoal) || 20, 5, 200);
-    }
-    function accuracyOf(items) {
-      if (!items.length) return 0;
-      return Math.round(items.filter((item) => item.correct).length / items.length * 100);
     }
     function learningDaysFor(profile = activeProfile()) {
       const days = new Set(profile.history.map((item) => item.date));
