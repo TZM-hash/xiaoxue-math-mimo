@@ -15,6 +15,9 @@
     let localSaveBackupPromptShown = false;
     // 本地档案改动计数：云同步用它检测“覆盖窗口”内是否有新的本地写入，避免整表替换丢数据。
     let localProfileMutationVersion = 0;
+    // 高频保存防抖：答题等热点路径用 scheduleSaveProfiles 合并多次写入，减少主线程阻塞。
+    const SAVE_DEBOUNCE_MS = 400;
+    let saveProfilesTimer = null;
     const SubjectRegistry = window.MathCampSubjects || {};
     const LearningQuality = window.MathCampLearningQuality || {};
     const SUBJECTS = Object.freeze(SubjectRegistry.SUBJECT_META || {
@@ -2329,6 +2332,23 @@
       }
       renderChrome();
       return ok;
+    }
+    // 防抖保存：合并短时间内的多次保存请求（如连续答题），减少对主线程和
+    // localStorage 的频繁写入。仅用于不依赖同步返回值的高频路径；关键操作
+    // （购买、领奖、改档案）仍直接调用 saveProfiles() 以便即时拿到成功与否。
+    function scheduleSaveProfiles() {
+      if (saveProfilesTimer) clearTimeout(saveProfilesTimer);
+      saveProfilesTimer = setTimeout(() => {
+        saveProfilesTimer = null;
+        saveProfiles();
+      }, SAVE_DEBOUNCE_MS);
+    }
+    // 立即写入任何挂起的防抖保存，用于页面隐藏/关闭前确保数据落盘。
+    function flushPendingSaveProfiles() {
+      if (!saveProfilesTimer) return;
+      clearTimeout(saveProfilesTimer);
+      saveProfilesTimer = null;
+      saveProfiles();
     }
     // 深拷贝档案用于写入：优先使用 structuredClone（更快、无需二次序列化），
     // 在不支持的环境下回退到 JSON 方式。
@@ -8616,7 +8636,7 @@
       els.answerInput.disabled = true;
       els.checkBtn.disabled = true;
       renderStats();
-      saveProfiles();
+      scheduleSaveProfiles();
       setFeedback(correct ? "good" : "saved", correct ? "已标记为掌握。" : "已保存订正，后续会安排复习。", correct ? "😄" : "📝");
       if (!correct && els.showAnswerBtn) els.showAnswerBtn.disabled = false;
     }
@@ -8709,7 +8729,7 @@
         btn.disabled = true;
       });
       saveChallengeDraft({ persist: false, render: false });
-      saveProfiles();
+      scheduleSaveProfiles();
       renderStats();
       if (correct) {
         state.autoNextId = window.setTimeout(() => {
@@ -10224,6 +10244,11 @@
     }
     document.addEventListener("visibilitychange", handleAudioVisibility);
     window.addEventListener("pagehide", stopBackgroundMusic);
+    // 页面进入后台或即将卸载前，立即写入挂起的防抖保存，避免丢失最后的答题数据。
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") flushPendingSaveProfiles();
+    });
+    window.addEventListener("pagehide", flushPendingSaveProfiles);
     if (!isAndroidWebView()) document.addEventListener("click", playButtonSound, true);
     els.pointSelect.addEventListener("change", () => {
       state.pointId = els.pointSelect.value;
