@@ -676,6 +676,620 @@
     })
   };
 
+  // ------------------------------------------------------------------
+  // 数学题库扩充（2026 全量优化）
+  // 目标：补齐数学一年级空知识点，以及二/四年级缺失的核心单元与六年级题量。
+  // 说明：全部使用程序化生成，答案由代码计算，保证正确；每个知识点使用多套
+  // 题型模板轮换，避免“换数字仍雷同”导致的相似题堆积。所有条目会与既有题库
+  // 合并去重（uniqueSeeds），不会覆盖已有内容。
+  // ------------------------------------------------------------------
+  function mathBalanceSeed(id, prompt, answer, templateType, explanation, steps) {
+    return balanceTextSeed(id, prompt, answer, templateType, explanation, steps);
+  }
+  // 按模板列表轮换生成一批题：templates 是一组 (index, id) => seed 的函数，
+  // 生成第 k 题时使用第 (k % templates.length) 个模板，保证题型均匀交替。
+  function rotatingSeries(pointId, count, templates) {
+    return Array.from({ length: count }, (_, index) => {
+      const template = templates[index % templates.length];
+      return template(index + 1, `${pointId}-expand-${index + 1}`);
+    });
+  }
+
+  const MATH_EXPANSION_BANK = {
+    // 一年级：把加起来后再看进位/十位讲清楚，为竖式意识打基础。
+    // 10 以内加减是一上核心单元，多补题量同时平衡上下册（上册点较少）。
+    "g1-10-add": rotatingSeries("g1-10-add", 90, [
+        (n, id) => {
+          const total = 6 + (n % 4);
+          const part = 1 + (n % Math.max(1, total - 1));
+          return mathBalanceSeed(id, `${total} 可以分成 ${part} 和几？`, total - part, "数的分与合", `${total} 分成 ${part} 和 ${total - part}。`, [`总数是 ${total}。`, `已经分出 ${part}。`, `另一部分是 ${total - part}。`]);
+        },
+        (n, id) => {
+          const a = 3 + (n % 5);
+          const b = 2 + (n % 4);
+          return mathBalanceSeed(id, `树上有 ${a} 只小鸟，又飞来 ${b} 只，一共有几只？`, a + b, "10以内加法应用", `原来 ${a} 只，又来 ${b} 只，一共 ${a + b} 只。`, [`原来 ${a} 只。`, `又飞来 ${b} 只。`, `${a} + ${b} = ${a + b} 只。`]);
+        },
+        (n, id) => {
+          const total = 7 + (n % 3);
+          const eaten = 1 + (n % 4);
+          return mathBalanceSeed(id, `盘子里有 ${total} 个苹果，吃掉 ${eaten} 个，还剩几个？`, total - eaten, "10以内减法应用", `吃掉就是减去，${total} - ${eaten} = ${total - eaten} 个。`, [`原来 ${total} 个。`, `吃掉 ${eaten} 个。`, `${total} - ${eaten} = ${total - eaten} 个。`]);
+        },
+        (n, id) => {
+          const a = 1 + (n % 8);
+          const b = 1 + ((n + 3) % Math.max(1, 9 - a));
+          return mathBalanceSeed(id, `${a} + ${b} = ?`, a + b, "10以内口算", `把 ${a} 和 ${b} 合起来，得到 ${a + b}。`, [`从 ${a} 开始。`, `再数 ${b} 个。`, `是 ${a + b}。`]);
+        },
+        (n, id) => {
+          const total = 5 + (n % 5);
+          const part = 1 + (n % Math.max(1, total - 1));
+          return mathBalanceSeed(id, `${total} - ${part} = ?`, total - part, "10以内减法", `从 ${total} 里去掉 ${part}，还剩 ${total - part}。`, [`总数 ${total}。`, `去掉 ${part}。`, `是 ${total - part}。`]);
+        }
+    ]),
+    // 一年级 20 以内竖式意识（一下笔算萌芽，只练数位对齐）。
+    "g1-vertical": rotatingSeries("g1-vertical", 16, [
+      (n, id) => {
+        const a = 11 + (n % 8);
+        const b = 2 + (n % 7);
+        return mathBalanceSeed(id, `用竖式的方法算：${a} + ${b} = ?`, a + b, "20以内加法竖式", `个位对齐，从个位加起，${a} + ${b} = ${a + b}。`, ["个位和个位对齐。", "先加个位，满十进一。", `结果是 ${a + b}。`]);
+      },
+      (n, id) => {
+        const a = 13 + (n % 7);
+        const b = 2 + (n % 6);
+        return mathBalanceSeed(id, `用竖式的方法算：${a} - ${b} = ?`, a - b, "20以内减法竖式", `个位对齐，从个位减起，${a} - ${b} = ${a - b}。`, ["个位和个位对齐。", "从个位减起。", `结果是 ${a - b}。`]);
+      }
+    ]),
+    // 一年级连加连减、加减混合（year：一上一下都有）。
+    "g1-two-step": rotatingSeries("g1-two-step", 16, [
+      (n, id) => {
+        const a = 3 + (n % 4);
+        const b = 2 + (n % 3);
+        const c = 1 + (n % 3);
+        return mathBalanceSeed(id, `${a} + ${b} + ${c} = ?`, a + b + c, "连加", `先算 ${a} + ${b} = ${a + b}，再加 ${c}，得 ${a + b + c}。`, [`先算前两个：${a} + ${b} = ${a + b}。`, `再加 ${c}。`, `结果是 ${a + b + c}。`]);
+      },
+      (n, id) => {
+        const a = 12 + (n % 6);
+        const b = 2 + (n % 4);
+        const c = 1 + (n % 3);
+        return mathBalanceSeed(id, `${a} - ${b} - ${c} = ?`, a - b - c, "连减", `先算 ${a} - ${b} = ${a - b}，再减 ${c}，得 ${a - b - c}。`, [`先算 ${a} - ${b} = ${a - b}。`, `再减 ${c}。`, `结果是 ${a - b - c}。`]);
+      },
+      (n, id) => {
+        const a = 8 + (n % 5);
+        const b = 3 + (n % 4);
+        const c = 2 + (n % 3);
+        return mathBalanceSeed(id, `${a} + ${b} - ${c} = ?`, a + b - c, "加减混合", `先算 ${a} + ${b} = ${a + b}，再减 ${c}，得 ${a + b - c}。`, [`先算 ${a} + ${b} = ${a + b}。`, `再减 ${c}。`, `结果是 ${a + b - c}。`]);
+      }
+    ]),
+    // 一年级比多比少与补数。
+    "g1-compare": rotatingSeries("g1-compare", 16, [
+      (n, id) => {
+        const a = 5 + (n % 8);
+        const diff = 1 + (n % 5);
+        return mathBalanceSeed(id, `${a + diff} 比 ${a} 多几？`, diff, "比多少", `多多少用减法：${a + diff} - ${a} = ${diff}。`, [`两个数是 ${a + diff} 和 ${a}。`, "多多少用减法。", `${a + diff} - ${a} = ${diff}。`]);
+      },
+      (n, id) => {
+        const target = 10 + (n % 8);
+        const part = 2 + (n % 6);
+        return mathBalanceSeed(id, `${part} 再添上几就是 ${target}？`, target - part, "补数", `从 ${part} 到 ${target} 差 ${target - part}。`, [`目标是 ${target}。`, `已有 ${part}。`, `${target} - ${part} = ${target - part}。`]);
+      }
+    ]),
+    // 一年级数序与第几。
+    "g1-number-order": rotatingSeries("g1-number-order", 14, [
+      (n, id) => {
+        const number = 5 + (n % 12);
+        return mathBalanceSeed(id, `${number} 后面相邻的一个数是多少？`, number + 1, "相邻数", `比 ${number} 多 1 的数是 ${number + 1}。`, [`从 ${number} 开始。`, "向后数一个。", `是 ${number + 1}。`]);
+      },
+      (n, id) => {
+        const front = 3 + (n % 6);
+        return mathBalanceSeed(id, `小朋友排队，明明前面有 ${front} 人，明明排第几？`, front + 1, "第几问题", `前面 ${front} 人，明明就排在第 ${front + 1}。`, [`前面有 ${front} 人。`, "再数上明明自己。", `明明排第 ${front + 1}。`]);
+      }
+    ]),
+    // 一年级图形与位置。
+    "g1-shape": rotatingSeries("g1-shape", 12, [
+      (n, id) => {
+        const tri = 2 + (n % 4);
+        const rect = 3 + (n % 5);
+        return mathBalanceSeed(id, `图形里有 ${tri} 个三角形和 ${rect} 个长方形，一共有几个图形？`, tri + rect, "数图形", `把两种图形加起来，${tri} + ${rect} = ${tri + rect}。`, [`三角形 ${tri} 个。`, `长方形 ${rect} 个。`, `一共 ${tri + rect} 个。`]);
+      },
+      (n, id) => {
+        const total = 5 + (n % 5);
+        const left = 1 + (n % Math.max(1, total - 1));
+        return mathBalanceSeed(id, `一排有 ${total} 个小朋友，从左数第 ${left} 个后面还有几个？`, total - left, "位置与顺序", `第 ${left} 个后面还有 ${total} - ${left} = ${total - left} 个。`, [`一共 ${total} 个。`, `他排第 ${left}。`, `后面 ${total - left} 个。`]);
+      }
+    ]),
+    // 一年级简单应用题。
+    "g1-simple-word": rotatingSeries("g1-simple-word", 16, [
+      (n, id) => {
+        const a = 4 + (n % 6);
+        const b = 3 + (n % 5);
+        return mathBalanceSeed(id, `红花 ${a} 朵，黄花 ${b} 朵，一共多少朵？`, a + b, "求一共", `求一共用加法，${a} + ${b} = ${a + b}。`, [`红花 ${a} 朵。`, `黄花 ${b} 朵。`, `${a} + ${b} = ${a + b} 朵。`]);
+      },
+      (n, id) => {
+        const total = 12 + (n % 6);
+        const used = 3 + (n % 6);
+        return mathBalanceSeed(id, `有 ${total} 张卡片，送给同学 ${used} 张，还剩多少张？`, total - used, "求还剩", `还剩用减法，${total} - ${used} = ${total - used}。`, [`原有 ${total} 张。`, `送出 ${used} 张。`, `${total} - ${used} = ${total - used} 张。`]);
+      },
+      (n, id) => {
+        const small = 3 + (n % 5);
+        const more = 2 + (n % 4);
+        return mathBalanceSeed(id, `弟弟有 ${small} 个气球，哥哥比弟弟多 ${more} 个，哥哥有几个？`, small + more, "比多比少", `比弟弟多 ${more} 个，用加法，${small} + ${more} = ${small + more}。`, [`弟弟 ${small} 个。`, `哥哥多 ${more} 个。`, `${small} + ${more} = ${small + more} 个。`]);
+      }
+    ]),
+    // 一年级思维阅读：练"问什么、用哪个数"。
+    "g1-reading": rotatingSeries("g1-reading", 12, [
+      (n, id) => {
+        const a = 4 + (n % 5);
+        const b = 2 + (n % 4);
+        return mathBalanceSeed(id, `笼子里有 ${a} 只白兔和 ${b} 只灰兔，另外草地上还有 ${a + b + 2} 只羊。问一共有多少只兔子？`, a + b, "筛选有用条件", `问的是兔子，羊的数量是多余条件，只把两种兔子相加：${a} + ${b} = ${a + b}。`, ["先看清问题：一共多少只兔子。", "羊的数量与问题无关，排除。", `${a} + ${b} = ${a + b} 只。`]);
+      },
+      (n, id) => {
+        const total = 10 + (n % 6);
+        const boys = 4 + (n % 4);
+        return mathBalanceSeed(id, `一共有 ${total} 个小朋友，其中男生 ${boys} 人，女生有几人？`, total - boys, "读题找关系", `女生 = 总数 - 男生 = ${total} - ${boys} = ${total - boys}。`, [`总数 ${total} 人。`, `男生 ${boys} 人。`, `女生 ${total - boys} 人。`]);
+      }
+    ]),
+    // 一年级思维精进：找规律、量感。
+    "g1-thinking": rotatingSeries("g1-thinking", 12, [
+      (n, id) => {
+        const start = 1 + (n % 4);
+        const step = 2;
+        const fourth = start + step * 3;
+        return mathBalanceSeed(id, `按规律填数：${start}、${start + step}、${start + step * 2}、( )。`, fourth, "找规律", `每次加 ${step}，第四个数是 ${fourth}。`, [`观察相邻两数都差 ${step}。`, `第三个数 ${start + step * 2} 再加 ${step}。`, `是 ${fourth}。`]);
+      },
+      (n, id) => {
+        const groups = 2 + (n % 4);
+        const each = 2 + (n % 3);
+        return mathBalanceSeed(id, `每组 ${each} 个，共 ${groups} 组，一共有多少个？`, groups * each, "几个几", `${groups} 个 ${each} 相加，也就是 ${groups} × ${each} = ${groups * each}。`, [`每组 ${each} 个。`, `有 ${groups} 组。`, `一共 ${groups * each} 个。`]);
+      }
+    ]),
+    // 一年级附加题：轻量拓展。
+    "g1-appendix": rotatingSeries("g1-appendix", 12, [
+      (n, id) => {
+        const people = 4 + (n % 5);
+        return mathBalanceSeed(id, `${people} 个小朋友排成一排，每两个人之间站 1 只小猫，一共有几只小猫？`, people - 1, "间隔问题", `${people} 个人之间有 ${people - 1} 个空，所以有 ${people - 1} 只小猫。`, [`${people} 个人排一排。`, "空隙数比人数少 1。", `是 ${people - 1} 只。`]);
+      },
+      (n, id) => {
+        const a = 2 + (n % 4);
+        return mathBalanceSeed(id, `1、${1 + a}、${1 + 2 * a}、${1 + 3 * a}……照这样下去，第 5 个数是多少？`, 1 + 4 * a, "数列规律", `每次加 ${a}，第 5 个数是 1 + 4 × ${a} = ${1 + 4 * a}。`, [`相邻两数都差 ${a}。`, `第 4 个数是 ${1 + 3 * a}。`, `再加 ${a} 得 ${1 + 4 * a}。`]);
+      }
+    ]),
+    // 一年级 20 以内进位/退位补量。
+    "g1-20-add": rotatingSeries("g1-20-add", 16, [
+      (n, id) => {
+        const a = 8 + (n % 2);
+        const b = 3 + (n % 6);
+        return mathBalanceSeed(id, `${a} + ${b} = ?`, a + b, "凑十法", `${a} 凑成 10 需要 ${10 - a}，${b} 拆成 ${10 - a} 和 ${b - (10 - a)}，得 ${a + b}。`, [`${a} 差 ${10 - a} 凑十。`, `从 ${b} 里拿 ${10 - a}。`, `10 + ${b - (10 - a)} = ${a + b}。`]);
+      },
+      (n, id) => {
+        const a = 12 + (n % 6);
+        const b = 4 + (n % 5);
+        return mathBalanceSeed(id, `${a} - ${b} = ?`, a - b, "破十法", `把 ${a} 看成 10 和 ${a - 10}，先算 10 - ${b} = ${10 - b}，再加 ${a - 10}，得 ${a - b}。`, [`${a} 分成 10 和 ${a - 10}。`, `10 - ${b} = ${10 - b}。`, `${10 - b} + ${a - 10} = ${a - b}。`]);
+      }
+    ]),
+    // 一年级 100 以内数的认识补量（lower）。
+    "g1-100-number": rotatingSeries("g1-100-number", 6, [
+      (n, id) => {
+        const tens = 2 + (n % 7);
+        const ones = 1 + (n % 8);
+        const number = tens * 10 + ones;
+        return mathBalanceSeed(id, `${number} 里面有几个十和几个一？先回答几个十。`, tens, "数的组成", `${number} 的十位是 ${tens}，表示 ${tens} 个十。`, ["看十位数字。", `十位是 ${tens}。`, `所以有 ${tens} 个十。`]);
+      },
+      (n, id) => {
+        const a = 20 + (n % 40);
+        const b = a + 1 + (n % 20);
+        return mathBalanceSeed(id, `${a} 和 ${b} 哪个大？填较大的数。`, Math.max(a, b), "大小比较", `先比十位，${b} 比 ${a} 大。`, ["先比较十位。", "十位相同再比个位。", `较大的是 ${Math.max(a, b)}。`]);
+      }
+    ]),
+    // 一年级人民币补量（lower）。
+    "g1-money": rotatingSeries("g1-money", 6, [
+      (n, id) => {
+        const jiao = 12 + (n % 8);
+        return mathBalanceSeed(id, `${jiao} 角等于几元几角？先回答几元。`, Math.floor(jiao / 10), "角化元角", `${jiao} 角 = ${Math.floor(jiao / 10)} 元 ${jiao % 10} 角。`, ["10 角 = 1 元。", `${jiao} 角里有 ${Math.floor(jiao / 10)} 个 10 角。`, `是 ${Math.floor(jiao / 10)} 元 ${jiao % 10} 角。`]);
+      },
+      (n, id) => {
+        const pay = 10;
+        const cost = 3 + (n % 6);
+        return mathBalanceSeed(id, `买文具用去 ${cost} 元，付 ${pay} 元，应找回几元？`, pay - cost, "购物找零", `找零 = 付款 - 花费 = ${pay} - ${cost} = ${pay - cost} 元。`, [`付了 ${pay} 元。`, `花了 ${cost} 元。`, `找回 ${pay - cost} 元。`]);
+      }
+    ]),
+    // 一年级分类统计补量（lower）。
+    "g1-statistics": rotatingSeries("g1-statistics", 12, [
+      (n, id) => {
+        const red = 3 + (n % 5);
+        const blue = 2 + (n % 4);
+        const yellow = 1 + (n % 3);
+        return mathBalanceSeed(id, `统计气球：红 ${red} 个、蓝 ${blue} 个、黄 ${yellow} 个，一共多少个？`, red + blue + yellow, "分类合计", `把三类相加，${red} + ${blue} + ${yellow} = ${red + blue + yellow}。`, ["按颜色分类计数。", "把各类数量相加。", `一共 ${red + blue + yellow} 个。`]);
+      },
+      (n, id) => {
+        const cat = 5 + (n % 5);
+        const dog = 2 + (n % 4);
+        return mathBalanceSeed(id, `图中猫有 ${cat} 只，狗有 ${dog} 只，哪种动物最多？填数量。`, Math.max(cat, dog), "比较多少", `${cat} 比 ${dog} 多，所以最多的是 ${Math.max(cat, dog)} 只。`, ["比较两类数量。", `${cat} 大于 ${dog}。`, `最多 ${Math.max(cat, dog)} 只。`]);
+      }
+    ]),
+    // ---------- 二年级：补齐 4 个空知识点（均为二下 lower） ----------
+    "g2-remainder": rotatingSeries("g2-remainder", 24, [
+      (n, id) => {
+        const divisor = 3 + (n % 5);
+        const quotient = 2 + (n % 6);
+        const remainder = 1 + (n % (divisor - 1 || 1));
+        const dividend = divisor * quotient + remainder;
+        return mathBalanceSeed(id, `${dividend} ÷ ${divisor} = ? 余几？先回答商。`, quotient, "有余数除法", `${dividend} ÷ ${divisor} = ${quotient} 余 ${remainder}，余数要比除数 ${divisor} 小。`, [`想 ${divisor} × ${quotient} = ${divisor * quotient}。`, `还剩 ${dividend} - ${divisor * quotient} = ${remainder}。`, `商是 ${quotient}，余 ${remainder}。`]);
+      },
+      (n, id) => {
+        const perBag = 4 + (n % 3);
+        const bags = 3 + (n % 5);
+        const extra = 1 + (n % (perBag - 1 || 1));
+        const total = perBag * bags + extra;
+        return mathBalanceSeed(id, `${total} 个糖果，每袋装 ${perBag} 个，最多能装满几袋？`, bags, "余数应用-装袋", `${total} ÷ ${perBag} = ${bags} 余 ${extra}，装满 ${bags} 袋还剩 ${extra} 个。`, [`每袋 ${perBag} 个。`, `${total} ÷ ${perBag} = ${bags} 余 ${extra}。`, `最多装满 ${bags} 袋。`]);
+      },
+      (n, id) => {
+        const perBoat = 4 + (n % 3);
+        const boats = 3 + (n % 5);
+        const extra = 1 + (n % (perBoat - 1 || 1));
+        const total = perBoat * boats + extra;
+        return mathBalanceSeed(id, `${total} 个小朋友划船，每船坐 ${perBoat} 人，至少需要几条船？`, boats + 1, "余数应用-进一法", `${total} ÷ ${perBoat} = ${boats} 余 ${extra}，剩下的人也要一条船，所以至少 ${boats + 1} 条。`, [`${total} ÷ ${perBoat} = ${boats} 余 ${extra}。`, "剩下的人还需要一条船。", `至少 ${boats + 1} 条船。`]);
+      }
+    ]),
+    "g2-ten-thousand": rotatingSeries("g2-ten-thousand", 22, [
+      (n, id) => {
+        const thousands = 1 + (n % 8);
+        const hundreds = n % 10;
+        const number = thousands * 1000 + hundreds * 100 + (n % 10) * 10 + (n % 9);
+        return mathBalanceSeed(id, `${number} 里千位上是几？`, thousands, "万以内数位", `${number} 从右往左第四位是千位，是 ${thousands}。`, ["从个位开始数位。", "第四位是千位。", `千位是 ${thousands}。`]);
+      },
+      (n, id) => {
+        const a = 1000 + (n * 137) % 8000;
+        const b = 1000 + (n * 211) % 8000;
+        return mathBalanceSeed(id, `${a} 和 ${b} 哪个大？填较大的数。`, Math.max(a, b), "万以内比较", `位数相同先比最高位，较大的是 ${Math.max(a, b)}。`, ["先看是否位数相同。", "从最高位逐位比较。", `较大的是 ${Math.max(a, b)}。`]);
+      }
+    ]),
+    "g2-mass": rotatingSeries("g2-mass", 20, [
+      (n, id) => {
+        const kg = 2 + (n % 6);
+        return mathBalanceSeed(id, `${kg} 千克等于多少克？`, kg * 1000, "克千克换算", `1 千克 = 1000 克，${kg} 千克 = ${kg * 1000} 克。`, ["记住 1 千克 = 1000 克。", `${kg} × 1000。`, `是 ${kg * 1000} 克。`]);
+      },
+      (n, id) => {
+        const options = ["克", "千克"];
+        const heavy = n % 2 === 0;
+        const thing = heavy ? "一袋大米" : "一个鸡蛋";
+        const answer = heavy ? "千克" : "克";
+        return mathBalanceSeed(id, `称${thing}的质量，用“克”还是“千克”更合适？`, answer, "质量单位选择", `${thing}比较${heavy ? "重" : "轻"}，用 ${answer} 更合适。`, [`判断${thing}的轻重。`, heavy ? "较重的物品用千克。" : "较轻的物品用克。", `选 ${answer}。`]);
+      }
+    ]),
+    "g2-statistics": rotatingSeries("g2-statistics", 20, [
+      (n, id) => {
+        const a = 5 + (n % 6);
+        const b = 3 + (n % 5);
+        const c = 2 + (n % 4);
+        return mathBalanceSeed(id, `调查最喜欢的水果：苹果 ${a} 人、香蕉 ${b} 人、橘子 ${c} 人，一共调查了多少人？`, a + b + c, "数据合计", `把三种人数相加，${a} + ${b} + ${c} = ${a + b + c}。`, ["读出每种水果的人数。", "求一共用加法。", `共 ${a + b + c} 人。`]);
+      },
+      (n, id) => {
+        const a = 8 + (n % 6);
+        const b = 3 + (n % 4);
+        return mathBalanceSeed(id, `统计表中喜欢跳绳的有 ${a} 人，喜欢踢毽的有 ${b} 人，跳绳比踢毽多几人？`, a - b, "数据比较", `多多少用减法，${a} - ${b} = ${a - b}。`, [`跳绳 ${a} 人。`, `踢毽 ${b} 人。`, `${a} - ${b} = ${a - b} 人。`]);
+      }
+    ]),
+    // 二年级 upper 侧同步补量，维持上下册平衡。
+    "g2-100-add": rotatingSeries("g2-100-add", 44, [
+      (n, id) => {
+        const a = 25 + (n % 60);
+        const b = 6 + (n % 9);
+        return mathBalanceSeed(id, `${a} + ${b} = ?`, a + b, "100以内进位加法", `个位相加满十向十位进 1，${a} + ${b} = ${a + b}。`, ["先算个位。", "满十进一。", `结果是 ${a + b}。`]);
+      },
+      (n, id) => {
+        const a = 40 + (n % 55);
+        const b = 6 + (n % 9);
+        return mathBalanceSeed(id, `${a} - ${b} = ?`, a - b, "100以内退位减法", `个位不够减向十位退 1，${a} - ${b} = ${a - b}。`, ["个位不够减。", "向十位退一。", `结果是 ${a - b}。`]);
+      }
+    ]),
+    "g2-length-measure": rotatingSeries("g2-length-measure", 20, [
+      (n, id) => {
+        const meters = 1 + (n % 6);
+        const cm = 10 + (n % 80);
+        return mathBalanceSeed(id, `${meters} 米 ${cm} 厘米 = 多少厘米？`, meters * 100 + cm, "米厘米换算", `1 米 = 100 厘米，共 ${meters * 100 + cm} 厘米。`, [`${meters} 米 = ${meters * 100} 厘米。`, `再加 ${cm} 厘米。`, `是 ${meters * 100 + cm} 厘米。`]);
+      },
+      (n, id) => {
+        const cmA = 20 + (n % 60);
+        const cmB = 5 + (n % 15);
+        return mathBalanceSeed(id, `一支铅笔长 ${cmA} 厘米，用去 ${cmB} 厘米，还剩多长？`, cmA - cmB, "长度计算", `${cmA} - ${cmB} = ${cmA - cmB} 厘米。`, [`原来 ${cmA} 厘米。`, `用去 ${cmB} 厘米。`, `还剩 ${cmA - cmB} 厘米。`]);
+      }
+    ]),
+    // ---------- 四年级：补齐 2 个空知识点（均为四下 lower） ----------
+    "g4-decimal": rotatingSeries("g4-decimal", 40, [
+      (n, id) => {
+        const whole = 1 + (n % 8);
+        const tenth = 1 + (n % 9);
+        const value = `${whole}.${tenth}`;
+        return mathBalanceSeed(id, `小数 ${value} 的小数部分表示十分之几？填几。`, tenth, "小数意义", `${value} 的小数点后一位在十分位，表示十分之 ${tenth}。`, ["小数点后第一位是十分位。", `这里是 ${tenth}。`, `即十分之 ${tenth}。`]);
+      },
+      (n, id) => {
+        const a = (10 + n) / 10;
+        const b = (3 + (n % 6)) / 10;
+        const answer = (a + b).toFixed(1);
+        return mathBalanceSeed(id, `${a.toFixed(1)} + ${b.toFixed(1)} = ?`, answer, "一位小数加法", `小数点对齐相加，结果是 ${answer}。`, ["小数点对齐。", "按整数加法计算。", `结果是 ${answer}。`]);
+      },
+      (n, id) => {
+        const a = (20 + n) / 10;
+        const b = (2 + (n % 8)) / 10;
+        const answer = (a - b).toFixed(1);
+        return mathBalanceSeed(id, `${a.toFixed(1)} - ${b.toFixed(1)} = ?`, answer, "一位小数减法", `小数点对齐相减，结果是 ${answer}。`, ["小数点对齐。", "按整数减法计算。", `结果是 ${answer}。`]);
+      },
+      (n, id) => {
+        const a = (10 + n) / 10;
+        const b = a + (1 + (n % 5)) / 10;
+        return mathBalanceSeed(id, `比较大小，${a.toFixed(1)} 和 ${b.toFixed(1)} 中较大的是多少？`, b.toFixed(1), "小数比较", `先比整数部分，再比十分位，较大的是 ${b.toFixed(1)}。`, ["先比整数部分。", "再比小数部分。", `较大的是 ${b.toFixed(1)}。`]);
+      }
+    ]),
+    "g4-observation": rotatingSeries("g4-observation", 24, [
+      (n, id) => {
+        const faces = 3;
+        return mathBalanceSeed(id, `从正面、上面、左面观察同一个长方体，一共能看到几个不同的面的形状？`, faces, "三视图", `从正面、上面、侧面观察，能得到 3 个方向的视图。`, ["分别从三个方向看。", "正面、上面、侧面各一个。", `共 ${faces} 个视图。`]);
+      },
+      (n, id) => {
+        const count = 2 + (n % 4);
+        return mathBalanceSeed(id, `一个图形沿一条直线对折后两边完全重合，这样的对称轴题里，正方形有几条对称轴？`, 4, "轴对称", `正方形有 4 条对称轴：两条中线、两条对角线。`, ["找能对折重合的直线。", "正方形上下、左右、两条对角线都可以。", "共 4 条。"]);
+      },
+      (n, id) => {
+        const step = 2 + (n % 5);
+        return mathBalanceSeed(id, `一个点向右平移 ${step} 格，再向右平移 ${step} 格，一共向右平移了几格？`, step * 2, "平移", `两次平移方向相同，距离相加：${step} + ${step} = ${step * 2} 格。`, [`第一次 ${step} 格。`, `第二次 ${step} 格。`, `一共 ${step * 2} 格。`]);
+      }
+    ]),
+    // 四年级 upper 侧同步补量，维持上下册平衡。
+    "g4-large": rotatingSeries("g4-large", 24, [
+      (n, id) => {
+        const a = 12000 + (n * 317) % 80000;
+        const b = 2100 + (n * 53) % 5000;
+        return mathBalanceSeed(id, `${a} + ${b} = ?`, a + b, "大数加法", `相同数位对齐相加，结果是 ${a + b}。`, ["数位对齐。", "从个位依次相加。", `是 ${a + b}。`]);
+      },
+      (n, id) => {
+        const a = 50000 + (n * 411) % 40000;
+        const b = 1200 + (n * 77) % 8000;
+        return mathBalanceSeed(id, `${a} - ${b} = ?`, a - b, "大数减法", `相同数位对齐相减，结果是 ${a - b}。`, ["数位对齐。", "从个位依次相减。", `是 ${a - b}。`]);
+      }
+    ]),
+    "g4-vertical": rotatingSeries("g4-vertical", 22, [
+      (n, id) => {
+        const a = 120 + (n % 700);
+        const b = 12 + (n % 80);
+        return mathBalanceSeed(id, `${a} × ${b} = ?`, a * b, "三位数乘两位数", `按竖式先乘个位再乘十位，${a} × ${b} = ${a * b}。`, ["先乘个位。", "再乘十位并错位。", `相加得 ${a * b}。`]);
+      },
+      (n, id) => {
+        const divisor = 12 + (n % 70);
+        const quotient = 3 + (n % 40);
+        const dividend = divisor * quotient;
+        return mathBalanceSeed(id, `${dividend} ÷ ${divisor} = ?`, quotient, "除数是两位数的除法", `试商后，${dividend} ÷ ${divisor} = ${quotient}。`, ["先试商。", `${divisor} × ${quotient} = ${dividend}。`, `商是 ${quotient}。`]);
+      }
+    ]),
+    // ---------- 六年级：整体扩量，重点圆柱圆锥、负数、比例、方程 ----------
+    "g6-cylinder-cone": rotatingSeries("g6-cylinder-cone", 12, [
+      (n, id) => {
+        const radius = 2 + (n % 6);
+        const height = 3 + (n % 8);
+        const answer = (3.14 * radius * radius * height).toFixed(2).replace(/\.?0+$/, "");
+        return mathBalanceSeed(id, `圆柱底面半径 ${radius} cm、高 ${height} cm，体积约多少立方厘米？（π取3.14）`, answer, "圆柱体积", `V = 3.14 × ${radius}² × ${height} = ${answer}。`, [`底面积 3.14 × ${radius}² = ${(3.14 * radius * radius).toFixed(2).replace(/\.?0+$/, "")}。`, `再乘高 ${height}。`, `约 ${answer} 立方厘米。`]);
+      },
+      (n, id) => {
+        const radius = 2 + (n % 5);
+        const height = 3 + (n % 6);
+        const answer = (3.14 * radius * radius * height / 3).toFixed(2).replace(/\.?0+$/, "");
+        return mathBalanceSeed(id, `圆锥底面半径 ${radius} cm、高 ${height} cm，体积约多少立方厘米？（π取3.14）`, answer, "圆锥体积", `圆锥体积是等底等高圆柱的三分之一，V = 3.14 × ${radius}² × ${height} ÷ 3 = ${answer}。`, ["先算对应圆柱体积。", "再除以 3。", `约 ${answer} 立方厘米。`]);
+      }
+    ]),
+    "g6-negative": rotatingSeries("g6-negative", 16, [
+      (n, id) => {
+        const depth = 3 + (n % 12);
+        return mathBalanceSeed(id, `海平面以下 ${depth} 米记作多少米？`, -depth, "生活负数", `海平面以下用负数，记作 -${depth} 米。`, ["海平面为 0。", "以下用负号。", `记作 -${depth} 米。`]);
+      },
+      (n, id) => {
+        const rise = 2 + (n % 10);
+        const drop = 1 + (n % 8);
+        return mathBalanceSeed(id, `气温先上升 ${rise}℃ 记作 +${rise}℃，那么下降 ${drop}℃ 记作多少？`, -drop, "正负意义", `上升为正，下降为负，下降 ${drop}℃ 记作 -${drop}℃。`, ["上升记正。", "下降记负。", `是 -${drop}℃。`]);
+      }
+    ]),
+    "g6-ratio": rotatingSeries("g6-ratio", 18, [
+      (n, id) => {
+        const part = 2 + (n % 4);
+        const other = 3 + (n % 5);
+        const total = 30 + (n % 10) * (part + other);
+        const each = total / (part + other);
+        const first = each * part;
+        return mathBalanceSeed(id, `把 ${total} 按 ${part}∶${other} 分配，较小的一份（占 ${part} 份）是多少？`, Number.isInteger(each) ? first : each * part, "按比例分配", `总份数 ${part + other}，每份 ${total} ÷ ${part + other} = ${each}，${part} 份是 ${first}。`, [`总份数 ${part} + ${other} = ${part + other}。`, `每份 ${total} ÷ ${part + other} = ${each}。`, `${part} 份是 ${first}。`]);
+      },
+      (n, id) => {
+        const a = 2 + (n % 6);
+        const b = a * (2 + (n % 4));
+        return mathBalanceSeed(id, `化简比 ${a}∶${b} 的后项与前项的商是多少（即 ${b} ÷ ${a}）？`, b / a, "比的化简", `${a}∶${b} 中 ${b} ÷ ${a} = ${b / a}。`, ["找前项后项。", `${b} ÷ ${a}。`, `是 ${b / a}。`]);
+      }
+    ]),
+    "g6-equation": rotatingSeries("g6-equation", 16, [
+      (n, id) => {
+        const x = 3 + (n % 12);
+        const b = 2 + (n % 9);
+        const result = x + b;
+        return mathBalanceSeed(id, `解方程：x + ${b} = ${result}，x = ?`, x, "一步方程", `两边同时减 ${b}，x = ${result} - ${b} = ${x}。`, [`x + ${b} = ${result}。`, `两边减 ${b}。`, `x = ${x}。`]);
+      },
+      (n, id) => {
+        const x = 2 + (n % 9);
+        const a = 2 + (n % 6);
+        const result = a * x;
+        return mathBalanceSeed(id, `解方程：${a}x = ${result}，x = ?`, x, "一步方程", `两边同时除以 ${a}，x = ${result} ÷ ${a} = ${x}。`, [`${a}x = ${result}。`, `两边除以 ${a}。`, `x = ${x}。`]);
+      },
+      (n, id) => {
+        const x = 2 + (n % 8);
+        const a = 2 + (n % 4);
+        const b = 1 + (n % 7);
+        const result = a * x + b;
+        return mathBalanceSeed(id, `解方程：${a}x + ${b} = ${result}，x = ?`, x, "两步方程", `先两边减 ${b} 得 ${a}x = ${result - b}，再除以 ${a}，x = ${x}。`, [`两边减 ${b}：${a}x = ${result - b}。`, `两边除以 ${a}。`, `x = ${x}。`]);
+      }
+    ]),
+    "g6-two-step": rotatingSeries("g6-two-step", 16, [
+      (n, id) => {
+        const base = 40 + (n % 40);
+        const answer = (base * (1 - 0.25)).toFixed(2).replace(/\.?0+$/, "");
+        return mathBalanceSeed(id, `${base} 的 (1 - 25%) 是多少？`, answer, "分百比两步计算", `先算 1 - 25% = 75%，再求 ${base} × 75% = ${answer}。`, ["先算括号 1 - 25% = 75%。", `再求 ${base} × 75%。`, `是 ${answer}。`]);
+      },
+      (n, id) => {
+        const whole = 60 + (n % 60);
+        const answer = (whole * 2 / 3).toFixed(2).replace(/\.?0+$/, "");
+        return mathBalanceSeed(id, `${whole} 的 2/3 是多少？`, answer, "分数两步", `${whole} × 2/3 = ${answer}。`, ["求几分之几用乘法。", `${whole} × 2 ÷ 3。`, `是 ${answer}。`]);
+      }
+    ]),
+    "g6-vertical": rotatingSeries("g6-vertical", 16, [
+      (n, id) => {
+        const a = (100 + n * 7) / 100;
+        const b = (50 + n * 3) / 100;
+        const answer = (a + b).toFixed(2);
+        return mathBalanceSeed(id, `${a.toFixed(2)} + ${b.toFixed(2)} = ?`, answer, "小数竖式加法", `小数点对齐相加，结果 ${answer}。`, ["小数点对齐。", "按整数加法算。", `是 ${answer}。`]);
+      },
+      (n, id) => {
+        const a = (400 + n * 11) / 100;
+        const b = (120 + n * 5) / 100;
+        const answer = (a - b).toFixed(2);
+        return mathBalanceSeed(id, `${a.toFixed(2)} - ${b.toFixed(2)} = ?`, answer, "小数竖式减法", `小数点对齐相减，结果 ${answer}。`, ["小数点对齐。", "按整数减法算。", `是 ${answer}。`]);
+      }
+    ]),
+    "g6-reading": rotatingSeries("g6-reading", 12, [
+      (n, id) => {
+        const total = 200 + (n % 8) * 50;
+        const percent = 20 + (n % 4) * 5;
+        const answer = total * percent / 100;
+        return mathBalanceSeed(id, `材料：六年级共 ${total} 人，其中参加科技社团的占 ${percent}%，另有一些同学参加合唱（人数未知）。问参加科技社团的有多少人？`, answer, "读题筛选条件", `合唱人数是干扰信息，只用总人数和百分数：${total} × ${percent}% = ${answer}。`, ["先看问题问科技社团。", "合唱人数与问题无关，排除。", `${total} × ${percent}% = ${answer}。`]);
+      },
+      (n, id) => {
+        const a = 3 + (n % 5);
+        const b = 2 + (n % 4);
+        const speed = 60;
+        const time = a + b;
+        const answer = speed * time;
+        return mathBalanceSeed(id, `材料：一辆车每小时行 ${speed} 千米，上午行 ${a} 小时，下午行 ${b} 小时，途中还休息了 1 小时。问一共行驶多少千米？`, answer, "读题排除干扰", `休息时间不行驶，是干扰条件。总行驶时间 ${a} + ${b} = ${time} 小时，路程 ${speed} × ${time} = ${answer}。`, ["休息时间不计入行驶。", `行驶 ${time} 小时。`, `${speed} × ${time} = ${answer} 千米。`]);
+      }
+    ]),
+    "g6-appendix": rotatingSeries("g6-appendix", 12, [
+      (n, id) => {
+        const salt = 10 + (n % 10);
+        const water = 90 + (n % 30);
+        const answer = (salt / (salt + water) * 100).toFixed(1);
+        return mathBalanceSeed(id, `盐 ${salt} 克溶于水 ${water} 克，盐水的含盐率约是百分之几？`, answer, "浓度问题", `含盐率 = 盐 ÷ 盐水总量 × 100% = ${salt} ÷ ${salt + water} × 100% ≈ ${answer}%。`, [`盐水总量 ${salt} + ${water} = ${salt + water} 克。`, `盐占 ${salt} 克。`, `含盐率约 ${answer}%。`]);
+      },
+      (n, id) => {
+        const speedA = 50 + (n % 20);
+        const speedB = 40 + (n % 15);
+        const time = 2 + (n % 4);
+        const answer = (speedA + speedB) * time;
+        return mathBalanceSeed(id, `甲乙两车从两地相向而行，甲每小时 ${speedA} 千米，乙每小时 ${speedB} 千米，${time} 小时相遇，两地相距多少千米？`, answer, "相遇问题", `相遇路程 = 速度和 × 时间 = (${speedA} + ${speedB}) × ${time} = ${answer}。`, [`速度和 ${speedA} + ${speedB} = ${speedA + speedB}。`, `乘时间 ${time}。`, `相距 ${answer} 千米。`]);
+      }
+    ]),
+    // 六年级 upper 侧同步补量（圆、分数百分数综合），维持上下册平衡。
+    "g6-circle": rotatingSeries("g6-circle", 26, [
+      (n, id) => {
+        const radius = 2 + (n % 8);
+        const answer = (2 * 3.14 * radius).toFixed(2).replace(/\.?0+$/, "");
+        return mathBalanceSeed(id, `圆的半径是 ${radius} cm，周长约多少厘米？（π取3.14）`, answer, "圆的周长", `周长 = 2πr = 2 × 3.14 × ${radius} = ${answer}。`, ["周长公式 C = 2πr。", `代入 r = ${radius}。`, `约 ${answer} 厘米。`]);
+      },
+      (n, id) => {
+        const radius = 2 + (n % 8);
+        const answer = (3.14 * radius * radius).toFixed(2).replace(/\.?0+$/, "");
+        return mathBalanceSeed(id, `圆的半径是 ${radius} cm，面积约多少平方厘米？（π取3.14）`, answer, "圆的面积", `面积 = πr² = 3.14 × ${radius}² = ${answer}。`, ["面积公式 S = πr²。", `代入 r = ${radius}。`, `约 ${answer} 平方厘米。`]);
+      },
+      (n, id) => {
+        const diameter = 4 + (n % 10);
+        const answer = (3.14 * diameter).toFixed(2).replace(/\.?0+$/, "");
+        return mathBalanceSeed(id, `圆的直径是 ${diameter} cm，周长约多少厘米？（π取3.14）`, answer, "圆的周长-直径", `周长 = πd = 3.14 × ${diameter} = ${answer}。`, ["周长公式 C = πd。", `代入 d = ${diameter}。`, `约 ${answer} 厘米。`]);
+      }
+    ]),
+    "g6-fraction-percent": rotatingSeries("g6-fraction-percent", 26, [
+      (n, id) => {
+        const denominator = 4 + (n % 6);
+        const numerator = 1 + (n % (denominator - 1 || 1));
+        const answer = Math.round(numerator / denominator * 100);
+        return mathBalanceSeed(id, `把分数 ${numerator}/${denominator} 化成百分数约是百分之几？（保留整数）`, answer, "分数化百分数", `${numerator} ÷ ${denominator} ≈ ${(numerator / denominator).toFixed(2)}，约 ${answer}%。`, [`分数化小数：${numerator} ÷ ${denominator}。`, "小数乘 100 变百分数。", `约 ${answer}%。`]);
+      },
+      (n, id) => {
+        const percent = 20 + (n % 6) * 5;
+        const value = percent / 100;
+        const answer = value.toFixed(2).replace(/\.?0+$/, "");
+        return mathBalanceSeed(id, `${percent}% 写成小数是多少？`, answer, "百分数化小数", `${percent}% = ${percent} ÷ 100 = ${answer}。`, ["百分数去掉 % 除以 100。", `${percent} ÷ 100。`, `是 ${answer}。`]);
+      },
+      (n, id) => {
+        const whole = 40 + (n % 8) * 10;
+        const percent = 25 + (n % 4) * 5;
+        const answer = whole * percent / 100;
+        return mathBalanceSeed(id, `${whole} 的 ${percent}% 是多少？`, answer, "求百分之几", `${whole} × ${percent}% = ${answer}。`, ["求百分之几用乘法。", `${whole} × ${percent}%。`, `是 ${answer}。`]);
+      }
+    ])
+  };
+
+  // ------------------------------------------------------------------
+  // 语文 / 英语 / 科学题库扩充（2026 全量优化）
+  // 语文：为高年级补句子、标点、字词题型；英语：补五六年级阅读与词汇；
+  // 科学：加深实验设计、数据证据、步骤排序等探究题型。
+  // 均为选择题原创题，答案唯一、含解析与步骤，走 external 题源合并去重。
+  // ------------------------------------------------------------------
+  function subjectChoiceSeed(id, prompt, correct, wrongs, questionType, explanation, steps, meta) {
+    return {
+      id,
+      answerType: "choice",
+      prompt,
+      correct,
+      wrongs,
+      explanation,
+      steps,
+      questionType,
+      sourceMeta: meta || SOURCE.inspired
+    };
+  }
+  function choiceSeries(pointId, templates) {
+    return templates.map((template, index) => template(`${pointId}-sx-${index + 1}`));
+  }
+
+  const SUBJECT_EXPANSION_BANK = {
+    // ---------- 英语五年级：阅读与词汇 ----------
+    "e5-reading-schedule": choiceSeries("e5-reading-schedule", [
+      (id) => subjectChoiceSeed(id, "Read the timetable. Monday: Music; Tuesday: PE; Wednesday: Art. What lesson do they have on Tuesday?", "PE", ["Music", "Art", "Maths"], "日程阅读", "The timetable shows Tuesday is PE.", ["Find Tuesday in the timetable.", "Read the lesson next to it.", "Choose PE."], SOURCE.eolPattern),
+      (id) => subjectChoiceSeed(id, "Read the notice. Library open time: 8:00 a.m. to 5:00 p.m. When does the library close?", "At 5:00 p.m.", ["At 8:00 a.m.", "At 12:00 p.m.", "At 9:00 p.m."], "信息定位", "The notice says the library closes at 5:00 p.m.", ["Find the word close time.", "Read 5:00 p.m.", "Choose At 5:00 p.m."], SOURCE.eolPattern),
+      (id) => subjectChoiceSeed(id, "Read: Lily gets up at 6:30 and goes to school at 7:20. What does she do at 6:30?", "She gets up.", ["She goes to school.", "She has lunch.", "She goes to bed."], "细节理解", "The sentence says Lily gets up at 6:30.", ["Find 6:30 in the sentence.", "Read the action.", "Choose She gets up."], SOURCE.zxxkPattern),
+      (id) => subjectChoiceSeed(id, "Read: On Sundays Tom often plays football with his friends in the park. Where does Tom play football?", "In the park.", ["At school.", "In the shop.", "At home."], "阅读定位", "The sentence says in the park.", ["Find the place word.", "It is the park.", "Choose In the park."], SOURCE.zxxkPattern)
+    ]),
+    "e5-vocabulary-week-season": choiceSeries("e5-vocabulary-week-season", [
+      (id) => subjectChoiceSeed(id, "Choose the word that means 春天.", "spring", ["winter", "autumn", "summer"], "词义匹配", "spring 的意思是春天。", ["Recall the four seasons.", "Match 春天.", "Choose spring."], SOURCE.pep),
+      (id) => subjectChoiceSeed(id, "Which day comes right after Monday?", "Tuesday", ["Sunday", "Friday", "Thursday"], "星期顺序", "Monday 之后是 Tuesday。", ["Say the days in order.", "After Monday is Tuesday.", "Choose Tuesday."], SOURCE.pep)
+    ]),
+    // ---------- 英语六年级：阅读与语法 ----------
+    "e6-reading-story": choiceSeries("e6-reading-story", [
+      (id) => subjectChoiceSeed(id, "Read: Last weekend Ben visited his grandma and helped her water the flowers. What did Ben do last weekend?", "He visited his grandma.", ["He went to school.", "He watched a film.", "He played computer games."], "记叙文理解", "The passage says Ben visited his grandma.", ["Find the time words last weekend.", "Read what Ben did.", "Choose He visited his grandma."], SOURCE.zxxkPattern),
+      (id) => subjectChoiceSeed(id, "Read: The Great Wall is very long and many people visit it every year. What is the passage about?", "The Great Wall.", ["A small river.", "A new school.", "A birthday party."], "主旨理解", "The passage talks about the Great Wall.", ["Find the repeated topic.", "It is the Great Wall.", "Choose The Great Wall."], SOURCE.eolPattern),
+      (id) => subjectChoiceSeed(id, "Read: Amy was ill yesterday, so she stayed at home and read books. Why did Amy stay at home?", "Because she was ill.", ["Because it was sunny.", "Because she had a party.", "Because school was closed."], "因果推断", "The passage says Amy was ill, so she stayed home.", ["Find the reason word so.", "Read Amy was ill.", "Choose Because she was ill."], SOURCE.zxxkPattern),
+      (id) => subjectChoiceSeed(id, "Read the plan. This weekend: Saturday go hiking; Sunday clean the room. What will they do on Sunday?", "Clean the room.", ["Go hiking.", "Go swimming.", "Watch TV."], "计划阅读", "The plan says Sunday clean the room.", ["Find Sunday in the plan.", "Read the activity.", "Choose Clean the room."], SOURCE.eolPattern)
+    ]),
+    "e6-vocabulary-travel-feeling": choiceSeries("e6-vocabulary-travel-feeling", [
+      (id) => subjectChoiceSeed(id, "Choose the word that means 高兴的.", "happy", ["angry", "tired", "hungry"], "情感词义", "happy 的意思是高兴的。", ["Recall feeling words.", "Match 高兴的.", "Choose happy."], SOURCE.pep),
+      (id) => subjectChoiceSeed(id, "We travel by ___ when we want to fly in the sky.", "plane", ["bike", "ship", "bus"], "交通词汇", "在天上飞用 plane（飞机）。", ["Think about flying in the sky.", "Match the vehicle.", "Choose plane."], SOURCE.pep)
+    ]),
+    // ---------- 科学：实验设计 / 数据证据 / 步骤排序（year 桶，不影响上下册平衡） ----------
+    "s5-inquiry-data-evidence": choiceSeries("s5-inquiry-data-evidence", [
+      (id) => subjectChoiceSeed(id, "测量同一片树叶长度，三次分别是 8.1 cm、8.0 cm、8.2 cm。最合理的记录方式是什么？", "三次都记录，取接近的值作为结果", ["只记最大的一次", "把三次都改成 8.1", "随便写一个数"], "数据处理", "多次测量取相近值能减少误差，数据要真实记录。", ["先如实记录三次。", "比较是否接近。", "取相近值作为结果。"], SOURCE.shijuanPattern),
+      (id) => subjectChoiceSeed(id, "研究阳光对绿豆发芽的影响时，下面哪一组是需要控制相同的条件？", "水量、温度、种子数量", ["阳光的有无", "只改变实验目的", "换成不同的植物"], "变量控制", "只改变阳光，其他条件都要保持相同。", ["确定研究的是阳光。", "阳光是要改变的量。", "其他条件保持相同。"], SOURCE.jyeooPattern),
+      (id) => subjectChoiceSeed(id, "下面哪种做法最能保证实验结论可靠？", "多次重复实验并记录数据", ["只做一次就下结论", "凭感觉猜结果", "只保留想要的数据"], "证据意识", "重复实验并用数据支撑结论更可靠。", ["一次实验有偶然性。", "多次重复更稳定。", "结论要基于数据。"], SOURCE.edupScience)
+    ]),
+    "s6-inquiry-model-reasoning": choiceSeries("s6-inquiry-model-reasoning", [
+      (id) => subjectChoiceSeed(id, "用手电筒和地球仪演示昼夜时，手电筒最适合代表什么？", "太阳", ["月球", "云", "海洋"], "模型对应", "手电筒发光，代表能发光的太阳。", ["找模型里发光的物体。", "对应能发光的天体。", "选太阳。"], SOURCE.zhejiangEdu),
+      (id) => subjectChoiceSeed(id, "把制作小车的过程排序：①画设计图 ②测试改进 ③组装小车。合理顺序是？", "①③②", ["②①③", "③②①", "②③①"], "步骤排序", "工程一般先设计、再组装、最后测试改进。", ["先画设计图。", "再组装小车。", "最后测试改进。"], SOURCE.moeCurriculum),
+      (id) => subjectChoiceSeed(id, "记录一周气温后画折线图，折线图最适合表示什么？", "气温随时间的变化趋势", ["各地面积大小", "物体的颜色", "同学的名字"], "数据表达", "折线图适合表示数量随时间的变化。", ["折线图看趋势。", "横轴是时间。", "选气温变化趋势。"], SOURCE.smartEdu)
+    ]),
+    "s5-matter-dissolve": choiceSeries("s5-matter-dissolve", [
+      (id) => subjectChoiceSeed(id, "要加快食盐在水中的溶解，下面哪种做法有效？", "用筷子搅拌", ["把水静置不动", "把盐结成大块", "把水温降到最低"], "溶解影响因素", "搅拌能加快溶解，此外提高水温、把盐弄碎也可以。", ["回忆影响溶解快慢的因素。", "搅拌能加快溶解。", "选用筷子搅拌。"], SOURCE.edupScience)
+    ]),
+    // ---------- 语文五六年级：句子、字词（year 桶） ----------
+    "c5-context-word": choiceSeries("c5-context-word", [
+      (id) => subjectChoiceSeed(id, "联系句子选词填空：夜深了，山村显得格外( )。", "宁静", ["热闹", "拥挤", "喧哗"], "语境选词", "夜深山村应是安静的，选“宁静”。", ["先读句子的情境。", "夜深应安静。", "选“宁静”。"], SOURCE.zxxkPattern),
+      (id) => subjectChoiceSeed(id, "下面哪一组是一对近义词？", "美丽——漂亮", ["高兴——伤心", "白天——黑夜", "前进——后退"], "近义词", "“美丽”和“漂亮”意思相近，是近义词。", ["回忆近义词的含义。", "比较四组词。", "选意思相近的一组。"], SOURCE.pep)
+    ]),
+    "c6-language-basic": choiceSeries("c6-language-basic", [
+      (id) => subjectChoiceSeed(id, "给句子加标点：他问我明天去不去图书馆( )正确的一项是？", "问号", ["句号", "感叹号", "逗号"], "标点运用", "这是一个疑问句，句末用问号。", ["判断句子语气。", "疑问句用问号。", "选“问号”。"], SOURCE.smartEdu),
+      (id) => subjectChoiceSeed(id, "下面哪个句子没有语病？", "我们要养成认真读书的好习惯。", ["我们要养成认真读书。", "因为下雨，所以我们都很高兴地淋湿了。", "他大约五岁左右。"], "病句辨析", "A 句成分完整、表达通顺，没有语病。", ["逐句检查成分与逻辑。", "排除搭配不当、重复的句子。", "选表达通顺的一句。"], SOURCE.cnjyPattern),
+      (id) => subjectChoiceSeed(id, "把下面词语补充完整：( )钉截铁。", "斩", ["崭", "暂", "占"], "字词积累", "成语是“斩钉截铁”，应填“斩”。", ["回忆成语“斩钉截铁”。", "确认第一个字。", "选“斩”。"], SOURCE.pep)
+    ])
+  };
+
   function normalizedContent(value) {
     return String(value === undefined || value === null ? "" : value)
       .replace(/\r\n/g, "\n")
@@ -727,6 +1341,8 @@
     window.MathCampGrade6OriginalQuestionSeeds
   ].forEach((module) => mergeSeedBank(module && module.BANK));
   mergeSeedBank(CURRICULUM_BALANCE_BANK);
+  mergeSeedBank(MATH_EXPANSION_BANK);
+  mergeSeedBank(SUBJECT_EXPANSION_BANK);
 
   function subjectForPoint(point) {
     const id = String(point?.id || "");

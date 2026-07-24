@@ -9,6 +9,12 @@
       system: "mathcamp-system-settings-v1"
     };
     const MAX_SET_SIZE = 100;
+    // 本地存储连续写入失败次数，用于在配额耗尽时触发一次自动备份引导。
+    const LOCAL_SAVE_FAILURE_ALERT_THRESHOLD = 2;
+    let localSaveFailureStreak = 0;
+    let localSaveBackupPromptShown = false;
+    // 本地档案改动计数：云同步用它检测“覆盖窗口”内是否有新的本地写入，避免整表替换丢数据。
+    let localProfileMutationVersion = 0;
     const SubjectRegistry = window.MathCampSubjects || {};
     const LearningQuality = window.MathCampLearningQuality || {};
     const SUBJECTS = Object.freeze(SubjectRegistry.SUBJECT_META || {
@@ -2301,7 +2307,7 @@
       if (profile) profile.updatedAt = Date.now();
       if (profile && SubjectRegistry.syncBoundSubject) SubjectRegistry.syncBoundSubject(profile, activeSubjectId());
       const profilesForSave = state.profiles
-        .map((item) => normalizeProfile(JSON.parse(JSON.stringify(item || {}))))
+        .map((item) => normalizeProfile(cloneForStorage(item)))
         .filter(Boolean);
       const payloadProfiles = profilesForSave.length ? profilesForSave : state.profiles;
       const payloadActiveId = payloadProfiles.some((item) => item.id === state.activeId)
@@ -2312,15 +2318,45 @@
       const ok = Boolean(savedProfiles && savedActive);
       if (!savedProfiles || !savedActive) {
         console.warn("学习数据暂时无法写入本地存储，请导出备份后再继续大量练习。");
-        updateSaveStatus(false);
+        handleSaveFailure();
       } else {
+        localSaveFailureStreak = 0;
         updateSaveStatus(true);
+        localProfileMutationVersion += 1;
         if (window.MathCampCloudSync && window.MathCampCloudSync.isSyncEnabled()) {
           window.MathCampCloudSync.scheduleSync(payloadProfiles, payloadActiveId);
         }
       }
       renderChrome();
       return ok;
+    }
+    // 深拷贝档案用于写入：优先使用 structuredClone（更快、无需二次序列化），
+    // 在不支持的环境下回退到 JSON 方式。
+    function cloneForStorage(item) {
+      const source = item || {};
+      if (typeof structuredClone === "function") {
+        try {
+          return structuredClone(source);
+        } catch (_) {
+          // 含不可克隆字段时回退到 JSON。
+        }
+      }
+      return JSON.parse(JSON.stringify(source));
+    }
+    // 连续写入失败时，主动引导用户导出备份，避免学习记录默默丢失。
+    function handleSaveFailure() {
+      localSaveFailureStreak += 1;
+      updateSaveStatus(false);
+      if (localSaveFailureStreak < LOCAL_SAVE_FAILURE_ALERT_THRESHOLD) return;
+      if (localSaveBackupPromptShown) return;
+      localSaveBackupPromptShown = true;
+      if (UI && typeof UI.notify === "function") {
+        UI.notify("本地存储已满或不可写，正在为你自动导出备份，请妥善保存文件。", { tone: "bad", duration: 6000 });
+      }
+      // 自动触发一次导出，尽量抢救当前进度。
+      if (typeof exportData === "function") {
+        Promise.resolve().then(() => exportData()).catch(() => {});
+      }
     }
     async function initCloudSync() {
       if (!window.MathCampCloudSync) return;
@@ -2329,7 +2365,19 @@
       if (savedConfig && savedConfig.url && savedConfig.anonKey) {
         var ok = await CloudSync.initSupabase(savedConfig);
         if (ok) {
+          // 记录同步开始时的本地改动版本；若首轮同步的 await 期间用户又做了题，
+          // 直接整表替换会吞掉这些新记录，这里检测到后再用当前状态重新合并一次。
+          var mutationVersionBeforeSync = localProfileMutationVersion;
           var result = await CloudSync.fullSync(state.profiles, state.activeId, collectSystemSettings());
+          if (localProfileMutationVersion !== mutationVersionBeforeSync && typeof CloudSync.mergeProfiles === "function") {
+            // 用云端合并结果与“同步期间的最新本地档案”再合并一次，保留两边的新数据。
+            result = {
+              ...result,
+              profiles: CloudSync.mergeProfiles(state.profiles, result.profiles || []),
+              activeId: state.activeId || result.activeId,
+              changed: true
+            };
+          }
           renderCloudSyncSummary(result);
           if (result.settingsChanged && result.systemSettings) {
             applySystemSettings(result.systemSettings, { touch: false, sync: false });
