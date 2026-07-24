@@ -686,6 +686,13 @@
   function mathBalanceSeed(id, prompt, answer, templateType, explanation, steps) {
     return balanceTextSeed(id, prompt, answer, templateType, explanation, steps);
   }
+  // 在 mathBalanceSeed 基础上附带图形信息（diagram），运行时由 app.js 的
+  // diagramSvg 渲染成 SVG 示意图。diagram 结构见 normalizeQuestionDiagram 白名单。
+  function mathBalanceSeedWithDiagram(id, prompt, answer, templateType, explanation, steps, diagram) {
+    const seed = balanceTextSeed(id, prompt, answer, templateType, explanation, steps);
+    if (diagram && typeof diagram === "object") seed.diagram = diagram;
+    return seed;
+  }
   // 按模板列表轮换生成一批题：templates 是一组 (index, id) => seed 的函数，
   // 生成第 k 题时使用第 (k % templates.length) 个模板，保证题型均匀交替。
   function rotatingSeries(pointId, count, templates) {
@@ -1198,17 +1205,17 @@
       (n, id) => {
         const radius = 2 + (n % 8);
         const answer = (2 * 3.14 * radius).toFixed(2).replace(/\.?0+$/, "");
-        return mathBalanceSeed(id, `圆的半径是 ${radius} cm，周长约多少厘米？（π取3.14）`, answer, "圆的周长", `周长 = 2πr = 2 × 3.14 × ${radius} = ${answer}。`, ["周长公式 C = 2πr。", `代入 r = ${radius}。`, `约 ${answer} 厘米。`]);
+        return mathBalanceSeedWithDiagram(id, `圆的半径是 ${radius} cm，周长约多少厘米？（π取3.14）`, answer, "圆的周长", `周长 = 2πr = 2 × 3.14 × ${radius} = ${answer}。`, ["周长公式 C = 2πr。", `代入 r = ${radius}。`, `约 ${answer} 厘米。`], { type: "circle", radius, mode: "radius", caption: `半径 ${radius} cm 的圆` });
       },
       (n, id) => {
         const radius = 2 + (n % 8);
         const answer = (3.14 * radius * radius).toFixed(2).replace(/\.?0+$/, "");
-        return mathBalanceSeed(id, `圆的半径是 ${radius} cm，面积约多少平方厘米？（π取3.14）`, answer, "圆的面积", `面积 = πr² = 3.14 × ${radius}² = ${answer}。`, ["面积公式 S = πr²。", `代入 r = ${radius}。`, `约 ${answer} 平方厘米。`]);
+        return mathBalanceSeedWithDiagram(id, `圆的半径是 ${radius} cm，面积约多少平方厘米？（π取3.14）`, answer, "圆的面积", `面积 = πr² = 3.14 × ${radius}² = ${answer}。`, ["面积公式 S = πr²。", `代入 r = ${radius}。`, `约 ${answer} 平方厘米。`], { type: "circle", radius, mode: "radius", caption: `半径 ${radius} cm 的圆` });
       },
       (n, id) => {
         const diameter = 4 + (n % 10);
         const answer = (3.14 * diameter).toFixed(2).replace(/\.?0+$/, "");
-        return mathBalanceSeed(id, `圆的直径是 ${diameter} cm，周长约多少厘米？（π取3.14）`, answer, "圆的周长-直径", `周长 = πd = 3.14 × ${diameter} = ${answer}。`, ["周长公式 C = πd。", `代入 d = ${diameter}。`, `约 ${answer} 厘米。`]);
+        return mathBalanceSeedWithDiagram(id, `圆的直径是 ${diameter} cm，周长约多少厘米？（π取3.14）`, answer, "圆的周长-直径", `周长 = πd = 3.14 × ${diameter} = ${answer}。`, ["周长公式 C = πd。", `代入 d = ${diameter}。`, `约 ${answer} 厘米。`], { type: "circle", diameter, mode: "diameter", caption: `直径 ${diameter} cm 的圆` });
       }
     ]),
     "g6-fraction-percent": rotatingSeries("g6-fraction-percent", 26, [

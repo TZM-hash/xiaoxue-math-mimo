@@ -470,6 +470,36 @@
             "最后选择 To the park."
           ],
           commonPitfalls: ["把交通方式当地点", "只听到人物名没有定位地点"]
+        },
+        {
+          questionType: "阅读理解",
+          prompt: "【阅读理解】Read and choose.\nLily gets up at seven. She has breakfast and then goes to school.\nWhat does Lily do after breakfast?",
+          correct: "She goes to school.",
+          wrongs: ["She gets up.", "She has dinner.", "She plays games."],
+          explanation: "短文说 has breakfast and then goes to school，早饭后去上学。",
+          commonPitfalls: ["忽略 then 表示的先后顺序", "把起床当成早饭后的事"]
+        },
+        {
+          questionType: "阅读判断",
+          prompt: "【阅读判断】Read and choose.\nBen likes animals. He has a dog and two cats at home.\nWhich sentence is right?",
+          correct: "Ben has three pets.",
+          wrongs: ["Ben has no pets.", "Ben likes only dogs.", "Ben has two dogs."],
+          explanation: "一只狗加两只猫，一共 3 只宠物，所以 Ben has three pets 正确。",
+          commonPitfalls: ["只数一种动物", "没有把狗和猫的数量相加"]
+        },
+        {
+          questionType: "听短文选择",
+          prompt: "【听短文选择】点击播放录音，选择正确答案。\nHow many pets does Ben have?",
+          audioPrompt: { type: "tts", lang: "en-US", text: "Ben likes animals. He has a dog and two cats at home." },
+          correct: "Three.",
+          wrongs: ["One.", "Two.", "Four."],
+          explanation: "录音说 a dog and two cats，1 + 2 = 3，所以选 Three.",
+          steps: [
+            "先听问题 How many pets，知道要数宠物总数。",
+            "再听 a dog and two cats。",
+            "把 1 只狗和 2 只猫相加得到 Three."
+          ],
+          commonPitfalls: ["只听到一种动物", "没有把数量相加"]
         }
       ],
       inputs: [
