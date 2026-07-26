@@ -5867,7 +5867,8 @@ const STORE = {
       }
       if (els.mobilePetHintTitle) els.mobilePetHintTitle.innerHTML = `<span aria-hidden="true">🐾</span> ${escapeHTML(petDisplayName(profile))}小提示`;
       if (els.mobilePetHintClose) els.mobilePetHintClose.setAttribute("aria-label", `关闭${petDisplayName(profile)}提示`);
-      renderPetSpace(profile);
+      // 互动路径只同步房间 stage(WP-D),不整页重建,避免闪烁/卡顿
+      syncPetRoomStage(profile, pet);
     }
 
     function petBarHTML(label, value) {
@@ -6576,9 +6577,9 @@ const STORE = {
       els.petCheckinBtn.setAttribute("aria-pressed", String(done));
     }
 
-    function renderPetSpace(profile = activeProfile()) {
-      if (!els.petShopGrid || !els.petBagList) return;
-      const pet = petState(profile);
+    // 轻量房间 stage 同步(WP-D):只更新房间舞台 data-*、猫分层、等级/经验、状态条、技能条、签到。
+    // 互动路径(updatePetStatus)调它避免 renderPetSpace 整页 innerHTML 重建导致的闪烁/卡顿。
+    function syncPetRoomStage(profile = activeProfile(), pet = petState(profile)) {
       const name = petDisplayName(profile);
       const xpInLevel = pet.xp % PET_XP_PER_LEVEL;
       const stage = petStageCopy(petGrowthStage(pet), profile);
@@ -6586,8 +6587,8 @@ const STORE = {
       if (els.petSpaceLead) els.petSpaceLead.textContent = `${stage.name}：${stage.copy}`;
       if (els.petRoomCatBtn) els.petRoomCatBtn.setAttribute("aria-label", `摸摸${name}`);
       if (els.petSpaceCoins) els.petSpaceCoins.textContent = String(pet.coins);
-      if (els.petRoomStage) els.petRoomStage.dataset.petState = pet.runaway?.status || "home";
       if (els.petRoomStage) {
+        els.petRoomStage.dataset.petState = pet.runaway?.status || "home";
         const quality = petLearningQuality(profile);
         const expression = petExpression(profile, pet, quality);
         els.petRoomStage.dataset.roomTheme = pet.roomTheme || "sunny";
@@ -6601,7 +6602,7 @@ const STORE = {
         els.petRoomStage.dataset.decorDesk = String(Boolean(pet.equippedFurniture?.bookDesk));
         els.petRoomStage.dataset.decorBed = String(Boolean(pet.equippedFurniture?.royalBed));
         els.petRoomStage.dataset.decorBasket = String(Boolean(pet.equippedFurniture?.toyBasket));
-        // 装扮/表情改由分层 DOM 渲染(syncPetCatLayers),不再用 data-outfit-icon/data-expression-icon 伪元素
+        // 装扮/表情由分层 DOM 渲染(syncPetCatLayers),不再用 data-outfit-icon/data-expression-icon 伪元素
         syncPetCatLayers(profile, pet);
       }
       if (els.petRoomName) els.petRoomName.textContent = pet.runaway?.status === "lost"
@@ -6651,6 +6652,12 @@ const STORE = {
       }
       renderPetSkillStrip(pet);
       renderPetCheckin(pet, profile);
+    }
+
+    function renderPetSpace(profile = activeProfile()) {
+      if (!els.petShopGrid || !els.petBagList) return;
+      const pet = petState(profile);
+      syncPetRoomStage(profile, pet);
       renderPetWishCard(profile, pet);
       renderPetLevelGiftCard(pet, profile);
       renderPetCarePlan(profile, pet);
