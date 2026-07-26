@@ -1,4 +1,4 @@
-﻿/* Desktop, tablet, and mobile responsive overrides. Split from pet-learning.css. */
+/* Desktop, tablet, and mobile responsive overrides. Split from pet-learning.css. */
 
     @media (min-width: 981px) {
       html:has(body.practice-view-active.practice-focus-mode),
@@ -2108,11 +2108,10 @@
       .bank-bulk-editor { grid-template-columns: 1fr; }
       .bank-bulk-editor .checkline,
       .bank-bulk-editor button { grid-column: auto; }
+      /* 手机端隐藏“今日组卷结构”卡片：信息与下方步骤重复，且会把首页撑高、
+         遮挡其他内容。桌面端仍正常显示。 */
       .home-plan-mix {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-      .home-plan-mix > strong {
-        grid-column: 1 / -1;
+        display: none;
       }
       .app { width: min(100% - 12px, 1320px); padding: 0 0 6px; gap: 6px; }
       .app-header {
@@ -2196,29 +2195,9 @@
       .pet-task-columns {
         grid-template-columns: 1fr;
       }
+      /* 手机端隐藏顶部标题区(标题+描述+金币),让房间舞台与下方内容尽量一屏显示 */
       .pet-room-top {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        align-items: center;
-        gap: 10px;
-      }
-      .pet-room-top h2 {
-        font-size: 18px;
-      }
-      .pet-room-top .muted {
-        display: none;
-      }
-      .pet-wallet {
-        width: auto;
-        min-width: 76px;
-        text-align: left;
-        padding: 7px 9px;
-      }
-      .pet-wallet span {
-        font-size: 10px;
-      }
-      .pet-wallet strong {
-        font-size: 23px;
+        display: none !important;
       }
       .pet-room-scene {
         min-height: 248px;
