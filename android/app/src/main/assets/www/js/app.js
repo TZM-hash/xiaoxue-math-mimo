@@ -445,6 +445,7 @@ const STORE = {
       petRoomCatBtn: document.getElementById("petRoomCatBtn"),
       petCatOutfit: document.getElementById("petCatOutfit"),
       petCatExpression: document.getElementById("petCatExpression"),
+      petRoomProps: document.getElementById("petRoomProps"),
       petCheckinBtn: document.getElementById("petCheckinBtn"),
       learningModal: document.getElementById("learningModal"),
       learningKnowledgeMap: document.getElementById("learningKnowledgeMap"),
@@ -6602,6 +6603,14 @@ const STORE = {
         els.petRoomStage.dataset.decorDesk = String(Boolean(pet.equippedFurniture?.bookDesk));
         els.petRoomStage.dataset.decorBed = String(Boolean(pet.equippedFurniture?.royalBed));
         els.petRoomStage.dataset.decorBasket = String(Boolean(pet.equippedFurniture?.toyBasket));
+        // 房间氛围装饰物:按当前主题渲染 props 图层(数据驱动,替代纯渐变)
+        if (els.petRoomProps) {
+          const theme = PET_ROOM_THEME_MAP[pet.roomTheme] || PET_ROOM_THEME_MAP.sunny;
+          const props = Array.isArray(theme?.props) ? theme.props : [];
+          els.petRoomProps.innerHTML = props
+            .map((icon, index) => `<span class="pet-room-prop" style="--prop-index:${index}">${escapeHTML(icon)}</span>`)
+            .join("");
+        }
         // 装扮/表情由分层 DOM 渲染(syncPetCatLayers),不再用 data-outfit-icon/data-expression-icon 伪元素
         syncPetCatLayers(profile, pet);
       }

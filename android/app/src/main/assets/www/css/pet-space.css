@@ -1053,6 +1053,33 @@
       color: color-mix(in oklch, var(--accent), black 12%);
       font: 950 13px/1 var(--font-display);
     }
+    /* —— 房间氛围装饰物(WP-B):主题专属 emoji 图层,漂浮在房间内 —— */
+    .pet-room-props {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+      overflow: hidden;
+    }
+    .pet-room-prop {
+      position: absolute;
+      font-size: 26px;
+      line-height: 1;
+      opacity: .85;
+      filter: drop-shadow(0 3px 6px rgba(44,86,108,.14));
+      animation: pet-room-prop-float 5.2s ease-in-out infinite;
+    }
+    .pet-room-prop:nth-child(1) { top: 12%; left: 10%; animation-delay: 0s; }
+    .pet-room-prop:nth-child(2) { top: 20%; right: 12%; font-size: 22px; animation-delay: -1.7s; }
+    .pet-room-prop:nth-child(3) { top: 6%; left: 58%; font-size: 20px; animation-delay: -3.4s; }
+    @keyframes pet-room-prop-float {
+      0%, 100% { transform: translateY(0) rotate(-2deg); }
+      50% { transform: translateY(-7px) rotate(2deg); }
+    }
+    /* 低动效环境(Android WebView)关闭漂浮,仅静态展示 */
+    .android-webview .pet-room-prop {
+      animation: none;
+    }
     .pet-room-stage[data-expression="hungry"] .pet-room-cat img,
     .pet-room-stage[data-expression="dirty"] .pet-room-cat img,
     .pet-room-stage[data-expression="tired"] .pet-room-cat img {

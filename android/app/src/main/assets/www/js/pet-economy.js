@@ -86,15 +86,16 @@
   ];
 
   const ROOM_THEMES = [
-    { id: "sunny", title: "阳光小窝", icon: "☀️", minLevel: 1, price: 0, desc: "默认小窝，明亮温暖。" },
-    { id: "forest", title: "森林小屋", icon: "🌿", minLevel: 5, price: 110, desc: "适合稳定练习后的清新主题。" },
-    { id: "star", title: "星空房间", icon: "🌌", minLevel: 10, price: 170, desc: "夜空、星灯和安静的学习角。" },
-    { id: "candy", title: "糖果乐园", icon: "🍬", minLevel: 15, price: 220, desc: "色彩更活泼，适合长期收集。" },
-    { id: "ocean", title: "海底小窝", icon: "🐚", minLevel: 20, price: 270, desc: "高级主题，通过高等级或成就获得更划算。" },
+    // props: 房间内的氛围装饰物(emoji 图层,数据驱动),渲染进 pet-room-scene 增强主题氛围
+    { id: "sunny", title: "阳光小窝", icon: "☀️", minLevel: 1, price: 0, props: ["☀️", "🌻", "🪴"], desc: "默认小窝，明亮温暖。" },
+    { id: "forest", title: "森林小屋", icon: "🌿", minLevel: 5, price: 110, props: ["🌲", "🍄", "🐿️"], desc: "适合稳定练习后的清新主题。" },
+    { id: "star", title: "星空房间", icon: "🌌", minLevel: 10, price: 170, props: ["⭐", "🌙", "✨"], desc: "夜空、星灯和安静的学习角。" },
+    { id: "candy", title: "糖果乐园", icon: "🍬", minLevel: 15, price: 220, props: ["🍭", "🧁", "🍩"], desc: "色彩更活泼，适合长期收集。" },
+    { id: "ocean", title: "海底小窝", icon: "🐚", minLevel: 20, price: 270, props: ["🐠", "🫧", "🐚"], desc: "高级主题，通过高等级或成就获得更划算。" },
     // —— 2026 主题扩充（配套 CSS 见 pet-space.css [data-room-theme]）——
-    { id: "sakura", title: "樱花庭院", icon: "🌸", minLevel: 8, price: 150, desc: "春日粉樱，柔和治愈的小院子。" },
-    { id: "aurora", title: "极光雪屋", icon: "❄️", minLevel: 16, price: 240, desc: "冬夜极光，安静又梦幻。" },
-    { id: "sunset", title: "黄昏暖阳", icon: "🌇", minLevel: 12, price: 200, desc: "傍晚橙红色调，温暖惬意。" }
+    { id: "sakura", title: "樱花庭院", icon: "🌸", minLevel: 8, price: 150, props: ["🌸", "🍡", "⛩️"], desc: "春日粉樱，柔和治愈的小院子。" },
+    { id: "aurora", title: "极光雪屋", icon: "❄️", minLevel: 16, price: 240, props: ["🌌", "❄️", "🛷"], desc: "冬夜极光，安静又梦幻。" },
+    { id: "sunset", title: "黄昏暖阳", icon: "🌇", minLevel: 12, price: 200, props: ["🌇", "🕯️", "🦉"], desc: "傍晚橙红色调，温暖惬意。" }
   ];
 
   const FURNITURE = [
