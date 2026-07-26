@@ -1,4 +1,4 @@
-﻿const STORE = {
+const STORE = {
       profiles: "mathcamp-profiles-v4",
       active: "mathcamp-active-profile-v4",
       music: "mathcamp-music-enabled-v4",
@@ -443,6 +443,7 @@
       confirmRenamePetBtn: document.getElementById("confirmRenamePetBtn"),
       cancelRenamePetBtn: document.getElementById("cancelRenamePetBtn"),
       petRoomCatBtn: document.getElementById("petRoomCatBtn"),
+      petCheckinBtn: document.getElementById("petCheckinBtn"),
       learningModal: document.getElementById("learningModal"),
       learningKnowledgeMap: document.getElementById("learningKnowledgeMap"),
       subjectModal: document.getElementById("subjectModal"),
@@ -1220,6 +1221,7 @@
         careLog: { date: today, encourage: 0, feed: 0, clean: 0, play: 0 },
         tasks: { daily: {}, weekly: {} },
         wish: { date: today, id: "", itemId: "", progress: 0, fulfilled: false },
+        checkin: { date: "", streak: 0, bestStreak: 0, total: 0 },
         rewardsClaimed: {},
         decorations: {},
         systemThemes: defaultSystemThemes(),
@@ -1347,6 +1349,7 @@
         weekly: isPlainObject(pet.tasks?.weekly) ? pet.tasks.weekly : {}
       };
       pet.wish = normalizePetWish(pet.wish, pet);
+      pet.checkin = normalizePetCheckin(pet.checkin);
       pet.rewardsClaimed = isPlainObject(pet.rewardsClaimed) ? pet.rewardsClaimed : {};
       Object.keys(pet.rewardsClaimed).forEach((key) => {
         if (!pet.rewardsClaimed[key]) delete pet.rewardsClaimed[key];
@@ -5341,6 +5344,55 @@
         .sort((a, b) => b.score - a.score);
       return (candidates[0] || {}).wish || PET_WISHES[0];
     }
+    // —— 每日签到（进空间摸摸猫领金币 + 连续登录奖励）——
+    const PET_CHECKIN_BASE_COINS = 6;
+    const PET_CHECKIN_STEP_COINS = 2;
+    const PET_CHECKIN_MAX_COINS = 20;
+    const PET_CHECKIN_CYCLE = 7; // 每连续 7 天额外一份彩蛋奖励
+    const PET_CHECKIN_CYCLE_BONUS = 12;
+    function normalizePetCheckin(raw = {}) {
+      const source = isPlainObject(raw) ? raw : {};
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(String(source.date || "")) ? source.date : "";
+      const streak = Math.max(0, Math.floor(Number(source.streak) || 0));
+      return {
+        date,
+        streak,
+        bestStreak: Math.max(streak, Math.floor(Number(source.bestStreak) || 0)),
+        total: Math.max(0, Math.floor(Number(source.total) || 0))
+      };
+    }
+    function petCheckinRewardFor(streak) {
+      const day = Math.max(1, Number(streak) || 1);
+      const coins = Math.min(
+        PET_CHECKIN_MAX_COINS,
+        PET_CHECKIN_BASE_COINS + (day - 1) * PET_CHECKIN_STEP_COINS
+      );
+      const cycleBonus = day % PET_CHECKIN_CYCLE === 0 ? PET_CHECKIN_CYCLE_BONUS : 0;
+      return { coins, cycleBonus, bond: cycleBonus ? 2 : 1 };
+    }
+    function petCheckedInToday(pet) {
+      return normalizePetCheckin(pet?.checkin).date === todayKey();
+    }
+    // 领取今日签到；返回 { applied, coins, bond, streak, cycleBonus }，已领过则 applied=false。
+    function applyPetCheckin(pet) {
+      const today = todayKey();
+      const checkin = normalizePetCheckin(pet.checkin);
+      if (checkin.date === today) return { applied: false, ...checkin };
+      const gap = checkin.date ? daysBetween(checkin.date, today) : 0;
+      const streak = gap === 1 ? checkin.streak + 1 : 1;
+      const reward = petCheckinRewardFor(streak);
+      const totalCoins = reward.coins + reward.cycleBonus;
+      pet.coins = Math.max(0, (Number(pet.coins) || 0) + totalCoins);
+      pet.bond = clamp((Number(pet.bond) || 0) + reward.bond, 0, 100);
+      pet.mood = clamp((Number(pet.mood) || 0) + 3, 0, 100);
+      pet.checkin = {
+        date: today,
+        streak,
+        bestStreak: Math.max(streak, checkin.bestStreak),
+        total: checkin.total + 1
+      };
+      return { applied: true, coins: totalCoins, bond: reward.bond, streak, cycleBonus: reward.cycleBonus };
+    }
     function currentPetWish(pet) {
       pet.wish = normalizePetWish(pet.wish, pet);
       return PET_WISHES.find((wish) => wish.id === pet.wish.id) || choosePetWish(pet);
@@ -6451,6 +6503,28 @@
       els.petRoomCatBtn?.classList.remove("no-transition");
     }
 
+    function renderPetCheckin(pet, profile = activeProfile()) {
+      if (!els.petCheckinBtn) return;
+      const checkin = normalizePetCheckin(pet.checkin);
+      const done = checkin.date === todayKey();
+      const reward = petCheckinRewardFor(checkin.streak + 1);
+      const totalCoins = reward.coins + reward.cycleBonus;
+      const streakLabel = checkin.streak > 0 ? `连续 ${checkin.streak} 天` : "今日首次签到";
+      els.petCheckinBtn.innerHTML = `
+        <span class="pet-checkin-left">
+          <strong>${done ? "✅ 今日已签到" : "🐾 每日签到"}</strong>
+          <em>${done ? `${streakLabel} · 已累计 ${checkin.total} 天` : streakLabel}</em>
+        </span>
+        <span class="pet-checkin-right">
+          ${done
+            ? `<span class="pet-checkin-done">明天再来领奖励</span>`
+            : `<span class="pet-checkin-reward">+${totalCoins} 金币</span>${reward.cycleBonus ? `<i>连签彩蛋 +${reward.cycleBonus}</i>` : ""}`}
+        </span>`;
+      els.petCheckinBtn.classList.toggle("is-done", done);
+      els.petCheckinBtn.disabled = done;
+      els.petCheckinBtn.setAttribute("aria-pressed", String(done));
+    }
+
     function renderPetSpace(profile = activeProfile()) {
       if (!els.petShopGrid || !els.petBagList) return;
       const pet = petState(profile);
@@ -6528,6 +6602,7 @@
         ].join("");
       }
       renderPetSkillStrip(pet);
+      renderPetCheckin(pet, profile);
       renderPetWishCard(profile, pet);
       renderPetLevelGiftCard(pet, profile);
       renderPetCarePlan(profile, pet);
@@ -10303,7 +10378,31 @@
       els.petEncourageBtn.click();
     });
     els.petRoomCatBtn?.addEventListener("click", () => {
-      els.petEncourageBtn.click();
+      const profile = activeProfile();
+      if (!profile) return;
+      const pet = petState(profile);
+      if (!petCheckedInToday(pet)) {
+        els.petCheckinBtn?.click();
+      } else {
+        els.petEncourageBtn.click();
+      }
+    });
+    els.petCheckinBtn?.addEventListener("click", () => {
+      const profile = activeProfile();
+      if (!profile) return;
+      const pet = petState(profile);
+      const result = applyPetCheckin(pet);
+      if (!result.applied) {
+        renderPetCheckin(pet, profile);
+        return;
+      }
+      updateProfile(profile);
+      setPetAction("encourage", "签到");
+      playSound("meow");
+      const bonusText = result.cycleBonus ? `，连签彩蛋再加 ${result.cycleBonus} 金币` : "";
+      updatePetStatus(`签到成功！连续 ${result.streak} 天，领到 ${result.coins} 金币，亲密 +${result.bond}${bonusText}。`, "签到");
+      saveProfiles();
+      renderPetSpace(profile);
     });
     els.petHintBtn.addEventListener("click", () => {
       const current = state.currentSet[state.index];

@@ -1,4 +1,4 @@
-﻿/* Pet space, modals, subject hub, and knowledge map styles. Split from pet-learning.css. */
+/* Pet space, modals, subject hub, and knowledge map styles. Split from pet-learning.css. */
 
 /* Pet, learning report, print, modal, and responsive layouts. Split from themes.css. */
 
@@ -1236,6 +1236,69 @@
       color: color-mix(in oklch, var(--accent), black 10%);
       background: color-mix(in oklch, var(--accent), white 84%);
       border-color: color-mix(in oklch, var(--accent), white 44%);
+    }
+    .pet-checkin-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      width: 100%;
+      margin-top: 8px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid color-mix(in oklch, var(--accent), white 40%);
+      background: color-mix(in oklch, var(--accent), white 88%);
+      color: color-mix(in oklch, var(--accent), black 16%);
+      font-family: inherit;
+      cursor: pointer;
+      transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease;
+    }
+    .pet-checkin-card:hover:not(.is-done) {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 20px -10px color-mix(in oklch, var(--accent), transparent 40%);
+    }
+    .pet-checkin-card.is-done {
+      background: rgba(255,255,255,.6);
+      border-color: var(--border);
+      color: var(--muted);
+      cursor: default;
+      opacity: .8;
+    }
+    .pet-checkin-left {
+      display: grid;
+      gap: 2px;
+      text-align: left;
+    }
+    .pet-checkin-left strong {
+      font: 900 13px/1.2 var(--font-display);
+    }
+    .pet-checkin-left em {
+      font-style: normal;
+      font-size: 11px;
+      color: inherit;
+      opacity: .85;
+    }
+    .pet-checkin-right {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+    .pet-checkin-reward {
+      font: 900 13px/1 var(--font-display);
+      color: color-mix(in oklch, var(--accent), black 8%);
+    }
+    .pet-checkin-right i {
+      font-style: normal;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: color-mix(in oklch, #f7b733, white 72%);
+      color: color-mix(in oklch, #a25e00, black 8%);
+    }
+    .pet-checkin-done {
+      font: 800 12px/1.2 var(--font-display);
     }
     .pet-care-dashboard {
       display: grid;
