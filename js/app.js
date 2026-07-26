@@ -141,7 +141,6 @@ const STORE = {
     const PET_FURNITURE = Array.isArray(PetEconomy.FURNITURE) ? PetEconomy.FURNITURE : [];
     const PET_OUTFITS = Array.isArray(PetEconomy.OUTFITS) ? PetEconomy.OUTFITS : [];
     const PET_ACHIEVEMENTS = Array.isArray(PetEconomy.ACHIEVEMENTS) ? PetEconomy.ACHIEVEMENTS : [];
-    const PET_DECORATION_MAP = Object.fromEntries(PET_DECORATIONS.map((item) => [item.id, item]));
     const PET_LEVEL_REWARD_MAP = Object.fromEntries(PET_LEVEL_REWARDS.map((item) => [String(item.level), item]));
     const PET_ROOM_THEME_MAP = Object.fromEntries(PET_ROOM_THEMES.map((item) => [item.id, item]));
     const PET_FURNITURE_MAP = Object.fromEntries(PET_FURNITURE.map((item) => [item.id, item]));
@@ -4577,6 +4576,8 @@ const STORE = {
       }, isLowMotionMode() ? PET_FX_TIMING.actionResetLowMotion : PET_FX_TIMING.actionReset);
     }
 
+    // 守门契约(frontend-layout 测试固定):移动聚焦练习恒不通过隐藏的固定伴练猫
+    // 路由提示/结果,改由悬浮招财或内联提示处理。返回 false 是有意的,勿删。
     function shouldUseMobilePetHintPopover() {
       return false;
     }
@@ -4593,10 +4594,6 @@ const STORE = {
         clearTimeout(state.autoReturnId);
         state.autoReturnId = null;
       }
-    }
-
-    function startAutoReturnTimer() {
-      // 练习/闯关模式结束后不再自动返回，等用户手动点"返回"或"下一轮/下一关"
     }
 
     function openPetHintPopover(message, options = {}) {
@@ -8918,22 +8915,10 @@ const STORE = {
       if (!current || !state.checked) return;
       const answerText = `正确答案：${formatAnswer(current.answer, current.answerLabel)}`;
       const steps = (current.steps && current.steps.length ? current.steps : [current.explanation || methodHintFor(current)]).slice(0, 4);
-      const pitfall = (current.commonPitfalls || [])[0] || "容易跳步或看错题意";
-      const detailHTML = `
-        <div class="answer-detail-popover">
-          <strong>${escapeHTML(answerText)}</strong>
-          <p>${escapeHTML(methodHintFor(current))}</p>
-          <ol>${steps.map((step) => `<li>${escapeHTML(step)}</li>`).join("")}</ol>
-          <span>易错点：${escapeHTML(pitfall)}</span>
-        </div>`;
       if (els.methodHint) {
         els.methodHint.textContent = `${answerText}。${methodHintFor(current)}`;
       }
-      if (shouldUseMobilePetHintPopover()) {
-        openPetHintPopover(detailHTML, { kind: "answer", title: "查看答案", html: true });
-      } else {
-        UI.notify(`${answerText}。${steps[0] || methodHintFor(current)}`, { duration: 5200 });
-      }
+      UI.notify(`${answerText}。${steps[0] || methodHintFor(current)}`, { duration: 5200 });
     }
 
     function skipQuestion() {
@@ -9165,19 +9150,7 @@ const STORE = {
         if (state._lastFinishResult) {
           const r = state._lastFinishResult;
           const isChallenge = state.mode === "challenge";
-          if (shouldUseMobilePetHintPopover() && els.mobilePetHintPopover.hidden) {
-            openPetHintPopover(mobileResultPopoverHTML({ total: r.total, correct: r.correct, rate: r.rate, wrongCount: r.wrongCount, reward: r.reward, challenge: r.challenge }), {
-              kind: "result", title: isChallenge ? "闯关结果" : "本轮结果", html: true
-            });
-            if (isChallenge) {
-              setTimeout(() => {
-                const backBtn = document.getElementById("mcrBackBtn");
-                const nextBtn = document.getElementById("mcrNextBtn");
-                if (backBtn) backBtn.addEventListener("click", () => { closePetHintPopover(); returnToPracticeSetup(); });
-                if (nextBtn) nextBtn.addEventListener("click", () => { closePetHintPopover(); startChallengeSet(); });
-              }, 50);
-            }
-          } else if (!shouldUseMobilePetHintPopover() && els.challengeResultOverlay.hidden) {
+          if (els.challengeResultOverlay.hidden) {
             openDesktopResultPopover(desktopResultPopoverHTML({ total: r.total, correct: r.correct, rate: r.rate, wrongCount: r.wrongCount, reward: r.reward, challenge: r.challenge, elapsedMs: r.elapsedMs, mode: state.mode }), isChallenge ? "challenge" : "practice");
           }
         }
