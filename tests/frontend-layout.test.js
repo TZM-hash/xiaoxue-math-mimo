@@ -282,8 +282,8 @@ assertContains(app, "renderLearningKnowledgeMap", "app should render the learnin
 assertContains(app, 'knowledgeMap: document.getElementById("knowledgeMapView")', "app should bind the standalone knowledge map view");
 assertContains(app, "petLearningQuality", "app should bind pet growth to learning quality");
 assertContains(app, "petExpression", "app should map pet state into visible expressions");
-assertContains(app, "dataset.outfitIcon", "pet room should expose outfit icons on the visible pet");
-assertContains(app, "dataset.expressionIcon", "pet room should expose expression icons on the visible pet");
+assertContains(app, "petOutfitVisual", "app should resolve outfit visuals via a single data-driven helper");
+assertContains(app, "syncPetCatLayers", "pet room should render outfit/expression as layered DOM, not pseudo-element tracks");
 assertContains(app, "movePetStageCard", "app should move the pet stage quality card into the mobile growth modal");
 assertContains(app, "renderPetShowcase", "app should render pet display outcomes");
 assertContains(app, "movePetShowcaseCard", "app should move pet showcase into mobile pet plan menu");

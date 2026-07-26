@@ -109,18 +109,19 @@
   ];
 
   const OUTFITS = [
-    { id: "redScarf", title: "红围巾", icon: "🧣", minLevel: 2, price: 60, desc: "第一件基础装扮。" },
-    { id: "scholarCap", title: "学士帽", icon: "🎓", minLevel: 6, price: 98, desc: "适合认真复习错题的小伙伴。" },
-    { id: "starCape", title: "星星披风", icon: "✨", minLevel: 10, price: 140, desc: "星空主题的可见奖励。" },
-    { id: "festivalCape", title: "节日斗篷", icon: "🎀", minLevel: 15, price: 180, desc: "长期坚持后的节日装扮。" },
-    { id: "littleCrown", title: "小皇冠", icon: "👑", minLevel: 25, price: 260, desc: "高等级和成就系统里的稀有装扮。" },
+    // layer: 装扮在猫身上的图层位置(head=头顶/neck=颈部/back=背部);accent: 主题色(数据驱动,替代 CSS 硬编码几何图形)
+    { id: "redScarf", title: "红围巾", icon: "🧣", layer: "neck", accent: "#e05c5c", minLevel: 2, price: 60, desc: "第一件基础装扮。" },
+    { id: "scholarCap", title: "学士帽", icon: "🎓", layer: "head", accent: "#4a5568", minLevel: 6, price: 98, desc: "适合认真复习错题的小伙伴。" },
+    { id: "starCape", title: "星星披风", icon: "✨", layer: "back", accent: "#7aa2e8", minLevel: 10, price: 140, desc: "星空主题的可见奖励。" },
+    { id: "festivalCape", title: "节日斗篷", icon: "🎀", layer: "back", accent: "#ef7d8f", minLevel: 15, price: 180, desc: "长期坚持后的节日装扮。" },
+    { id: "littleCrown", title: "小皇冠", icon: "👑", layer: "head", accent: "#f2c14e", minLevel: 25, price: 260, desc: "高等级和成就系统里的稀有装扮。" },
     // —— 2026 装扮扩充：季节 / 节日套系（emoji 装扮，佩戴后显示在猫头顶）——
-    { id: "springHat", title: "春日花环", icon: "🌸", minLevel: 3, price: 66, desc: "春季套系：戴上花环迎接春天。" },
-    { id: "summerGlasses", title: "夏日墨镜", icon: "🕶️", minLevel: 5, price: 78, desc: "夏季套系：清凉一夏的小酷猫。" },
-    { id: "autumnMaple", title: "秋叶徽章", icon: "🍁", minLevel: 7, price: 96, desc: "秋季套系：把落叶别在身上。" },
-    { id: "winterHat", title: "冬日毛线帽", icon: "🧢", minLevel: 9, price: 108, desc: "冬季套系：暖暖的毛线帽。" },
-    { id: "birthdayHat", title: "生日帽", icon: "🥳", minLevel: 4, price: 88, desc: "节日套系：一起庆祝小小里程碑。" },
-    { id: "graduationGown", title: "毕业礼袍", icon: "🎊", minLevel: 20, price: 200, desc: "节日套系：陪你一路坚持到毕业季。" }
+    { id: "springHat", title: "春日花环", icon: "🌸", layer: "head", accent: "#f2a7c3", minLevel: 3, price: 66, desc: "春季套系：戴上花环迎接春天。" },
+    { id: "summerGlasses", title: "夏日墨镜", icon: "🕶️", layer: "head", accent: "#3a3f4a", minLevel: 5, price: 78, desc: "夏季套系：清凉一夏的小酷猫。" },
+    { id: "autumnMaple", title: "秋叶徽章", icon: "🍁", layer: "neck", accent: "#d97b3f", minLevel: 7, price: 96, desc: "秋季套系：把落叶别在身上。" },
+    { id: "winterHat", title: "冬日毛线帽", icon: "🧢", layer: "head", accent: "#5b8fd9", minLevel: 9, price: 108, desc: "冬季套系：暖暖的毛线帽。" },
+    { id: "birthdayHat", title: "生日帽", icon: "🥳", layer: "head", accent: "#b48ae8", minLevel: 4, price: 88, desc: "节日套系：一起庆祝小小里程碑。" },
+    { id: "graduationGown", title: "毕业礼袍", icon: "🎊", layer: "back", accent: "#3f4a63", minLevel: 20, price: 200, desc: "节日套系：陪你一路坚持到毕业季。" }
   ];
 
   const ACHIEVEMENTS = [

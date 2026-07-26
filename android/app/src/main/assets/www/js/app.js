@@ -1,4 +1,4 @@
-﻿const STORE = {
+const STORE = {
       profiles: "mathcamp-profiles-v4",
       active: "mathcamp-active-profile-v4",
       music: "mathcamp-music-enabled-v4",
@@ -443,6 +443,9 @@
       confirmRenamePetBtn: document.getElementById("confirmRenamePetBtn"),
       cancelRenamePetBtn: document.getElementById("cancelRenamePetBtn"),
       petRoomCatBtn: document.getElementById("petRoomCatBtn"),
+      petCatOutfit: document.getElementById("petCatOutfit"),
+      petCatExpression: document.getElementById("petCatExpression"),
+      petCheckinBtn: document.getElementById("petCheckinBtn"),
       learningModal: document.getElementById("learningModal"),
       learningKnowledgeMap: document.getElementById("learningKnowledgeMap"),
       subjectModal: document.getElementById("subjectModal"),
@@ -1220,6 +1223,7 @@
         careLog: { date: today, encourage: 0, feed: 0, clean: 0, play: 0 },
         tasks: { daily: {}, weekly: {} },
         wish: { date: today, id: "", itemId: "", progress: 0, fulfilled: false },
+        checkin: { date: "", streak: 0, bestStreak: 0, total: 0 },
         rewardsClaimed: {},
         decorations: {},
         systemThemes: defaultSystemThemes(),
@@ -1347,6 +1351,7 @@
         weekly: isPlainObject(pet.tasks?.weekly) ? pet.tasks.weekly : {}
       };
       pet.wish = normalizePetWish(pet.wish, pet);
+      pet.checkin = normalizePetCheckin(pet.checkin);
       pet.rewardsClaimed = isPlainObject(pet.rewardsClaimed) ? pet.rewardsClaimed : {};
       Object.keys(pet.rewardsClaimed).forEach((key) => {
         if (!pet.rewardsClaimed[key]) delete pet.rewardsClaimed[key];
@@ -5293,15 +5298,46 @@
       </div>`;
     }
     function petExpression(profile = activeProfile(), pet = petState(profile), quality = petLearningQuality(profile)) {
-      if (pet.runaway?.status === "lost") return { key: "lost", icon: "?" };
-      if (pet.runaway?.status === "away") return { key: "away", icon: "…" };
-      if (pet.hunger < 25) return { key: "hungry", icon: "饭" };
-      if (pet.clean < 25) return { key: "dirty", icon: "洗" };
-      if (pet.mood < 30) return { key: "tired", icon: "慢" };
-      if (quality.recentCount >= 10 && quality.rate >= 90) return { key: "proud", icon: "稳" };
-      if (quality.reviewCount > 0) return { key: "focused", icon: "复" };
-      if (pet.bond >= 80) return { key: "close", icon: "亲" };
-      return { key: "calm", icon: "学" };
+      // 表情图标统一为 emoji(淘汰单汉字),保证跨字体渲染一致
+      if (pet.runaway?.status === "lost") return { key: "lost", icon: "❓" };
+      if (pet.runaway?.status === "away") return { key: "away", icon: "💨" };
+      if (pet.hunger < 25) return { key: "hungry", icon: "🍚" };
+      if (pet.clean < 25) return { key: "dirty", icon: "🛁" };
+      if (pet.mood < 30) return { key: "tired", icon: "😪" };
+      if (quality.recentCount >= 10 && quality.rate >= 90) return { key: "proud", icon: "🌟" };
+      if (quality.reviewCount > 0) return { key: "focused", icon: "📖" };
+      if (pet.bond >= 80) return { key: "close", icon: "💗" };
+      return { key: "calm", icon: "" };
+    }
+    // 统一装扮视觉数据:图层位置 + 图标 + 主题色(数据驱动,替代 CSS 硬编码几何图形)
+    function petOutfitVisual(outfitId) {
+      const item = outfitId ? PET_OUTFIT_MAP[outfitId] : null;
+      if (!item) return { id: "", layer: "", icon: "", accent: "" };
+      return {
+        id: item.id,
+        layer: item.layer || "head",
+        icon: item.icon || "",
+        accent: item.accent || ""
+      };
+    }
+    // 统一渲染房间猫的分层:装扮层(按 layer 定位) + 表情层。
+    // 替代旧的 data-outfit-icon(emoji) 与 data-outfit(CSS 几何图形) 双轨伪元素方案。
+    function syncPetCatLayers(profile = activeProfile(), pet = petState(profile)) {
+      const outfit = petOutfitVisual(pet.outfit);
+      if (els.petCatOutfit) {
+        els.petCatOutfit.textContent = outfit.icon;
+        els.petCatOutfit.dataset.layer = outfit.layer;
+        els.petCatOutfit.dataset.outfit = outfit.id;
+        els.petCatOutfit.style.setProperty("--outfit-accent", outfit.accent || "transparent");
+        els.petCatOutfit.hidden = !outfit.icon;
+      }
+      if (els.petCatExpression) {
+        const quality = petLearningQuality(profile);
+        const expression = petExpression(profile, pet, quality);
+        els.petCatExpression.textContent = expression.icon;
+        els.petCatExpression.dataset.expression = expression.key;
+        els.petCatExpression.hidden = !expression.icon;
+      }
     }
     function normalizePetWish(raw = {}, pet = null) {
       const today = todayKey();
@@ -5340,6 +5376,55 @@
         })
         .sort((a, b) => b.score - a.score);
       return (candidates[0] || {}).wish || PET_WISHES[0];
+    }
+    // —— 每日签到（进空间摸摸猫领金币 + 连续登录奖励）——
+    const PET_CHECKIN_BASE_COINS = 6;
+    const PET_CHECKIN_STEP_COINS = 2;
+    const PET_CHECKIN_MAX_COINS = 20;
+    const PET_CHECKIN_CYCLE = 7; // 每连续 7 天额外一份彩蛋奖励
+    const PET_CHECKIN_CYCLE_BONUS = 12;
+    function normalizePetCheckin(raw = {}) {
+      const source = isPlainObject(raw) ? raw : {};
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(String(source.date || "")) ? source.date : "";
+      const streak = Math.max(0, Math.floor(Number(source.streak) || 0));
+      return {
+        date,
+        streak,
+        bestStreak: Math.max(streak, Math.floor(Number(source.bestStreak) || 0)),
+        total: Math.max(0, Math.floor(Number(source.total) || 0))
+      };
+    }
+    function petCheckinRewardFor(streak) {
+      const day = Math.max(1, Number(streak) || 1);
+      const coins = Math.min(
+        PET_CHECKIN_MAX_COINS,
+        PET_CHECKIN_BASE_COINS + (day - 1) * PET_CHECKIN_STEP_COINS
+      );
+      const cycleBonus = day % PET_CHECKIN_CYCLE === 0 ? PET_CHECKIN_CYCLE_BONUS : 0;
+      return { coins, cycleBonus, bond: cycleBonus ? 2 : 1 };
+    }
+    function petCheckedInToday(pet) {
+      return normalizePetCheckin(pet?.checkin).date === todayKey();
+    }
+    // 领取今日签到；返回 { applied, coins, bond, streak, cycleBonus }，已领过则 applied=false。
+    function applyPetCheckin(pet) {
+      const today = todayKey();
+      const checkin = normalizePetCheckin(pet.checkin);
+      if (checkin.date === today) return { applied: false, ...checkin };
+      const gap = checkin.date ? daysBetween(checkin.date, today) : 0;
+      const streak = gap === 1 ? checkin.streak + 1 : 1;
+      const reward = petCheckinRewardFor(streak);
+      const totalCoins = reward.coins + reward.cycleBonus;
+      pet.coins = Math.max(0, (Number(pet.coins) || 0) + totalCoins);
+      pet.bond = clamp((Number(pet.bond) || 0) + reward.bond, 0, 100);
+      pet.mood = clamp((Number(pet.mood) || 0) + 3, 0, 100);
+      pet.checkin = {
+        date: today,
+        streak,
+        bestStreak: Math.max(streak, checkin.bestStreak),
+        total: checkin.total + 1
+      };
+      return { applied: true, coins: totalCoins, bond: reward.bond, streak, cycleBonus: reward.cycleBonus };
     }
     function currentPetWish(pet) {
       pet.wish = normalizePetWish(pet.wish, pet);
@@ -6451,6 +6536,28 @@
       els.petRoomCatBtn?.classList.remove("no-transition");
     }
 
+    function renderPetCheckin(pet, profile = activeProfile()) {
+      if (!els.petCheckinBtn) return;
+      const checkin = normalizePetCheckin(pet.checkin);
+      const done = checkin.date === todayKey();
+      const reward = petCheckinRewardFor(checkin.streak + 1);
+      const totalCoins = reward.coins + reward.cycleBonus;
+      const streakLabel = checkin.streak > 0 ? `连续 ${checkin.streak} 天` : "今日首次签到";
+      els.petCheckinBtn.innerHTML = `
+        <span class="pet-checkin-left">
+          <strong>${done ? "✅ 今日已签到" : "🐾 每日签到"}</strong>
+          <em>${done ? `${streakLabel} · 已累计 ${checkin.total} 天` : streakLabel}</em>
+        </span>
+        <span class="pet-checkin-right">
+          ${done
+            ? `<span class="pet-checkin-done">明天再来领奖励</span>`
+            : `<span class="pet-checkin-reward">+${totalCoins} 金币</span>${reward.cycleBonus ? `<i>连签彩蛋 +${reward.cycleBonus}</i>` : ""}`}
+        </span>`;
+      els.petCheckinBtn.classList.toggle("is-done", done);
+      els.petCheckinBtn.disabled = done;
+      els.petCheckinBtn.setAttribute("aria-pressed", String(done));
+    }
+
     function renderPetSpace(profile = activeProfile()) {
       if (!els.petShopGrid || !els.petBagList) return;
       const pet = petState(profile);
@@ -6465,7 +6572,6 @@
       if (els.petRoomStage) {
         const quality = petLearningQuality(profile);
         const expression = petExpression(profile, pet, quality);
-        const outfit = pet.outfit ? PET_OUTFIT_MAP[pet.outfit] : null;
         els.petRoomStage.dataset.roomTheme = pet.roomTheme || "sunny";
         els.petRoomStage.dataset.outfit = pet.outfit || "";
         els.petRoomStage.dataset.quality = quality.rate >= 90 && quality.recentCount >= 10 ? "excellent" : quality.rate >= 75 && quality.recentCount >= 6 ? "steady" : quality.rate < 60 && quality.recentCount >= 6 ? "slow" : "building";
@@ -6477,10 +6583,8 @@
         els.petRoomStage.dataset.decorDesk = String(Boolean(pet.equippedFurniture?.bookDesk));
         els.petRoomStage.dataset.decorBed = String(Boolean(pet.equippedFurniture?.royalBed));
         els.petRoomStage.dataset.decorBasket = String(Boolean(pet.equippedFurniture?.toyBasket));
-        if (els.petRoomCatBtn) {
-          els.petRoomCatBtn.dataset.outfitIcon = outfit?.icon || "";
-          els.petRoomCatBtn.dataset.expressionIcon = expression.key === "calm" ? "" : expression.icon;
-        }
+        // 装扮/表情改由分层 DOM 渲染(syncPetCatLayers),不再用 data-outfit-icon/data-expression-icon 伪元素
+        syncPetCatLayers(profile, pet);
       }
       if (els.petRoomName) els.petRoomName.textContent = pet.runaway?.status === "lost"
         ? "等待重新领养"
@@ -6528,6 +6632,7 @@
         ].join("");
       }
       renderPetSkillStrip(pet);
+      renderPetCheckin(pet, profile);
       renderPetWishCard(profile, pet);
       renderPetLevelGiftCard(pet, profile);
       renderPetCarePlan(profile, pet);
@@ -10303,7 +10408,31 @@
       els.petEncourageBtn.click();
     });
     els.petRoomCatBtn?.addEventListener("click", () => {
-      els.petEncourageBtn.click();
+      const profile = activeProfile();
+      if (!profile) return;
+      const pet = petState(profile);
+      if (!petCheckedInToday(pet)) {
+        els.petCheckinBtn?.click();
+      } else {
+        els.petEncourageBtn.click();
+      }
+    });
+    els.petCheckinBtn?.addEventListener("click", () => {
+      const profile = activeProfile();
+      if (!profile) return;
+      const pet = petState(profile);
+      const result = applyPetCheckin(pet);
+      if (!result.applied) {
+        renderPetCheckin(pet, profile);
+        return;
+      }
+      updateProfile(profile);
+      setPetAction("encourage", "签到");
+      playSound("meow");
+      const bonusText = result.cycleBonus ? `，连签彩蛋再加 ${result.cycleBonus} 金币` : "";
+      updatePetStatus(`签到成功！连续 ${result.streak} 天，领到 ${result.coins} 金币，亲密 +${result.bond}${bonusText}。`, "签到");
+      saveProfiles();
+      renderPetSpace(profile);
     });
     els.petHintBtn.addEventListener("click", () => {
       const current = state.currentSet[state.index];

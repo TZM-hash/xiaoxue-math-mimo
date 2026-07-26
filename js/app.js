@@ -443,6 +443,8 @@ const STORE = {
       confirmRenamePetBtn: document.getElementById("confirmRenamePetBtn"),
       cancelRenamePetBtn: document.getElementById("cancelRenamePetBtn"),
       petRoomCatBtn: document.getElementById("petRoomCatBtn"),
+      petCatOutfit: document.getElementById("petCatOutfit"),
+      petCatExpression: document.getElementById("petCatExpression"),
       petCheckinBtn: document.getElementById("petCheckinBtn"),
       learningModal: document.getElementById("learningModal"),
       learningKnowledgeMap: document.getElementById("learningKnowledgeMap"),
@@ -5296,15 +5298,46 @@ const STORE = {
       </div>`;
     }
     function petExpression(profile = activeProfile(), pet = petState(profile), quality = petLearningQuality(profile)) {
-      if (pet.runaway?.status === "lost") return { key: "lost", icon: "?" };
-      if (pet.runaway?.status === "away") return { key: "away", icon: "…" };
-      if (pet.hunger < 25) return { key: "hungry", icon: "饭" };
-      if (pet.clean < 25) return { key: "dirty", icon: "洗" };
-      if (pet.mood < 30) return { key: "tired", icon: "慢" };
-      if (quality.recentCount >= 10 && quality.rate >= 90) return { key: "proud", icon: "稳" };
-      if (quality.reviewCount > 0) return { key: "focused", icon: "复" };
-      if (pet.bond >= 80) return { key: "close", icon: "亲" };
-      return { key: "calm", icon: "学" };
+      // 表情图标统一为 emoji(淘汰单汉字),保证跨字体渲染一致
+      if (pet.runaway?.status === "lost") return { key: "lost", icon: "❓" };
+      if (pet.runaway?.status === "away") return { key: "away", icon: "💨" };
+      if (pet.hunger < 25) return { key: "hungry", icon: "🍚" };
+      if (pet.clean < 25) return { key: "dirty", icon: "🛁" };
+      if (pet.mood < 30) return { key: "tired", icon: "😪" };
+      if (quality.recentCount >= 10 && quality.rate >= 90) return { key: "proud", icon: "🌟" };
+      if (quality.reviewCount > 0) return { key: "focused", icon: "📖" };
+      if (pet.bond >= 80) return { key: "close", icon: "💗" };
+      return { key: "calm", icon: "" };
+    }
+    // 统一装扮视觉数据:图层位置 + 图标 + 主题色(数据驱动,替代 CSS 硬编码几何图形)
+    function petOutfitVisual(outfitId) {
+      const item = outfitId ? PET_OUTFIT_MAP[outfitId] : null;
+      if (!item) return { id: "", layer: "", icon: "", accent: "" };
+      return {
+        id: item.id,
+        layer: item.layer || "head",
+        icon: item.icon || "",
+        accent: item.accent || ""
+      };
+    }
+    // 统一渲染房间猫的分层:装扮层(按 layer 定位) + 表情层。
+    // 替代旧的 data-outfit-icon(emoji) 与 data-outfit(CSS 几何图形) 双轨伪元素方案。
+    function syncPetCatLayers(profile = activeProfile(), pet = petState(profile)) {
+      const outfit = petOutfitVisual(pet.outfit);
+      if (els.petCatOutfit) {
+        els.petCatOutfit.textContent = outfit.icon;
+        els.petCatOutfit.dataset.layer = outfit.layer;
+        els.petCatOutfit.dataset.outfit = outfit.id;
+        els.petCatOutfit.style.setProperty("--outfit-accent", outfit.accent || "transparent");
+        els.petCatOutfit.hidden = !outfit.icon;
+      }
+      if (els.petCatExpression) {
+        const quality = petLearningQuality(profile);
+        const expression = petExpression(profile, pet, quality);
+        els.petCatExpression.textContent = expression.icon;
+        els.petCatExpression.dataset.expression = expression.key;
+        els.petCatExpression.hidden = !expression.icon;
+      }
     }
     function normalizePetWish(raw = {}, pet = null) {
       const today = todayKey();
@@ -6539,7 +6572,6 @@ const STORE = {
       if (els.petRoomStage) {
         const quality = petLearningQuality(profile);
         const expression = petExpression(profile, pet, quality);
-        const outfit = pet.outfit ? PET_OUTFIT_MAP[pet.outfit] : null;
         els.petRoomStage.dataset.roomTheme = pet.roomTheme || "sunny";
         els.petRoomStage.dataset.outfit = pet.outfit || "";
         els.petRoomStage.dataset.quality = quality.rate >= 90 && quality.recentCount >= 10 ? "excellent" : quality.rate >= 75 && quality.recentCount >= 6 ? "steady" : quality.rate < 60 && quality.recentCount >= 6 ? "slow" : "building";
@@ -6551,10 +6583,8 @@ const STORE = {
         els.petRoomStage.dataset.decorDesk = String(Boolean(pet.equippedFurniture?.bookDesk));
         els.petRoomStage.dataset.decorBed = String(Boolean(pet.equippedFurniture?.royalBed));
         els.petRoomStage.dataset.decorBasket = String(Boolean(pet.equippedFurniture?.toyBasket));
-        if (els.petRoomCatBtn) {
-          els.petRoomCatBtn.dataset.outfitIcon = outfit?.icon || "";
-          els.petRoomCatBtn.dataset.expressionIcon = expression.key === "calm" ? "" : expression.icon;
-        }
+        // 装扮/表情改由分层 DOM 渲染(syncPetCatLayers),不再用 data-outfit-icon/data-expression-icon 伪元素
+        syncPetCatLayers(profile, pet);
       }
       if (els.petRoomName) els.petRoomName.textContent = pet.runaway?.status === "lost"
         ? "等待重新领养"

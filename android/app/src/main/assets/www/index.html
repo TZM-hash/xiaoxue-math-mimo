@@ -464,6 +464,8 @@
               <div class="pet-room-walker" id="petRoomWalker">
                 <button class="cat pet-room-cat" type="button" id="petRoomCatBtn" aria-label="摸摸招财">
                   <img src="assets/cat-states-app/cat_idle.png" alt="" data-pet-image />
+                  <span class="pet-cat-outfit" id="petCatOutfit" aria-hidden="true"></span>
+                  <span class="pet-cat-expression" id="petCatExpression" aria-hidden="true"></span>
                   <div class="cat-face" aria-hidden="true"></div>
                 </button>
               </div>
@@ -480,6 +482,7 @@
                 <div><span>经验</span><strong id="petSpaceXp">0 / 80</strong></div>
               </div>
               <div class="pet-skill-strip" id="petSkillStrip" aria-label="亲密技能"></div>
+              <button class="pet-checkin-card" type="button" id="petCheckinBtn" aria-live="polite"></button>
             </div>
           </div>
           <div class="pet-space-bars" id="petSpaceBars"></div>
@@ -1463,4 +1466,3 @@ CREATE POLICY "allow_all_user_settings" ON user_settings FOR ALL USING (true) WI
   <script src="js/visual-polish.js"></script>
 </body>
 </html>
-

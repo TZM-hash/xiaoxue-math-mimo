@@ -1,4 +1,4 @@
-﻿/* Pet space, modals, subject hub, and knowledge map styles. Split from pet-learning.css. */
+/* Pet space, modals, subject hub, and knowledge map styles. Split from pet-learning.css. */
 
 /* Pet, learning report, print, modal, and responsive layouts. Split from themes.css. */
 
@@ -1004,18 +1004,45 @@
       z-index: 1;
     }
     .pet-room-cat .cat-face { display: none; }
-    .pet-room-cat::before { display: none !important; }
-    .pet-room-cat::before,
-    .pet-room-cat::after {
+    /* —— 统一分层渲染:装扮层(.pet-cat-outfit) + 表情层(.pet-cat-expression) ——
+       替代旧的 data-outfit-icon/data-expression-icon 伪元素双轨方案。 */
+    .pet-cat-outfit,
+    .pet-cat-expression {
       position: absolute;
-      z-index: 4;
       display: grid;
       place-items: center;
       pointer-events: none;
       filter: drop-shadow(0 6px 10px rgba(44,86,108,.18));
     }
-    .pet-room-cat::before {
-      content: attr(data-expression-icon);
+    .pet-cat-outfit[hidden],
+    .pet-cat-expression[hidden] {
+      display: none;
+    }
+    .pet-cat-outfit {
+      z-index: 5;
+      font-size: 26px;
+      line-height: 1;
+      text-shadow: 0 2px 4px rgba(44,86,108,.18);
+    }
+    .pet-cat-outfit[data-layer="head"] {
+      top: -14px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    .pet-cat-outfit[data-layer="neck"] {
+      bottom: 16%;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    .pet-cat-outfit[data-layer="back"] {
+      bottom: 2%;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 30px;
+      opacity: .92;
+    }
+    .pet-cat-expression {
+      z-index: 4;
       top: -20px;
       right: 2px;
       min-width: 30px;
@@ -1024,31 +1051,14 @@
       border-radius: 999px;
       background: rgba(255,255,255,.88);
       color: color-mix(in oklch, var(--accent), black 12%);
-      font: 950 12px/1 var(--font-display);
-      display: none;
-    }
-    .pet-room-cat::after {
-      content: attr(data-outfit-icon);
-      top: 6px;
-      left: 50%;
-      min-width: 34px;
-      height: 34px;
-      border-radius: 999px;
-      transform: translateX(-50%);
-      font-size: 24px;
-    }
-    .pet-room-cat[data-outfit-icon=""]::after {
-      display: none;
-    }
-    .pet-room-cat[data-expression-icon=""]::before {
-      display: none;
+      font: 950 13px/1 var(--font-display);
     }
     .pet-room-stage[data-expression="hungry"] .pet-room-cat img,
     .pet-room-stage[data-expression="dirty"] .pet-room-cat img,
     .pet-room-stage[data-expression="tired"] .pet-room-cat img {
       filter: saturate(.9) brightness(.96);
     }
-    .pet-room-stage[data-expression="proud"] .pet-room-cat::before {
+    .pet-room-stage[data-expression="proud"] .pet-cat-expression {
       background: color-mix(in oklch, var(--sun), white 28%);
     }
     .pet-room-walker:not(.is-walking):not(.pet-room-feedback) .pet-room-cat img {
@@ -1236,6 +1246,69 @@
       color: color-mix(in oklch, var(--accent), black 10%);
       background: color-mix(in oklch, var(--accent), white 84%);
       border-color: color-mix(in oklch, var(--accent), white 44%);
+    }
+    .pet-checkin-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      width: 100%;
+      margin-top: 8px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid color-mix(in oklch, var(--accent), white 40%);
+      background: color-mix(in oklch, var(--accent), white 88%);
+      color: color-mix(in oklch, var(--accent), black 16%);
+      font-family: inherit;
+      cursor: pointer;
+      transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease;
+    }
+    .pet-checkin-card:hover:not(.is-done) {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 20px -10px color-mix(in oklch, var(--accent), transparent 40%);
+    }
+    .pet-checkin-card.is-done {
+      background: rgba(255,255,255,.6);
+      border-color: var(--border);
+      color: var(--muted);
+      cursor: default;
+      opacity: .8;
+    }
+    .pet-checkin-left {
+      display: grid;
+      gap: 2px;
+      text-align: left;
+    }
+    .pet-checkin-left strong {
+      font: 900 13px/1.2 var(--font-display);
+    }
+    .pet-checkin-left em {
+      font-style: normal;
+      font-size: 11px;
+      color: inherit;
+      opacity: .85;
+    }
+    .pet-checkin-right {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+    .pet-checkin-reward {
+      font: 900 13px/1 var(--font-display);
+      color: color-mix(in oklch, var(--accent), black 8%);
+    }
+    .pet-checkin-right i {
+      font-style: normal;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: color-mix(in oklch, #f7b733, white 72%);
+      color: color-mix(in oklch, #a25e00, black 8%);
+    }
+    .pet-checkin-done {
+      font: 800 12px/1.2 var(--font-display);
     }
     .pet-care-dashboard {
       display: grid;
@@ -1830,57 +1903,6 @@
         0 8px 16px rgba(44,86,108,.12),
         -26px 8px 0 -8px color-mix(in oklch, var(--sun), white 42%),
         24px 10px 0 -10px color-mix(in oklch, var(--coral), white 58%);
-    }
-    .pet-room-stage[data-outfit="redScarf"] .pet-room-cat::after,
-    .pet-room-stage[data-outfit="scholarCap"] .pet-room-cat::after,
-    .pet-room-stage[data-outfit="starCape"] .pet-room-cat::after,
-    .pet-room-stage[data-outfit="festivalCape"] .pet-room-cat::after,
-    .pet-room-stage[data-outfit="littleCrown"] .pet-room-cat::after {
-      content: "";
-      position: absolute;
-      left: 50%;
-      z-index: 5;
-      pointer-events: none;
-    }
-    .pet-room-stage[data-outfit="redScarf"] .pet-room-cat::after {
-      bottom: 28%;
-      width: 54%;
-      height: 10%;
-      transform: translateX(-50%) rotate(-4deg);
-      border-radius: 999px;
-      background: color-mix(in oklch, var(--coral), white 18%);
-    }
-    .pet-room-stage[data-outfit="scholarCap"] .pet-room-cat::after {
-      top: -6%;
-      width: 52%;
-      height: 18%;
-      transform: translateX(-50%);
-      background:
-        linear-gradient(90deg, transparent 0 42%, color-mix(in oklch, var(--sun), white 20%) 43% 57%, transparent 58%),
-        linear-gradient(180deg, color-mix(in oklch, var(--fg), white 14%), color-mix(in oklch, var(--fg), white 30%));
-      clip-path: polygon(6% 42%, 50% 0, 94% 42%, 50% 76%);
-    }
-    .pet-room-stage[data-outfit="starCape"] .pet-room-cat::after,
-    .pet-room-stage[data-outfit="festivalCape"] .pet-room-cat::after {
-      bottom: 9%;
-      width: 76%;
-      height: 44%;
-      transform: translateX(-50%);
-      border-radius: 40% 40% 54% 54%;
-      background: color-mix(in oklch, var(--accent-2), white 34%);
-      opacity: .82;
-    }
-    .pet-room-stage[data-outfit="festivalCape"] .pet-room-cat::after {
-      background: color-mix(in oklch, var(--coral), white 42%);
-    }
-    .pet-room-stage[data-outfit="littleCrown"] .pet-room-cat::after {
-      top: -8%;
-      width: 44%;
-      height: 20%;
-      transform: translateX(-50%);
-      background: color-mix(in oklch, var(--sun), white 8%);
-      clip-path: polygon(0 100%, 10% 28%, 32% 62%, 50% 10%, 68% 62%, 90% 28%, 100% 100%);
-      filter: drop-shadow(0 4px 8px rgba(44,86,108,.16));
     }
     .pet-shop-grid,
     .pet-bag-list {
