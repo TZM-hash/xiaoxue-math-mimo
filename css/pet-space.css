@@ -1337,6 +1337,41 @@
     .pet-checkin-done {
       font: 800 12px/1.2 var(--font-display);
     }
+    /* 等级解锁预览:当前等级下方、签到卡上方,两行下级解锁信息 */
+    .pet-level-unlocks {
+      display: grid;
+      gap: 4px;
+      margin-top: 8px;
+    }
+    .pet-level-unlock-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 24px;
+      padding: 3px 9px;
+      border-radius: 10px;
+      background: rgba(255,255,255,.6);
+      border: 1px solid color-mix(in oklch, var(--border), white 20%);
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .pet-level-unlock-row b {
+      flex-shrink: 0;
+      min-width: 38px;
+      font: 950 11px/1 var(--font-display);
+      color: color-mix(in oklch, var(--accent), black 8%);
+    }
+    .pet-level-unlock-row span {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .pet-level-unlock-row.is-max {
+      justify-content: center;
+      color: color-mix(in oklch, var(--accent), black 12%);
+      font-weight: 800;
+    }
     .pet-care-dashboard {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));

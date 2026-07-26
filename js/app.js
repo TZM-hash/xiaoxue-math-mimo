@@ -445,6 +445,7 @@ const STORE = {
       petCatOutfit: document.getElementById("petCatOutfit"),
       petCatExpression: document.getElementById("petCatExpression"),
       petRoomProps: document.getElementById("petRoomProps"),
+      petLevelUnlocks: document.getElementById("petLevelUnlocks"),
       petCheckinBtn: document.getElementById("petCheckinBtn"),
       learningModal: document.getElementById("learningModal"),
       learningKnowledgeMap: document.getElementById("learningKnowledgeMap"),
@@ -6574,6 +6575,22 @@ const STORE = {
       els.petCheckinBtn.disabled = done;
       els.petCheckinBtn.setAttribute("aria-pressed", String(done));
     }
+    // 等级解锁预览:在当前等级下方、签到卡上方,显示下两级解锁信息(两行)。
+    function renderPetLevelUnlocks(pet, profile = activeProfile()) {
+      if (!els.petLevelUnlocks) return;
+      const level = Number(pet.level) || 1;
+      const upcoming = PET_LEVEL_REWARDS
+        .filter((reward) => Number(reward.level) > level)
+        .sort((a, b) => Number(a.level) - Number(b.level))
+        .slice(0, 2);
+      els.petLevelUnlocks.innerHTML = upcoming.length
+        ? upcoming.map((reward) => `
+          <div class="pet-level-unlock-row">
+            <b>Lv.${reward.level}</b>
+            <span>${escapeHTML(petCopy(reward.unlock || reward.title, profile))}</span>
+          </div>`).join("")
+        : `<div class="pet-level-unlock-row is-max"><span>成长奖励已全部解锁</span></div>`;
+    }
 
     // 轻量房间 stage 同步(WP-D):只更新房间舞台 data-*、猫分层、等级/经验、状态条、技能条、签到。
     // 互动路径(updatePetStatus)调它避免 renderPetSpace 整页 innerHTML 重建导致的闪烁/卡顿。
@@ -6658,6 +6675,7 @@ const STORE = {
       }
       renderPetSkillStrip(pet);
       renderPetCheckin(pet, profile);
+      renderPetLevelUnlocks(pet, profile);
     }
 
     function renderPetSpace(profile = activeProfile()) {

@@ -2199,6 +2199,10 @@
       .pet-room-top {
         display: none !important;
       }
+      /* 手机端隐藏等级解锁预览,进一步精简首屏 */
+      .pet-level-unlocks {
+        display: none !important;
+      }
       .pet-room-scene {
         min-height: 248px;
         border-radius: 18px;
