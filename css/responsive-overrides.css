@@ -2203,6 +2203,10 @@
       .pet-level-unlocks {
         display: none !important;
       }
+      /* 手机端隐藏亲密技能条(Lv.X/亲密Y 技能名),省下首屏空间 */
+      .pet-skill-strip {
+        display: none !important;
+      }
       .pet-room-scene {
         min-height: 248px;
         border-radius: 18px;
