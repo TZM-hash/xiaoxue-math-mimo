@@ -4401,38 +4401,31 @@ const STORE = {
       if (!effectSettingEnabled("rewardParticles")) return;
       if (isAndroidWebView()) {
         els.celebrationLayer.innerHTML = "";
-        const token = document.createElement("span");
-        token.className = `burst-token ${kind === "wrong" ? "wrong" : ""}`;
-        token.textContent = kind === "correct" ? "真棒" : "再试";
-        token.style.setProperty("--x", "50%");
-        token.style.setProperty("--y", "42%");
-        token.style.setProperty("--dx", "0px");
-        token.style.setProperty("--dy", kind === "correct" ? "-42px" : "24px");
-        token.style.setProperty("--rot", "0deg");
-        token.style.setProperty("--dur", "460ms");
-        els.celebrationLayer.appendChild(token);
-        window.setTimeout(() => token.remove(), 520);
+        spawnPetFx(els.celebrationLayer, [{
+          text: kind === "correct" ? "真棒" : "再试",
+          className: `burst-token ${kind === "wrong" ? "wrong" : ""}`,
+          vars: { "--x": "50%", "--y": "42%", "--dx": "0px", "--dy": kind === "correct" ? "-42px" : "24px", "--rot": "0deg", "--dur": "460ms" },
+          life: PET_FX_TIMING.burstTokenLife
+        }]);
         return;
       }
       const tokens = kind === "correct"
         ? (state.streak >= 3 ? ["🥳", "🌟", "连对", "+1", "太稳啦", "🎉"] : ["😄", "⭐", "+1", "真棒", "会了", "👏"])
         : ["😢", "慢慢来", "看步骤", "再试", "🧩"];
       els.celebrationLayer.innerHTML = "";
-      tokens.forEach((label, index) => {
-        const token = document.createElement("span");
-        token.className = `burst-token ${kind === "wrong" ? "wrong" : "correct"}`;
-        token.textContent = label;
-        token.style.setProperty("--x", `${36 + index * (kind === "correct" ? 11 : 17)}%`);
-        token.style.setProperty("--y", `${kind === "correct" ? 34 + (index % 2) * 12 : 42 + index * 8}%`);
-        token.style.setProperty("--dx", `${(index - 2) * 34}px`);
-        token.style.setProperty("--dy", `${kind === "correct" ? -110 - index * 8 : 48 + index * 14}px`);
-        token.style.setProperty("--rot", `${(index - 2) * 12}deg`);
-        token.style.setProperty("--dur", `${kind === "correct" ? 980 : 760}ms`);
-        els.celebrationLayer.appendChild(token);
-      });
-      window.setTimeout(() => {
-        els.celebrationLayer.querySelectorAll(".burst-token").forEach((token) => token.remove());
-      }, 1100);
+      spawnPetFx(els.celebrationLayer, tokens.map((label, index) => ({
+        text: label,
+        className: `burst-token ${kind === "wrong" ? "wrong" : "correct"}`,
+        vars: {
+          "--x": `${36 + index * (kind === "correct" ? 11 : 17)}%`,
+          "--y": `${kind === "correct" ? 34 + (index % 2) * 12 : 42 + index * 8}%`,
+          "--dx": `${(index - 2) * 34}px`,
+          "--dy": `${kind === "correct" ? -110 - index * 8 : 48 + index * 14}px`,
+          "--rot": `${(index - 2) * 12}deg`,
+          "--dur": `${kind === "correct" ? 980 : 760}ms`
+        },
+        life: kind === "correct" ? 1000 : 780
+      })));
     }
     function streakMilestone(streak) {
       if (streak === 10) return { title: "连对 10 题", copy: "招财送你 10 金币，下一轮继续稳住。", xp: 20, coins: 10 };
@@ -4480,19 +4473,47 @@ const STORE = {
       if (kind === "finish") return ["完成", "奖励"];
       return ["加油"];
     }
+    // —— 统一宠物反馈特效(WP-C):计时常量化 + 单一 token 生成核心 ——
+    // 三套原有实现(sprinklePetTokens / triggerPetRoomFeedback / burst)统一收口到
+    // spawnPetFx,计时与错峰全部来自此表,消除散落硬编码。
+    const PET_FX_TIMING = Object.freeze({
+      actionReset: 1500,        // setPetAction 动作复位
+      actionResetLowMotion: 600,
+      tokenLife: 1080,          // 伴练猫飘字生命周期
+      roomTokenLife: 1150,      // 房间猫飘字生命周期
+      roomFeedbackReset: 1180,  // 房间反馈 class 复位
+      walkStep: 1500,           // 房间猫单步走路动画
+      walkInterval: 3600,       // 房间猫常规走动间隔
+      walkIntervalLowMotion: 5200,
+      walkWarmup: Object.freeze([520, 1550, 2900]), // 进入空间后的三次热身走位
+      tokenStagger: 72,         // 伴练猫飘字错峰
+      roomTokenStagger: 95,     // 房间猫飘字错峰
+      burstTokenLife: 520       // 全屏 burst token 移除
+    });
+    // 统一 token 生成核心:在 mount 下按 specs 生成一组飘字并定时清理。
+    // specs: [{ text, className, vars: { cssVar: value }, life }]
+    function spawnPetFx(mount, specs = []) {
+      if (!mount || !Array.isArray(specs)) return;
+      specs.forEach((spec) => {
+        if (!spec || !spec.text) return;
+        const token = document.createElement("span");
+        token.className = spec.className || "pet-token";
+        token.textContent = spec.text;
+        Object.entries(spec.vars || {}).forEach(([key, value]) => token.style.setProperty(key, value));
+        mount.appendChild(token);
+        window.setTimeout(() => token.remove(), Number(spec.life) || PET_FX_TIMING.tokenLife);
+      });
+    }
 
     function sprinklePetTokens(kind) {
       if (!els.companionArt || isLowMotionMode() || !effectSettingEnabled("rewardParticles")) return;
       const labels = petTokenLabels(kind).slice(0, kind === "wrong" ? 2 : 3);
-      labels.forEach((label, index) => {
-        const token = document.createElement("span");
-        token.className = `pet-token ${kind}`;
-        token.textContent = label;
-        token.style.setProperty("--px", `${28 + index * 22}%`);
-        token.style.setProperty("--delay", `${index * 72}ms`);
-        els.companionArt.appendChild(token);
-        window.setTimeout(() => token.remove(), 1080);
-      });
+      spawnPetFx(els.companionArt, labels.map((label, index) => ({
+        text: label,
+        className: `pet-token ${kind}`,
+        vars: { "--px": `${28 + index * 22}%`, "--delay": `${index * PET_FX_TIMING.tokenStagger}ms` },
+        life: PET_FX_TIMING.tokenLife
+      })));
     }
 
     function triggerPetRoomFeedback(kind = "idle", bubble = "") {
@@ -4518,20 +4539,17 @@ const STORE = {
       void els.petRoomWalker.offsetWidth;
       els.petRoomWalker.classList.add("pet-room-feedback");
       els.petRoomWalker.querySelectorAll(".pet-room-token").forEach((node) => node.remove());
-      labels.slice(0, 2).forEach((label, index) => {
-        const token = document.createElement("span");
-        token.className = "pet-room-token";
-        token.textContent = label;
-        token.style.setProperty("--token-x", `${index ? 68 : 28}%`);
-        token.style.setProperty("--token-delay", `${index * 95}ms`);
-        els.petRoomWalker.appendChild(token);
-        window.setTimeout(() => token.remove(), 1150);
-      });
+      spawnPetFx(els.petRoomWalker, labels.slice(0, 2).map((label, index) => ({
+        text: label,
+        className: "pet-room-token",
+        vars: { "--token-x": `${index ? 68 : 28}%`, "--token-delay": `${index * PET_FX_TIMING.roomTokenStagger}ms` },
+        life: PET_FX_TIMING.roomTokenLife
+      })));
       if (state.petRoomFeedbackTimer) window.clearTimeout(state.petRoomFeedbackTimer);
       state.petRoomFeedbackTimer = window.setTimeout(() => {
         els.petRoomWalker?.classList.remove("pet-room-feedback");
         if (els.petRoomWalker) delete els.petRoomWalker.dataset.feedback;
-      }, 1180);
+      }, PET_FX_TIMING.roomFeedbackReset);
     }
 
     function setPetAction(kind = "idle", bubble = "") {
@@ -4555,7 +4573,7 @@ const STORE = {
         if (els.petCharacterBtn) els.petCharacterBtn.dataset.petMood = "idle";
         if (els.companionArt) els.companionArt.dataset.petMood = "idle";
         syncPetImage();
-      }, isLowMotionMode() ? 600 : 1500);
+      }, isLowMotionMode() ? PET_FX_TIMING.actionResetLowMotion : PET_FX_TIMING.actionReset);
     }
 
     function shouldUseMobilePetHintPopover() {
@@ -6500,7 +6518,7 @@ const STORE = {
         window.clearTimeout(state.petRoomWalkMotionTimer);
         state.petRoomWalkMotionTimer = window.setTimeout(() => {
           els.petRoomWalker?.classList.remove("is-walking");
-        }, 1500);
+        }, PET_FX_TIMING.walkStep);
       }
     }
 
@@ -6514,7 +6532,7 @@ const STORE = {
         els.petRoomWalker?.classList.remove("no-transition");
         els.petRoomCatBtn?.classList.remove("no-transition");
       }, 40);
-      [520, 1550, 2900].forEach((delay) => {
+      PET_FX_TIMING.walkWarmup.forEach((delay) => {
         state.petRoomWalkWarmupTimers.push(window.setTimeout(() => {
           if (state.view === "petspace" && !document.hidden) movePetRoomCat();
         }, delay));
@@ -6522,7 +6540,7 @@ const STORE = {
       state.petRoomWalkTimer = window.setInterval(() => {
         if (state.view !== "petspace" || document.hidden) return;
         movePetRoomCat();
-      }, isLowMotionMode() ? 5200 : 3600);
+      }, isLowMotionMode() ? PET_FX_TIMING.walkIntervalLowMotion : PET_FX_TIMING.walkInterval);
     }
 
     function stopPetRoomWalk() {
