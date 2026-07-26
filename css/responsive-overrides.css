@@ -2195,10 +2195,6 @@
       .pet-task-columns {
         grid-template-columns: 1fr;
       }
-      /* 手机端隐藏顶部标题区(标题+描述+金币),让房间舞台与下方内容尽量一屏显示 */
-      .pet-room-top {
-        display: none !important;
-      }
       /* 手机端隐藏等级解锁预览,进一步精简首屏 */
       .pet-level-unlocks {
         display: none !important;
