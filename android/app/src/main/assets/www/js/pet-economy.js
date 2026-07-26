@@ -90,7 +90,11 @@
     { id: "forest", title: "森林小屋", icon: "🌿", minLevel: 5, price: 110, desc: "适合稳定练习后的清新主题。" },
     { id: "star", title: "星空房间", icon: "🌌", minLevel: 10, price: 170, desc: "夜空、星灯和安静的学习角。" },
     { id: "candy", title: "糖果乐园", icon: "🍬", minLevel: 15, price: 220, desc: "色彩更活泼，适合长期收集。" },
-    { id: "ocean", title: "海底小窝", icon: "🐚", minLevel: 20, price: 270, desc: "高级主题，通过高等级或成就获得更划算。" }
+    { id: "ocean", title: "海底小窝", icon: "🐚", minLevel: 20, price: 270, desc: "高级主题，通过高等级或成就获得更划算。" },
+    // —— 2026 主题扩充（配套 CSS 见 pet-space.css [data-room-theme]）——
+    { id: "sakura", title: "樱花庭院", icon: "🌸", minLevel: 8, price: 150, desc: "春日粉樱，柔和治愈的小院子。" },
+    { id: "aurora", title: "极光雪屋", icon: "❄️", minLevel: 16, price: 240, desc: "冬夜极光，安静又梦幻。" },
+    { id: "sunset", title: "黄昏暖阳", icon: "🌇", minLevel: 12, price: 200, desc: "傍晚橙红色调，温暖惬意。" }
   ];
 
   const FURNITURE = [
@@ -109,7 +113,14 @@
     { id: "scholarCap", title: "学士帽", icon: "🎓", minLevel: 6, price: 98, desc: "适合认真复习错题的小伙伴。" },
     { id: "starCape", title: "星星披风", icon: "✨", minLevel: 10, price: 140, desc: "星空主题的可见奖励。" },
     { id: "festivalCape", title: "节日斗篷", icon: "🎀", minLevel: 15, price: 180, desc: "长期坚持后的节日装扮。" },
-    { id: "littleCrown", title: "小皇冠", icon: "👑", minLevel: 25, price: 260, desc: "高等级和成就系统里的稀有装扮。" }
+    { id: "littleCrown", title: "小皇冠", icon: "👑", minLevel: 25, price: 260, desc: "高等级和成就系统里的稀有装扮。" },
+    // —— 2026 装扮扩充：季节 / 节日套系（emoji 装扮，佩戴后显示在猫头顶）——
+    { id: "springHat", title: "春日花环", icon: "🌸", minLevel: 3, price: 66, desc: "春季套系：戴上花环迎接春天。" },
+    { id: "summerGlasses", title: "夏日墨镜", icon: "🕶️", minLevel: 5, price: 78, desc: "夏季套系：清凉一夏的小酷猫。" },
+    { id: "autumnMaple", title: "秋叶徽章", icon: "🍁", minLevel: 7, price: 96, desc: "秋季套系：把落叶别在身上。" },
+    { id: "winterHat", title: "冬日毛线帽", icon: "🧢", minLevel: 9, price: 108, desc: "冬季套系：暖暖的毛线帽。" },
+    { id: "birthdayHat", title: "生日帽", icon: "🥳", minLevel: 4, price: 88, desc: "节日套系：一起庆祝小小里程碑。" },
+    { id: "graduationGown", title: "毕业礼袍", icon: "🎊", minLevel: 20, price: 200, desc: "节日套系：陪你一路坚持到毕业季。" }
   ];
 
   const ACHIEVEMENTS = [
