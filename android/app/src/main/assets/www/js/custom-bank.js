@@ -28,6 +28,15 @@
     }
   }
 
+  function persistenceError() {
+    return new Error("本地题库保存失败，请导出备份后重试");
+  }
+
+  function restoreBank(bank, snapshot) {
+    Object.keys(bank).forEach((key) => delete bank[key]);
+    Object.assign(bank, snapshot);
+  }
+
   function normalizeQuestion(question, published, index = 0) {
     const item = question && typeof question === "object" ? { ...question } : {};
     item.id = String(item.id || `custom-q-${index + 1}-${Math.random().toString(36).slice(2, 7)}`);
@@ -102,7 +111,10 @@
       questions
     }, { newBank: true });
     banks.push(bank);
-    writeStore(banks);
+    if (!writeStore(banks)) {
+      banks.pop();
+      throw persistenceError();
+    }
     mergeIntoExternalSeeds();
     return bank;
   }
@@ -110,9 +122,14 @@
   function renameBank(id, name) {
     const bank = getBank(id);
     if (!bank) return false;
+    const snapshot = JSON.parse(JSON.stringify(bank));
     bank.name = String(name || "").trim() || bank.name;
     recordHistory(bank, "rename", "修改批次名称");
-    return writeStore(banks);
+    if (!writeStore(banks)) {
+      restoreBank(bank, snapshot);
+      return false;
+    }
+    return true;
   }
 
   function recordHistory(bank, action, summary) {
@@ -160,12 +177,16 @@
     if (!bank) return { ok: false, reason: "题库不存在" };
     const audit = auditBank(id);
     if (!audit?.canPublish) return { ok: false, reason: `仍有 ${audit?.counts?.high || 0} 道题存在硬规则问题`, audit };
+    const snapshot = JSON.parse(JSON.stringify(bank));
     bank.status = "published";
     bank.questions.forEach((question) => {
       if (question.enabled !== false) question.reviewStatus = "approved";
     });
     recordHistory(bank, "publish", `审核发布 ${bank.questions.filter((question) => question.enabled !== false).length} 题`);
-    writeStore(banks);
+    if (!writeStore(banks)) {
+      restoreBank(bank, snapshot);
+      return { ok: false, reason: persistenceError().message, audit };
+    }
     mergeIntoExternalSeeds();
     return { ok: true, bank, audit };
   }
@@ -173,9 +194,13 @@
   function setBankStatus(id, status) {
     const bank = getBank(id);
     if (!bank || !BANK_STATUSES.has(status) || status === "published") return false;
+    const snapshot = JSON.parse(JSON.stringify(bank));
     bank.status = status;
     recordHistory(bank, status, status === "disabled" ? "停用题库" : "退回待审核");
-    writeStore(banks);
+    if (!writeStore(banks)) {
+      restoreBank(bank, snapshot);
+      return false;
+    }
     mergeIntoExternalSeeds();
     return true;
   }
@@ -184,6 +209,7 @@
     const bank = getBank(id);
     if (!bank || !patch || typeof patch !== "object") return 0;
     const ids = new Set(Array.isArray(questionIds) ? questionIds.filter(Boolean) : []);
+    const snapshot = JSON.parse(JSON.stringify(bank));
     let changed = 0;
     bank.questions.forEach((question) => {
       if (ids.size && !ids.has(question.id)) return;
@@ -198,7 +224,10 @@
     if (!changed) return 0;
     bank.status = "review";
     recordHistory(bank, "batch-update", `批量修改 ${changed} 题并退回审核`);
-    writeStore(banks);
+    if (!writeStore(banks)) {
+      restoreBank(bank, snapshot);
+      return 0;
+    }
     mergeIntoExternalSeeds();
     return changed;
   }
@@ -207,9 +236,13 @@
     const bank = getBank(id);
     const question = bank?.questions?.find((item) => item.id === questionId);
     if (!bank || !question) return false;
+    const snapshot = JSON.parse(JSON.stringify(bank));
     question.enabled = Boolean(enabled);
     recordHistory(bank, enabled ? "enable-question" : "disable-question", `${enabled ? "启用" : "停用"}题目 ${questionId}`);
-    writeStore(banks);
+    if (!writeStore(banks)) {
+      restoreBank(bank, snapshot);
+      return false;
+    }
     mergeIntoExternalSeeds();
     return true;
   }
@@ -217,9 +250,14 @@
   function deleteBank(id) {
     const before = banks.length;
     const target = getBank(id);
+    const previous = banks;
     banks = banks.filter((bank) => bank.id !== id);
     if (banks.length === before) return false;
     const ok = writeStore(banks);
+    if (!ok) {
+      banks = previous;
+      return false;
+    }
     mergeIntoExternalSeeds();
     // 清理该批次的图片（异步，忽略结果）
     const Images = window.MathCampBankImages;
@@ -371,8 +409,12 @@
       return JSON.parse(JSON.stringify(banks));
     },
     replaceAll(list) {
+      const previous = banks;
       banks = Array.isArray(list) ? list.filter((b) => b && Array.isArray(b.questions)).map((bank) => normalizeBank(bank)) : [];
-      writeStore(banks);
+      if (!writeStore(banks)) {
+        banks = previous;
+        return 0;
+      }
       mergeIntoExternalSeeds();
       return banks.length;
     },
@@ -393,8 +435,12 @@
     // 从存档恢复：写回 banks 和图片
     async replaceAllWithImages(payload) {
       const list = Array.isArray(payload) ? payload : (payload && payload.banks);
+      const previous = banks;
       banks = Array.isArray(list) ? list.filter((b) => b && Array.isArray(b.questions)).map((bank) => normalizeBank(bank)) : [];
-      writeStore(banks);
+      if (!writeStore(banks)) {
+        banks = previous;
+        throw persistenceError();
+      }
       const Images = window.MathCampBankImages;
       const images = (payload && payload.images) || {};
       if (Images && images && typeof images === "object") {

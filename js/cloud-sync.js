@@ -253,7 +253,7 @@
     }
   }
 
-  async function pullAllProfiles() {
+  async function readProfiles() {
     if (!syncEnabled || !client) return null;
 
     try {
@@ -265,15 +265,19 @@
         .order("updated_at", { ascending: false });
 
       if (error) throw error;
-      if (!data || !data.length) return null;
-      return data;
+      return { ok: true, data: Array.isArray(data) ? data : [] };
     } catch (err) {
       console.error("[CloudSync] 拉取失败:", err);
-      return null;
+      return { ok: false, data: [], error: err };
     }
   }
 
-  async function pullSettings() {
+  async function pullAllProfiles() {
+    var result = await readProfiles();
+    return result && result.ok && result.data.length ? result.data : null;
+  }
+
+  async function readSettings() {
     if (!syncEnabled || !client) return null;
 
     try {
@@ -286,12 +290,16 @@
         .limit(1);
 
       if (error) throw error;
-      if (!data || !data.length) return null;
-      return data[0].settings;
+      return { ok: true, data: data && data.length ? data[0].settings || null : null };
     } catch (err) {
       console.error("[CloudSync] 设置拉取失败:", err);
-      return null;
+      return { ok: false, data: null, error: err };
     }
+  }
+
+  async function pullSettings() {
+    var result = await readSettings();
+    return result && result.ok ? result.data : null;
   }
 
   function arrayByKey(items, keyFn) {
@@ -561,24 +569,43 @@
     }
 
     setSyncStatus("syncing");
-    var cloudRows = await pullAllProfiles();
-    var cloudSettings = await pullSettings();
+    var profilesRead = await readProfiles();
+    if (!profilesRead || !profilesRead.ok) {
+      setSyncStatus("error");
+      return {
+        profiles: localProfiles,
+        activeId: localActiveId,
+        systemSettings: localSettings || null,
+        changed: false,
+        settingsChanged: false,
+        syncError: true,
+        errorMessage: "云端档案读取失败，已保留本地数据。",
+        summary: blankSummary()
+      };
+    }
+
+    var settingsRead = await readSettings();
+    var cloudRows = profilesRead.data;
+    var cloudSettings = settingsRead && settingsRead.ok ? settingsRead.data : null;
+    var settingsReadFailed = !settingsRead || !settingsRead.ok;
     var settingsMerge = mergeSettings(localSettings, cloudSettings);
     var mergedSettings = settingsMerge.settings;
     var settingsChanged = settingsMerge.changed;
-    if (!settingsChanged && localSettings) {
+    if (!settingsReadFailed && !settingsChanged && localSettings) {
       await pushSettings(localSettings);
     }
 
-    if (!cloudRows) {
+    if (!cloudRows.length) {
       await pushProfiles(localProfiles, localActiveId);
-      if (localSettings) await pushSettings(localSettings);
+      if (!settingsReadFailed && localSettings) await pushSettings(localSettings);
       return {
         profiles: localProfiles,
         activeId: localActiveId,
         systemSettings: mergedSettings,
         changed: false,
         settingsChanged: settingsChanged,
+        syncError: settingsReadFailed,
+        errorMessage: settingsReadFailed ? "系统设置读取失败，学习数据已保留。" : "",
         summary: { ...blankSummary(), settingsChanged: settingsChanged }
       };
     }
@@ -597,6 +624,8 @@
         systemSettings: mergedSettings,
         changed: true,
         settingsChanged: settingsChanged,
+        syncError: settingsReadFailed,
+        errorMessage: settingsReadFailed ? "系统设置读取失败，学习数据已合并。" : "",
         summary: summary
       };
     }
@@ -608,6 +637,8 @@
       systemSettings: mergedSettings,
       changed: false,
       settingsChanged: settingsChanged,
+      syncError: settingsReadFailed,
+      errorMessage: settingsReadFailed ? "系统设置读取失败，学习数据已是最新。" : "",
       summary: summary
     };
   }

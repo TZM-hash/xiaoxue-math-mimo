@@ -19,6 +19,10 @@
   const CursorEffects = {
     enabled: effectSettingEnabled('cursorEffects'),
     initialized: false,
+    customCursor: null,
+    customCursorListenersBound: false,
+    magneticElements: new WeakSet(),
+    magneticObserver: null,
     particles: [],
     maxParticles: 50,
     lastMousePos: { x: 0, y: 0 },
@@ -28,7 +32,11 @@
     init() {
       this.enabled = effectSettingEnabled('cursorEffects');
       if (!this.enabled) return;
-      if (this.initialized) return;
+      if (this.initialized) {
+        this.setupCustomCursor();
+        this.setupMagneticEffect();
+        return;
+      }
       this.initialized = true;
 
       this.setupClickExplosion();
@@ -180,9 +188,11 @@
      * 自定义光标
      */
     setupCustomCursor() {
-      const cursor = document.createElement('div');
-      cursor.id = 'customCursor';
-      cursor.style.cssText = `
+      let cursor = document.getElementById('customCursor');
+      if (!cursor) {
+        cursor = document.createElement('div');
+        cursor.id = 'customCursor';
+        cursor.style.cssText = `
         position: fixed;
         width: 20px;
         height: 20px;
@@ -195,47 +205,60 @@
         mix-blend-mode: difference;
         opacity: 0;
       `;
-
-      document.body.appendChild(cursor);
+        document.body.appendChild(cursor);
+      }
+      this.customCursor = cursor;
+      if (this.customCursorListenersBound) return;
+      this.customCursorListenersBound = true;
 
       // 光标跟随
       document.addEventListener('mousemove', (e) => {
         if (!this.enabled) return;
-        cursor.style.opacity = '1';
-        cursor.style.left = e.clientX + 'px';
-        cursor.style.top = e.clientY + 'px';
+        const current = this.customCursor;
+        if (!current) return;
+        current.style.opacity = '1';
+        current.style.left = e.clientX + 'px';
+        current.style.top = e.clientY + 'px';
       });
 
       // 悬停交互元素时变大
       document.addEventListener('mouseover', (e) => {
         if (!this.enabled) return;
+        const current = this.customCursor;
+        if (!current) return;
         if (e.target.closest('button, a, .home-mode-card, .tab-btn, input, select')) {
-          cursor.style.width = '40px';
-          cursor.style.height = '40px';
-          cursor.style.background = 'rgba(58, 164, 124, 0.1)';
+          current.style.width = '40px';
+          current.style.height = '40px';
+          current.style.background = 'rgba(58, 164, 124, 0.1)';
         }
       });
 
       document.addEventListener('mouseout', (e) => {
         if (!this.enabled) return;
+        const current = this.customCursor;
+        if (!current) return;
         if (e.target.closest('button, a, .home-mode-card, .tab-btn, input, select')) {
-          cursor.style.width = '20px';
-          cursor.style.height = '20px';
-          cursor.style.background = 'transparent';
+          current.style.width = '20px';
+          current.style.height = '20px';
+          current.style.background = 'transparent';
         }
       });
 
       // 点击时缩小
       document.addEventListener('mousedown', () => {
         if (!this.enabled) return;
-        cursor.style.width = '16px';
-        cursor.style.height = '16px';
+        const current = this.customCursor;
+        if (!current) return;
+        current.style.width = '16px';
+        current.style.height = '16px';
       });
 
       document.addEventListener('mouseup', () => {
         if (!this.enabled) return;
-        cursor.style.width = '20px';
-        cursor.style.height = '20px';
+        const current = this.customCursor;
+        if (!current) return;
+        current.style.width = '20px';
+        current.style.height = '20px';
       });
     },
 
@@ -243,9 +266,10 @@
      * 磁吸效果
      */
     setupMagneticEffect() {
-      const magneticElements = document.querySelectorAll('button.primary, .home-mode-card');
-
-      magneticElements.forEach(element => {
+      const bindElement = (element) => {
+        if (!element || this.magneticElements.has(element)) return;
+        this.magneticElements.add(element);
+        element.setAttribute('data-magnetic', 'true');
         element.addEventListener('mousemove', (e) => {
           if (!this.enabled) return;
           const rect = element.getBoundingClientRect();
@@ -262,22 +286,18 @@
           if (!this.enabled) return;
           element.style.transform = 'translate(0, 0)';
         });
-      });
+      };
+
+      const bindAll = () => {
+        document.querySelectorAll('button.primary, .home-mode-card').forEach(bindElement);
+      };
+      bindAll();
 
       // 动态监听新增元素
-      const observer = new MutationObserver(() => {
-        const newElements = document.querySelectorAll('button.primary:not([data-magnetic]), .home-mode-card:not([data-magnetic])');
-        newElements.forEach(element => {
-          element.setAttribute('data-magnetic', 'true');
-          // 重新绑定事件
-          this.setupMagneticEffect();
-        });
-      });
-
-      observer.observe(document.body, {
-        childList: true,
-        subtree: true
-      });
+      if (!this.magneticObserver && typeof MutationObserver !== 'undefined' && document.body) {
+        this.magneticObserver = new MutationObserver(bindAll);
+        this.magneticObserver.observe(document.body, { childList: true, subtree: true });
+      }
     },
 
     /**
@@ -287,7 +307,12 @@
       this.enabled = false;
       this.particles.forEach(p => p.remove());
       this.particles = [];
-      document.getElementById('customCursor')?.remove();
+      this.customCursor?.remove();
+      this.customCursor = null;
+      if (this.magneticObserver) {
+        this.magneticObserver.disconnect();
+        this.magneticObserver = null;
+      }
       console.log('[光标特效] 已禁用');
     }
   };

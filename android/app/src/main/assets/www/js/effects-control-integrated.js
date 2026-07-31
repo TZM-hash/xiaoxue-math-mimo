@@ -298,6 +298,7 @@
      */
     resetToDefault() {
       this.settings = {
+        ...(window.MathCampRuntime?.defaultEffectSettings?.() || {
         cursorEffects: true,
         seasonEffects: true,
         themeBackgrounds: true,
@@ -308,6 +309,7 @@
         rewardParticles: true,
         focusBlur: true,
         ambientAnimations: true
+        })
       };
 
       this.saveSettings();

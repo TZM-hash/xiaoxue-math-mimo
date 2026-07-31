@@ -200,6 +200,21 @@ async function runSmoke(createPage) {
         const depthCard = document.querySelector(".desktop-overview-card, .practice-card, .home-mode-card");
         const depthInput = document.querySelector(".setup-set-size-field input, #answerInput");
         const depthButton = document.querySelector("button.primary, #checkBtn");
+        localStorage.setItem("mathcamp-effects-settings", JSON.stringify({ cursorEffects: true }));
+        const cursorEffects = window.MathCampCursorEffects;
+        let cursorRestored = false;
+        if (cursorEffects) {
+          cursorEffects.disable();
+          cursorEffects.init();
+          cursorRestored = Boolean(document.getElementById("customCursor"));
+        }
+        const hadAndroidWebViewClass = document.documentElement.classList.contains("android-webview");
+        document.documentElement.classList.add("android-webview");
+        window.MathCampEffectsControl?.resetToDefault?.();
+        const androidResetEffects = window.MathCampEffectsControl
+          ? { ...window.MathCampEffectsControl.settings }
+          : null;
+        if (!hadAndroidWebViewClass) document.documentElement.classList.remove("android-webview");
 
         return {
           animationError,
@@ -226,7 +241,9 @@ async function runSmoke(createPage) {
           performanceClass,
           depthCardShadow: depthCard ? getComputedStyle(depthCard).boxShadow : "missing",
           depthInputShadow: depthInput ? getComputedStyle(depthInput).boxShadow : "missing",
-          depthButtonShadow: depthButton ? getComputedStyle(depthButton).boxShadow : "missing"
+          depthButtonShadow: depthButton ? getComputedStyle(depthButton).boxShadow : "missing",
+          cursorRestored,
+          androidResetEffects
         };
       });
 
@@ -257,6 +274,12 @@ async function runSmoke(createPage) {
       }
       if (interactionResult.depthCardShadow === "none" || !interactionResult.depthInputShadow.includes("inset") || interactionResult.depthButtonShadow === "none") {
         throw new Error(`${viewport.name}: medium-depth visual treatment is missing ${JSON.stringify(interactionResult)}`);
+      }
+      if (!interactionResult.cursorRestored) {
+        throw new Error(`${viewport.name}: cursor effect did not recover after disable/enable ${JSON.stringify(interactionResult)}`);
+      }
+      if (interactionResult.androidResetEffects?.cursorEffects !== false || interactionResult.androidResetEffects?.uiAnimations !== false) {
+        throw new Error(`${viewport.name}: Android reset should keep low-performance defaults ${JSON.stringify(interactionResult)}`);
       }
       const visibleGlassLabelLayers = [...interactionResult.clearSetupLabelLayers, ...interactionResult.popSetupLabelLayers].filter(Boolean);
       if (visibleGlassLabelLayers.some((item) => !item.topmost)) {

@@ -246,6 +246,20 @@ test("exportAll / replaceAll 往返（存档备份）", () => {
   CustomBank.replaceAll([]);
 });
 
+test("本地题库写入失败时不应保留未持久化的批次", () => {
+  const originalSetItem = context.localStorage.setItem;
+  context.localStorage.setItem = () => { throw new Error("quota exceeded"); };
+  try {
+    assert.throws(
+      () => CustomBank.addBank({ name: "写入失败卷", questions: [] }),
+      /本地题库保存失败/
+    );
+    assert.strictEqual(CustomBank.listBanks().length, 0, "写入失败后内存题库也应回滚");
+  } finally {
+    context.localStorage.setItem = originalSetItem;
+  }
+});
+
 // ---- 图片题相关 ----
 const imageMatrix = [
   ["bank", "grade", "subject", "pointId", "answerType", "text", "answer", "image"],

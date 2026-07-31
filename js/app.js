@@ -2420,6 +2420,11 @@ const STORE = {
     function renderCloudSyncSummary(result) {
       var el = document.getElementById("cloudSyncDetail");
       if (!el || !result || !result.summary) return;
+      if (result.syncError) {
+        el.hidden = false;
+        el.textContent = result.errorMessage || "同步读取失败，已保留本地数据。";
+        return;
+      }
       var summary = result.summary;
       var parts = [
         `练习 ${Number(summary.history) || 0} 条`,
@@ -11211,6 +11216,10 @@ const STORE = {
       UI.notify("正在同步…");
       var result = await window.MathCampCloudSync.fullSync(state.profiles, state.activeId, collectSystemSettings());
       renderCloudSyncSummary(result);
+      if (result.syncError && !result.changed) {
+        UI.notify(result.errorMessage || "同步失败，已保留本地数据。", { tone: "bad" });
+        return;
+      }
       if (result.settingsChanged && result.systemSettings) {
         applySystemSettings(result.systemSettings, { touch: false, sync: false });
       }
